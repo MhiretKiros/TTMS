@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/tms-modules/(home)/page": "app/tms-modules/(home)/page.js",
+  "/tms-modules/admin/car-management/manage-cars/page": "app/tms-modules/admin/car-management/manage-cars/page.js",
+  "/tms-modules/admin/car-management/manage-cars/view-car/[id]/page": "app/tms-modules/admin/car-management/manage-cars/view-car/[id]/page.js",
+  "/tms-modules/admin/page": "app/tms-modules/admin/page.js",
+  "/tms-modules/employee/page": "app/tms-modules/employee/page.js",
+  "/tms-modules/employee/request-field/page": "app/tms-modules/employee/request-field/page.js",
+  "/tms-modules/employee/request-service/page": "app/tms-modules/employee/request-service/page.js",
+  "/tms-modules/employee/send-complient/page": "app/tms-modules/employee/send-complient/page.js"
+}
