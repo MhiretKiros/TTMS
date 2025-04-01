@@ -26,7 +26,7 @@ const sidebarItems = [
     icon: '📋',
     link: '/tms-modules/admin/request-management',
     subItems: [
-      { title: 'Service Requests', link: '/tms-modules/admin/request-management/service-requests', icon: '🔧' },
+      { title: 'Service Requests', link: '/tms-modules/admin/request-management', icon: '🔧' },
       { title: 'Field Requests', link: '/tms-modules/admin/request-management/field-requests', icon: '📍' },
     ],
   },
