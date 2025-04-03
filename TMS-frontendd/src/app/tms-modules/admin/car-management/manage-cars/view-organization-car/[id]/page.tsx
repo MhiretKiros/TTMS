@@ -5,10 +5,33 @@ import { fetchOrganizationCarById } from "../../api/organizationCarServices";
 import { FiArrowLeft } from "react-icons/fi";
 import { motion } from "framer-motion";
 
+interface OrganizationCar {
+  id: number;
+  plateNumber: string;
+  ownerName: string;
+  ownerPhone: string;
+  model: string;
+  carType: string;
+  manufactureYear: string;
+  motorCapacity: string;
+  driverName: string;
+  loadCapacity: string;
+  totalKm: string;
+  fuelType: string;
+  status: string;
+  registeredDate: string;
+  parkingLocation: string;
+  createdBy: string;
+  updatedAt?: string;
+  kmPerLiter: string;
+  driverAttributes?: string;
+  driverAddress?: string;
+}
+
 export default function ViewOrganizationCarPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [car, setCar] = useState<any | null>(null);
+  const [car, setCar] = useState<OrganizationCar | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,8 +42,8 @@ export default function ViewOrganizationCarPage() {
         setError(null);
         const response = await fetchOrganizationCarById(Number(id));
         
-        if (response.codStatus === 200 && response.car) {
-          setCar(response.car);
+        if (response.success && response.data) {
+          setCar(response.data);
         } else {
           setError(response.message || "Organization car not found");
         }
@@ -117,7 +140,7 @@ export default function ViewOrganizationCarPage() {
         transition={{ delay: 0.2 }}
         className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600"
       >
-        Organization Car: {car.plateNumber}
+        Rented Vehicle: {car.plateNumber}
       </motion.h1>
       
       <motion.div
@@ -127,7 +150,7 @@ export default function ViewOrganizationCarPage() {
         className="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-100 hover:shadow-2xl transition-shadow duration-300"
       >
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Basic Information */}
+          {/* Vehicle Information */}
           <motion.div
             whileHover={{ y: -5 }}
             transition={{ type: "spring", stiffness: 300 }}
@@ -151,10 +174,11 @@ export default function ViewOrganizationCarPage() {
               {[
                 { label: "Plate Number", value: car.plateNumber },
                 { label: "Owner Name", value: car.ownerName },
+                { label: "Owner Phone", value: car.ownerPhone },
                 { label: "Model", value: car.model },
                 { label: "Car Type", value: car.carType },
                 { label: "Manufacture Year", value: car.manufactureYear },
-                { label: "Motor Capacity", value: car.motorCapacity },
+                { label: "Motor Capacity", value: `${car.motorCapacity} cc` },
                 { label: "Fuel Efficiency", value: `${car.kmPerLiter} km/L` },
                 { label: "Total KM", value: `${car.totalKm} km` },
                 { label: "Fuel Type", value: car.fuelType }
@@ -184,7 +208,7 @@ export default function ViewOrganizationCarPage() {
             </div>
           </motion.div>
           
-          {/* Driver Information */}
+          {/* Driver & Capacity */}
           <motion.div
             whileHover={{ y: -5 }}
             transition={{ type: "spring", stiffness: 300 }}
@@ -207,9 +231,9 @@ export default function ViewOrganizationCarPage() {
             </h2>
             <div className="space-y-4">
               {[
-                { label: "Driver Name", value: car.driverName },
-                { label: "Driver Attributes", value: car.driverAttributes },
-                { label: "Driver Address", value: car.driverAddress },
+                { label: "Driver Name", value: car.driverName || 'N/A' },
+                { label: "Driver Attributes", value: car.driverAttributes || '-' },
+                { label: "Driver Address", value: car.driverAddress || '-' },
                 { label: "Load Capacity", value: `${car.loadCapacity} kg` },
                 { label: "Parking Location", value: car.parkingLocation },
                 { label: "Registered Date", value: new Date(car.registeredDate).toLocaleDateString() }
@@ -232,7 +256,7 @@ export default function ViewOrganizationCarPage() {
                     whileHover={{ scale: 1.03 }}
                     className="text-gray-800 font-medium"
                   >
-                    {item.value || '-'}
+                    {item.value}
                   </motion.span>
                 </motion.div>
               ))}
@@ -271,13 +295,16 @@ export default function ViewOrganizationCarPage() {
                 }}
                 className="bg-white p-4 rounded-lg shadow-sm hover:bg-gray-50 transition-all"
               >
-                <p className="font-medium text-gray-600 mb-2">Created By</p>
-                <motion.p
-                  whileHover={{ x: 3 }}
-                  className="text-gray-800"
+                <p className="font-medium text-gray-600 mb-2">Status</p>
+                <motion.span 
+                  whileHover={{ scale: 1.1 }}
+                  className={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
+                    ${car.status === 'Active' ? 'bg-green-100 text-green-800 hover:bg-green-200' : 
+                      car.status === 'Maintenance' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 
+                      'bg-red-100 text-red-800 hover:bg-red-200'} transition-colors`}
                 >
-                  {car.createdBy || 'System'}
-                </motion.p>
+                  {car.status}
+                </motion.span>
               </motion.div>
               
               <motion.div
@@ -290,12 +317,12 @@ export default function ViewOrganizationCarPage() {
                 }}
                 className="bg-white p-4 rounded-lg shadow-sm hover:bg-gray-50 transition-all"
               >
-                <p className="font-medium text-gray-600 mb-2">Last Updated</p>
+                <p className="font-medium text-gray-600 mb-2">Created By</p>
                 <motion.p
                   whileHover={{ x: 3 }}
                   className="text-gray-800"
                 >
-                  {car.updatedAt ? new Date(car.updatedAt).toLocaleString() : 'Never'}
+                  {car.createdBy || 'System'}
                 </motion.p>
               </motion.div>
               
@@ -309,15 +336,13 @@ export default function ViewOrganizationCarPage() {
                 }}
                 className="bg-white p-4 rounded-lg shadow-sm hover:bg-gray-50 transition-all"
               >
-                <p className="font-medium text-gray-600 mb-2">Vehicle Condition</p>
-                <motion.span 
-                  whileHover={{ scale: 1.1 }}
-                  className={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
-                    ${parseFloat(car.kmPerLiter) > 10 ? 'bg-green-100 text-green-800 hover:bg-green-200' : 
-                      'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'} transition-colors`}
+                <p className="font-medium text-gray-600 mb-2">Last Updated</p>
+                <motion.p
+                  whileHover={{ x: 3 }}
+                  className="text-gray-800"
                 >
-                  {parseFloat(car.kmPerLiter) > 10 ? 'Good Condition' : 'Needs Attention'}
-                </motion.span>
+                  {car.updatedAt ? new Date(car.updatedAt).toLocaleString() : 'Never'}
+                </motion.p>
               </motion.div>
             </div>
           </motion.div>

@@ -5,10 +5,50 @@ import { fetchRentCarById } from "../../api/rentCarServices";
 import { FiArrowLeft } from "react-icons/fi";
 import { motion } from "framer-motion";
 
+interface RentCar {
+  id: number;
+  plateNumber: string;
+  frameNo: string;
+  companyName: string;
+  model: string;
+  vehiclesType: string;
+  proYear: string;
+  cc: string;
+  department: string;
+  color: string;
+  motorNumber: string;
+  fuelType: string;
+  transmission: string;
+  door: string;
+  cylinder: string;
+  km: string;
+  vehiclesStatus: string;
+  vehiclesUsed: string;
+  bodyType: string;
+  vehiclesUserName: string;
+  position: string;
+  dateOfIn?: string;
+  dateOfOut?: string;
+  vehiclesDonorName: string;
+  source: string;
+  radio: string;
+  antena: string;
+  krik: string;
+  krikManesha: string;
+  tyerStatus: string;
+  gomaMaficha: string;
+  mefcha: string;
+  reserveTayer: string;
+  gomaGet: string;
+  pinsa: string;
+  kacavite: string;
+  fireProtection: string;
+}
+
 export default function ViewRentCarPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [car, setCar] = useState<any | null>(null);
+  const [car, setCar] = useState<RentCar | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,8 +59,8 @@ export default function ViewRentCarPage() {
         setError(null);
         const response = await fetchRentCarById(Number(id));
         
-        if (response.codStatus === 200 && response.car) {
-          setCar(response.car);
+        if (response.success && response.data) {
+          setCar(response.data);
         } else {
           setError(response.message || "Rented car not found");
         }
@@ -91,7 +131,7 @@ export default function ViewRentCarPage() {
         animate={{ opacity: 1 }}
         className="p-6"
       >
-        <p>No rented car data available</p>
+        <p>No organization vehicle data available</p>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -117,7 +157,7 @@ export default function ViewRentCarPage() {
         transition={{ delay: 0.2 }}
         className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600"
       >
-        Rented Car: {car.plateNumber}
+        Organization Vehicle: {car.plateNumber}
       </motion.h1>
       
       <motion.div
@@ -153,9 +193,9 @@ export default function ViewRentCarPage() {
                 { label: "Company Name", value: car.companyName },
                 { label: "Plate Number", value: car.plateNumber },
                 { label: "Model", value: car.model },
-                { label: "Vehicles Type", value: car.vehiclesType },
+                { label: "Vehicle Type", value: car.vehiclesType },
                 { label: "Production Year", value: car.proYear },
-                { label: "CC", value: car.cc },
+                { label: "Engine CC", value: `${car.cc} cc` },
                 { label: "Department", value: car.department },
                 { label: "Color", value: car.color }
               ].map((item, index) => (
@@ -210,11 +250,11 @@ export default function ViewRentCarPage() {
                 { label: "Motor Number", value: car.motorNumber },
                 { label: "Fuel Type", value: car.fuelType },
                 { label: "Transmission", value: car.transmission },
-                { label: "Door", value: car.door },
-                { label: "Cylinder", value: car.cylinder },
-                { label: "KM", value: car.km },
-                { label: "Vehicles Status", value: car.vehiclesStatus },
-                { label: "Vehicles Used", value: car.vehiclesUsed },
+                { label: "Doors", value: car.door },
+                { label: "Cylinders", value: car.cylinder },
+                { label: "Mileage", value: `${car.km} km` },
+                { label: "Vehicle Status", value: car.vehiclesStatus },
+                { label: "Vehicle Used", value: car.vehiclesUsed },
                 { label: "Body Type", value: car.bodyType }
               ].map((item, index) => (
                 <motion.div
@@ -265,11 +305,11 @@ export default function ViewRentCarPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
-                { label: "Vehicles User Name", value: car.vehiclesUserName },
+                { label: "User Name", value: car.vehiclesUserName },
                 { label: "Position", value: car.position },
-                { label: "Date Of In", value: car.dateOfIn ? new Date(car.dateOfIn).toLocaleDateString() : '-' },
-                { label: "Date Of Out", value: car.dateOfOut ? new Date(car.dateOfOut).toLocaleDateString() : '-' },
-                { label: "Vehicles Donor Name", value: car.vehiclesDonorName },
+                { label: "Date In", value: car.dateOfIn ? new Date(car.dateOfIn).toLocaleDateString() : '-' },
+                { label: "Date Out", value: car.dateOfOut ? new Date(car.dateOfOut).toLocaleDateString() : '-' },
+                { label: "Donor Name", value: car.vehiclesDonorName },
                 { label: "Source", value: car.source }
               ].map((item, index) => (
                 <motion.div
@@ -319,17 +359,17 @@ export default function ViewRentCarPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: "Radio", value: car.radio },
-                { label: "Antena", value: car.antena },
-                { label: "Krik", value: car.krik },
-                { label: "Krik Manesha", value: car.krikManesha },
-                { label: "Tyer Status", value: car.tyerStatus },
-                { label: "Goma Maficha", value: car.gomaMaficha },
-                { label: "Mefcha", value: car.mefcha },
-                { label: "Reserve Tayer", value: car.reserveTayer },
-                { label: "Goma Get", value: car.gomaGet },
-                { label: "Pinsa", value: car.pinsa },
-                { label: "Kacavite", value: car.kacavite },
-                { label: "Fire Protection", value: car.fireProtection }
+                { label: "Antenna", value: car.antena },
+                { label: "Jack", value: car.krik },
+                { label: "Jack Handle", value: car.krikManesha },
+                { label: "Tire Status", value: car.tyerStatus },
+                { label: "Spare Tire", value: car.gomaMaficha },
+                { label: "Wrench", value: car.mefcha },
+                { label: "Reserve Tire", value: car.reserveTayer },
+                { label: "Tire Iron", value: car.gomaGet },
+                { label: "Pliers", value: car.pinsa },
+                { label: "Screwdriver", value: car.kacavite },
+                { label: "Fire Extinguisher", value: car.fireProtection }
               ].map((item, index) => (
                 <motion.div
                   key={index}

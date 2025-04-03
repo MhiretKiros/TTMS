@@ -293,7 +293,7 @@ export default function ManageCars() {
         const { success, message } = await deleteCar(id);
         
         if (success) {
-          await showSuccessAlert(message || 'Car deleted successfully');
+          await showSuccessAlert(message || 'Vehicle deleted successfully');
           await loadPersonalCars();
         } else {
           throw new Error(message);
@@ -315,7 +315,7 @@ export default function ManageCars() {
       const { success, message } = await createOrganizationCar(newCar);
       
       if (success) {
-        await showSuccessAlert(message || 'Organization car registered successfully');
+        await showSuccessAlert(message || 'Rented Vehicle registered successfully');
         await loadOrganizationCars();
         setIsOrganizationFormOpen(false);
       } else {
@@ -324,7 +324,7 @@ export default function ManageCars() {
     } catch (error) {
       Swal.fire({
         title: 'Error!',
-        text: error instanceof Error ? error.message : 'Failed to register organization car',
+        text: error instanceof Error ? error.message : 'Failed to register rented vehicle',
         icon: 'error',
       });
     } finally {
@@ -338,7 +338,7 @@ export default function ManageCars() {
       const { success, message } = await updateOrganizationCar(updatedCar.id, updatedCar);
       
       if (success) {
-        await showSuccessAlert(message || 'Organization car updated successfully');
+        await showSuccessAlert(message || 'Rented Vehicle updated successfully');
         await loadOrganizationCars();
         setSelectedOrganizationCar(null);
         setIsOrganizationFormOpen(false);
@@ -348,7 +348,7 @@ export default function ManageCars() {
     } catch (error) {
       Swal.fire({
         title: 'Error!',
-        text: error instanceof Error ? error.message : 'Failed to update organization car',
+        text: error instanceof Error ? error.message : 'Failed to update rented car',
         icon: 'error',
       });
     } finally {
@@ -372,7 +372,7 @@ export default function ManageCars() {
         const { success, message } = await deleteOrganizationCar(id);
         
         if (success) {
-          await showSuccessAlert(message || 'Organization car deleted successfully');
+          await showSuccessAlert(message || 'Rented vehicle deleted successfully');
           await loadOrganizationCars();
         } else {
           throw new Error(message);
@@ -380,7 +380,7 @@ export default function ManageCars() {
       } catch (error) {
         Swal.fire({
           title: 'Error!',
-          text: error instanceof Error ? error.message : 'Failed to delete organization car',
+          text: error instanceof Error ? error.message : 'Failed to delete rented vehicle',
           icon: 'error',
         });
       }
@@ -394,7 +394,7 @@ export default function ManageCars() {
       const { success, message } = await createRentCar(newCar);
       
       if (success) {
-        await showSuccessAlert(message || 'Rented car registered successfully');
+        await showSuccessAlert(message || 'Organization Vehicle registered successfully');
         await loadRentCars();
         setIsRentFormOpen(false);
       } else {
@@ -403,7 +403,7 @@ export default function ManageCars() {
     } catch (error) {
       Swal.fire({
         title: 'Error!',
-        text: error instanceof Error ? error.message : 'Failed to register rented car',
+        text: error instanceof Error ? error.message : 'Failed to register organization Vehicle',
         icon: 'error',
       });
     } finally {
@@ -417,7 +417,7 @@ export default function ManageCars() {
       const { success, message } = await updateRentCar(updatedCar.id, updatedCar);
       
       if (success) {
-        await showSuccessAlert(message || 'Rented car updated successfully');
+        await showSuccessAlert(message || 'Organization Vehicle updated successfully');
         await loadRentCars();
         setSelectedRentCar(null);
         setIsRentFormOpen(false);
@@ -427,7 +427,7 @@ export default function ManageCars() {
     } catch (error) {
       Swal.fire({
         title: 'Error!',
-        text: error instanceof Error ? error.message : 'Failed to update rented car',
+        text: error instanceof Error ? error.message : 'Failed to update organization Vehicle',
         icon: 'error',
       });
     } finally {
@@ -451,7 +451,7 @@ export default function ManageCars() {
         const { success, message } = await deleteRentCar(id);
         
         if (success) {
-          await showSuccessAlert(message || 'Rented car deleted successfully');
+          await showSuccessAlert(message || 'Organization Vehicle deleted successfully');
           await loadRentCars();
         } else {
           throw new Error(message);
@@ -459,7 +459,7 @@ export default function ManageCars() {
       } catch (error) {
         Swal.fire({
           title: 'Error!',
-          text: error instanceof Error ? error.message : 'Failed to delete rented car',
+          text: error instanceof Error ? error.message : 'Failed to delete organization Vehicle',
           icon: 'error',
         });
       }
@@ -508,7 +508,7 @@ export default function ManageCars() {
         className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
       >
         <h1 className="text-3xl font-bold text-gradient bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
-          Car Fleet Management
+          Vehicle Fleet Management
         </h1>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -571,7 +571,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('personal')}
         >
-          Personal Cars
+          Rented Automobiles
         </button>
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
@@ -581,7 +581,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('organization')}
         >
-          Organization Cars
+          Rented Vehicles
         </button>
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
@@ -591,7 +591,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('rented')}
         >
-          Rented Cars
+          Organization Vehicles
         </button>
       </motion.div>
 
@@ -619,7 +619,7 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-800">Personal Car Fleet</h2>
+                <h2 className="text-xl font-semibold text-gray-800">Rented Automobile Fleet</h2>
                 <motion.button
                   whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
                   whileTap={{ scale: 0.95 }}
@@ -629,7 +629,7 @@ export default function ManageCars() {
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-all"
                 >
-                  <FiPlus /> Register New Car
+                  <FiPlus /> Add New Automobile
                 </motion.button>
               </div>
 
@@ -689,7 +689,7 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-800">Organization Car Fleet</h2>
+                <h2 className="text-xl font-semibold text-gray-800">Rented Vehicle Fleet</h2>
                 <motion.button
                   whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
                   whileTap={{ scale: 0.95 }}
@@ -699,7 +699,7 @@ export default function ManageCars() {
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-all"
                 >
-                  <FiPlus /> Register New Car
+                  <FiPlus /> Add New Vehicle
                 </motion.button>
               </div>
 
@@ -759,7 +759,7 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-800">Rented Car Fleet</h2>
+                <h2 className="text-xl font-semibold text-gray-800">Organization Vehicle Fleet</h2>
                 <motion.button
                   whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
                   whileTap={{ scale: 0.95 }}
@@ -769,7 +769,7 @@ export default function ManageCars() {
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-all"
                 >
-                  <FiPlus /> Register New Car
+                  <FiPlus /> Add New Vehicle
                 </motion.button>
               </div>
 

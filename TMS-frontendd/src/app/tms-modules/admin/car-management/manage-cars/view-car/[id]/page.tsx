@@ -92,7 +92,7 @@ export default function ViewCarPage() {
         animate={{ opacity: 1 }}
         className="p-6"
       >
-        <p>No car data available</p>
+        <p>No vehicle data available</p>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -118,7 +118,7 @@ export default function ViewCarPage() {
         transition={{ delay: 0.2 }}
         className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600"
       >
-        Car Details: {car.plateNumber}
+        Rented Automobile Details: {car.plateNumber}
       </motion.h1>
       
       <motion.div

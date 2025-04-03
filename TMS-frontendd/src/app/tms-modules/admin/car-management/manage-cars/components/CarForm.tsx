@@ -103,7 +103,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">
-              {car ? 'Update Car Details' : 'Register New Car'}
+              {car ? 'Update Vehicle Details' : 'Register New Vehicle'}
             </h2>
             <motion.button
               whileHover={{ rotate: 90 }}
@@ -367,9 +367,9 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                     {car ? 'Updating...' : 'Registering...'}
                   </span>
                 ) : car ? (
-                  'Update Car'
+                  'Update Vehicle'
                 ) : (
-                  'Register Car'
+                  'Register Vehicle'
                 )}
               </motion.button>
             </div>
