@@ -1,0 +1,149 @@
+import axios from 'axios';
+
+const API_URL = 'http://localhost:8080/auth/organization-car';
+
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+export const fetchOrganizationCars = async (): Promise<ApiResponse<any[]>> => {
+  try {
+    const response = await axios.get(`${API_URL}/all`);
+    const data = response.data;
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+        message: data.message || 'Failed to fetch organization cars',
+        data: []
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Organization cars fetched successfully',
+      data: data.organizationCarList || data.data || []
+    };
+  } catch (error) {
+    console.error('Error fetching organization cars:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to fetch organization cars',
+      data: []
+    };
+  }
+};
+
+export const createOrganizationCar = async (carData: any): Promise<ApiResponse<any>> => {
+  try {
+    const response = await axios.post(`${API_URL}/register`, carData);
+    const data = response.data;
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+        message: data.message || 'Failed to create organization car',
+        data: {}
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Organization car created successfully',
+      data: data
+    };
+  } catch (error) {
+    console.error('Error creating organization car:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to create organization car',
+      data: {}
+    };
+  }
+};
+
+export const updateOrganizationCar = async (id: number, carData: any): Promise<ApiResponse<any>> => {
+  try {
+    const response = await axios.put(`${API_URL}/update/${id}`, carData);
+    const data = response.data;
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+        message: data.message || 'Failed to update organization car',
+        data: {}
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Organization car updated successfully',
+      data: data
+    };
+  } catch (error) {
+    console.error('Error updating organization car:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to update organization car',
+      data: {}
+    };
+  }
+};
+
+export const deleteOrganizationCar = async (id: number): Promise<ApiResponse<null>> => {
+  try {
+    const response = await axios.delete(`${API_URL}/delete/${id}`);
+    const data = response.data;
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+        message: data.message || 'Failed to delete organization car',
+        data: null
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Organization car deleted successfully',
+      data: null
+    };
+  } catch (error) {
+    console.error('Error deleting organization car:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to delete organization car',
+      data: null
+    };
+  }
+};
+
+export const fetchOrganizationCarById = async (id: number): Promise<ApiResponse<any>> => {
+  try {
+    const response = await axios.get(`${API_URL}/${id}`);
+    const data = response.data;
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+        message: data.message || 'Failed to fetch organization car',
+        data: null
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Organization car fetched successfully',
+      data: data
+    };
+  } catch (error) {
+    console.error('Error fetching organization car:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to fetch organization car',
+      data: null
+    };
+  }
+};

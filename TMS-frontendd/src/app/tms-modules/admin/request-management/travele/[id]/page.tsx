@@ -1,32 +1,83 @@
-// app/tms-modules/admin/request-management/travel/[id]/page.tsx
+// app/tms-modules/admin/request-management/service/[id]/page.tsx
 "use client";
 import { useParams, useRouter } from "next/navigation";
-import { FiArrowLeft, FiUser, FiMapPin, FiCalendar, FiBriefcase } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiPhone, FiMail, FiHome, FiMapPin, FiCalendar, FiBriefcase, FiTruck } from 'react-icons/fi';
+import { useEffect, useState } from 'react';
+import { fetchServiceRequestById } from '../../api';
+import Swal from 'sweetalert2';
+import '@sweetalert2/theme-material-ui/material-ui.css';
 
-export default function TravelRequestView() {
+interface ServiceRequest {
+  id: number;
+  employeeId: string;
+  fullName: string;
+  department: string;
+  phoneNumber: string;
+  email: string;
+  homeLocation: string;
+  pickupLocation: string;
+  preferredTime: string;
+  returnTime?: string;
+  purpose: string;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+  assignedCar?: string;
+  driverName?: string;
+  notes?: string;
+  carType: string;
+  createdBy?: string;
+  approver?: string;
+  budgetCode?: string;
+  requestType?: 'DAILY' | 'OCCASIONAL';
+  passengers?: number;
+  additionalRequirements?: string;
+  approvalDate?: string;
+  rejectionReason?: string;
+  completionDate?: string;
+}
+
+export default function ServiceRequestView() {
   const router = useRouter();
   const { id } = useParams();
+  const [request, setRequest] = useState<ServiceRequest | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - replace with API call
-  const request = {
-    id: 1,
-    travelerName: 'Mike Johnson',
-    employeeId: 'EMP002',
-    department: 'Sales',
-    startDate: '2023-05-20',
-    endDate: '2023-05-21',
-    reason: 'Annual client review',
-    travelDistance: '120 km',
-    carType: 'SUV',
-    passengers: 3,
-    approver: 'Sarah Williams',
-    budgetCode: 'SALES-2023-05',
-    claimantName: 'Mike Johnson',
-    teamLeaderName: 'David Brown',
-    status: 'Approved',
-    createdAt: '2023-05-10',
-    assignedCar: 'XYZ-789'
-  };
+  useEffect(() => {
+    const loadRequest = async () => {
+      try {
+        const response = await fetchServiceRequestById(Number(id));
+        setRequest(response.serviceRequest);
+      } catch (error) {
+        Swal.fire({
+          title: 'Error!',
+          text: 'Failed to load service request',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+        router.back();
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadRequest();
+  }, [id, router]);
+
+  if (loading) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!request) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-red-500">Service request not found</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">
@@ -37,19 +88,19 @@ export default function TravelRequestView() {
         <FiArrowLeft className="mr-1" /> Back to Requests
       </button>
 
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Travel Request Details</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Service Request Details</h1>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Travel Information */}
+          {/* Employee Information */}
           <div className="border-b md:border-b-0 md:border-r border-gray-200 pr-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <FiUser className="mr-2" /> Travel Information
+              <FiUser className="mr-2" /> Employee Information
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-sm text-gray-500">Traveler Name</p>
-                <p className="font-medium">{request.travelerName}</p>
+                <p className="text-sm text-gray-500">Full Name</p>
+                <p className="font-medium">{request.fullName}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Employee ID</p>
@@ -60,21 +111,23 @@ export default function TravelRequestView() {
                 <p className="font-medium">{request.department}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Travel Reason</p>
-                <p className="font-medium">{request.reason}</p>
+                <p className="text-sm text-gray-500">Phone Number</p>
+                <p className="font-medium flex items-center">
+                  <FiPhone className="mr-1" /> {request.phoneNumber}
+                </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Travel Distance</p>
-                <p className="font-medium">{request.travelDistance}</p>
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="font-medium flex items-center">
+                  <FiMail className="mr-1" /> {request.email}
+                </p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Preferred Car Type</p>
-                <p className="font-medium">{request.carType}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Passengers</p>
-                <p className="font-medium">{request.passengers}</p>
-              </div>
+              {request.createdBy && (
+                <div>
+                  <p className="text-sm text-gray-500">Created By</p>
+                  <p className="font-medium">{request.createdBy}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -85,33 +138,67 @@ export default function TravelRequestView() {
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-sm text-gray-500">Start Date</p>
-                <p className="font-medium">
-                  {new Date(request.startDate).toLocaleDateString()}
+                <p className="text-sm text-gray-500">Home Location</p>
+                <p className="font-medium flex items-center">
+                  <FiHome className="mr-1" /> {request.homeLocation}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">End Date</p>
-                <p className="font-medium">
-                  {new Date(request.endDate).toLocaleDateString()}
+                <p className="text-sm text-gray-500">Pickup Location</p>
+                <p className="font-medium flex items-center">
+                  <FiMapPin className="mr-1" /> {request.pickupLocation}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Approver</p>
-                <p className="font-medium">{request.approver}</p>
+                <p className="text-sm text-gray-500">Preferred Time</p>
+                <p className="font-medium flex items-center">
+                  <FiCalendar className="mr-1" /> {request.preferredTime}
+                </p>
               </div>
+              {request.returnTime && (
+                <div>
+                  <p className="text-sm text-gray-500">Return Time</p>
+                  <p className="font-medium flex items-center">
+                    <FiCalendar className="mr-1" /> {request.returnTime}
+                  </p>
+                </div>
+              )}
               <div>
-                <p className="text-sm text-gray-500">Claimant</p>
-                <p className="font-medium">{request.claimantName}</p>
+                <p className="text-sm text-gray-500">Purpose</p>
+                <p className="font-medium">{request.purpose}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Team Leader</p>
-                <p className="font-medium">{request.teamLeaderName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Budget Code</p>
-                <p className="font-medium">{request.budgetCode}</p>
-              </div>
+              {request.requestType && (
+                <div>
+                  <p className="text-sm text-gray-500">Request Type</p>
+                  <p className="font-medium">{request.requestType}</p>
+                </div>
+              )}
+              {request.passengers && (
+                <div>
+                  <p className="text-sm text-gray-500">Passengers</p>
+                  <p className="font-medium">{request.passengers}</p>
+                </div>
+              )}
+              {request.carType && (
+                <div>
+                  <p className="text-sm text-gray-500">Preferred Car Type</p>
+                  <p className="font-medium flex items-center">
+                    <FiTruck className="mr-1" /> {request.carType}
+                  </p>
+                </div>
+              )}
+              {request.additionalRequirements && (
+                <div>
+                  <p className="text-sm text-gray-500">Additional Requirements</p>
+                  <p className="font-medium">{request.additionalRequirements}</p>
+                </div>
+              )}
+              {request.notes && (
+                <div>
+                  <p className="text-sm text-gray-500">Notes</p>
+                  <p className="font-medium">{request.notes}</p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-gray-500">Status</p>
                 <p className={`font-medium ${
@@ -123,10 +210,28 @@ export default function TravelRequestView() {
                   {request.status}
                 </p>
               </div>
+              {request.approver && (
+                <div>
+                  <p className="text-sm text-gray-500">Approver</p>
+                  <p className="font-medium">{request.approver}</p>
+                </div>
+              )}
+              {request.assignedCar && (
+                <div>
+                  <p className="text-sm text-gray-500">Assigned Car</p>
+                  <p className="font-medium">{request.assignedCar}</p>
+                </div>
+              )}
+              {request.driverName && (
+                <div>
+                  <p className="text-sm text-gray-500">Driver</p>
+                  <p className="font-medium">{request.driverName}</p>
+                </div>
+              )}
               <div>
-                <p className="text-sm text-gray-500">Assigned Car</p>
+                <p className="text-sm text-gray-500">Created At</p>
                 <p className="font-medium">
-                  {request.assignedCar || 'Not assigned'}
+                  {new Date(request.createdAt).toLocaleDateString()}
                 </p>
               </div>
             </div>

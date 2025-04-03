@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiAlertCircle, FiUser, FiMail, FiSend, FiTruck, FiMapPin, FiId } from 'react-icons/fi';
+import { FiAlertCircle, FiUser, FiMail, FiSend, FiTruck, FiMapPin } from 'react-icons/fi';
 
 export default function CommentForm({ onSuccess }: { onSuccess: () => void }) {
   const [formData, setFormData] = useState({
@@ -154,7 +154,7 @@ export default function CommentForm({ onSuccess }: { onSuccess: () => void }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name *</label>
             <div className="relative">
-              <FiId className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 name="driverName"

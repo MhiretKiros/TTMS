@@ -1,7 +1,8 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiAlertCircle, FiMapPin, FiSend, FiCalendar } from 'react-icons/fi';
+import { FiAlertCircle, FiMapPin, FiSend, FiCalendar, FiCheckCircle } from 'react-icons/fi';
+import { TravelApi, TravelRequestData } from '../api/handler';
 
 const carTypes = [
   "Sedan",
@@ -30,7 +31,12 @@ const jobStatuses = [
   "Other"
 ];
 
-export default function TravelRequestForm({ onSuccess }: { onSuccess: () => void }) {
+interface TravelRequestFormProps {
+  requestId?: number;
+  onSuccess: () => void;
+}
+
+export default function TravelRequestForm({ requestId, onSuccess }: TravelRequestFormProps) {
   const [formData, setFormData] = useState({
     startingPlace: '',
     destinationPlace: '',
@@ -49,6 +55,38 @@ export default function TravelRequestForm({ onSuccess }: { onSuccess: () => void
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Load request data if in edit mode
+  useEffect(() => {
+    if (requestId) {
+      const loadRequestData = async () => {
+        try {
+          const request = await TravelApi.getTravelRequestById(requestId);
+          setFormData({
+            startingPlace: request.startingPlace,
+            destinationPlace: request.destinationPlace,
+            travelerName: request.travelerName,
+            travelReason: request.travelReason,
+            carType: request.carType || '',
+            travelDistance: request.travelDistance?.toString() || '',
+            startingDate: request.startingDate,
+            returnDate: request.returnDate || '',
+            department: request.department,
+            jobStatus: request.jobStatus,
+            claimantName: request.claimantName,
+            teamLeaderName: request.teamLeaderName,
+            approvement: request.approvement || ''
+          });
+        } catch (error) {
+          setApiError(error instanceof Error ? error.message : 'Failed to load request data');
+        }
+      };
+      
+      loadRequestData();
+    }
+  }, [requestId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -56,6 +94,8 @@ export default function TravelRequestForm({ onSuccess }: { onSuccess: () => void
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
+    if (apiError) setApiError('');
+    if (successMessage) setSuccessMessage('');
   };
 
   const validateForm = () => {
@@ -109,25 +149,94 @@ export default function TravelRequestForm({ onSuccess }: { onSuccess: () => void
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      setIsSubmitting(true);
-      // Simulate API call
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setApiError('');
+    setSuccessMessage('');
+
+    try {
+      // Prepare the data for API
+      const requestData: TravelRequestData = {
+        startingPlace: formData.startingPlace,
+        destinationPlace: formData.destinationPlace,
+        travelerName: formData.travelerName,
+        travelReason: formData.travelReason,
+        carType: formData.carType || undefined,
+        travelDistance: formData.travelDistance ? parseFloat(formData.travelDistance) : undefined,
+        startingDate: formData.startingDate,
+        returnDate: formData.returnDate || undefined,
+        department: formData.department,
+        jobStatus: formData.jobStatus,
+        claimantName: formData.claimantName,
+        teamLeaderName: formData.teamLeaderName,
+        approvement: formData.approvement || undefined
+      };
+
+      // Add ID if in edit mode
+      if (requestId) {
+        requestData.id = requestId;
+      }
+
+      await TravelApi.saveTravelRequest(requestData);
+      
+      setSuccessMessage(
+        requestId 
+          ? 'Travel request updated successfully!' 
+          : 'Travel request created successfully!'
+      );
+      
+      // Call success callback after a short delay
       setTimeout(() => {
-        setIsSubmitting(false);
         onSuccess();
       }, 1500);
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <motion.div
       className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 p-6 md:p-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
     >
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Travel Service Request</h2>
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        {requestId ? 'Edit Travel Request' : 'New Travel Service Request'}
+      </h2>
       
+      {apiError && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg"
+        >
+          <div className="flex items-center">
+            <FiAlertCircle className="mr-2" />
+            <span>{apiError}</span>
+          </div>
+        </motion.div>
+      )}
+
+      {successMessage && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg"
+        >
+          <div className="flex items-center">
+            <FiCheckCircle className="mr-2" />
+            <span>{successMessage}</span>
+          </div>
+        </motion.div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Starting Place */}
@@ -202,14 +311,14 @@ export default function TravelRequestForm({ onSuccess }: { onSuccess: () => void
           {/* Reason for Travel */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Travel *</label>
-            <input
-              type="text"
+            <textarea
               name="travelReason"
               value={formData.travelReason}
               onChange={handleChange}
               className={`w-full px-4 py-3 rounded-lg border ${errors.travelReason ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
               placeholder="Enter reason for travel"
               maxLength={500}
+              rows={3}
             />
             {errors.travelReason && (
               <motion.p 
@@ -242,13 +351,14 @@ export default function TravelRequestForm({ onSuccess }: { onSuccess: () => void
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <label className="block text-sm font-medium text-gray-700 mb-1">Travel Distance (km)</label>
             <input
-              type="text"
+              type="number"
               name="travelDistance"
               value={formData.travelDistance}
               onChange={handleChange}
               className={`w-full px-4 py-3 rounded-lg border ${errors.travelDistance ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
               placeholder="Enter distance in kilometers"
-              inputMode="decimal"
+              min="0"
+              step="0.01"
             />
             {errors.travelDistance && (
               <motion.p 
@@ -451,12 +561,12 @@ export default function TravelRequestForm({ onSuccess }: { onSuccess: () => void
                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
                 />
-                Sending Request...
+                {requestId ? 'Updating...' : 'Submitting...'}
               </>
             ) : (
               <>
                 <FiSend className="mr-2" />
-                Send Travel Request
+                {requestId ? 'Update Travel Request' : 'Submit Travel Request'}
               </>
             )}
           </motion.button>
