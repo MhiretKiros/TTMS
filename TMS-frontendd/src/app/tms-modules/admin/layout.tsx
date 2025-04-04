@@ -19,6 +19,7 @@ const sidebarItems = [
       { title: 'Order Cars', link: '/tms-modules/admin/car-management/order-cars', icon: '📦' },
       { title: 'Assign Cars', link: '/tms-modules/admin/car-management/assign-cars', icon: '👥' },
       { title: 'Car Attendance', link: '/tms-modules/admin/car-management/car-attendance', icon: '✅' },
+      { title: 'Vehicle Inspection', link: '/tms-modules/admin/car-management/vehicle-inspection', icon: '🔧' }
     ],
   },
   {
