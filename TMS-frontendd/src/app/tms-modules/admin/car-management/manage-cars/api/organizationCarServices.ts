@@ -120,30 +120,34 @@ export const deleteOrganizationCar = async (id: number): Promise<ApiResponse<nul
   }
 };
 
+
 export const fetchOrganizationCarById = async (id: number): Promise<ApiResponse<any>> => {
   try {
     const response = await axios.get(`${API_URL}/${id}`);
-    const data = response.data;
-
-    if (response.status !== 200) {
+    
+    if (response.status >= 200 && response.status < 300) {
       return {
-        success: false,
-        message: data.message || 'Failed to fetch organization car',
-        data: null
+        success: true,
+        message: response.data.message || 'Organization car fetched successfully',
+        data: response.data.organizationCar // Access nested organizationCar property
       };
     }
 
     return {
-      success: true,
-      message: data.message || 'Organization car fetched successfully',
-      data: data
+      success: false,
+      message: response.data.message || 'Failed to fetch organization car',
+      data: null
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching organization car:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Failed to fetch organization car',
+      message: error.response?.data?.message || 
+              error.message || 
+              'Failed to fetch organization car',
       data: null
     };
   }
 };
+
+// ... (keep other functions the same)

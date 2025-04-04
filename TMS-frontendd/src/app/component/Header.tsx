@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
+import DarkModeToggle from "./DarkModeToggle";
 import { FiSearch, FiBell, FiRefreshCw, FiSettings, FiHelpCircle, FiLogOut, FiUser } from 'react-icons/fi';
 
 interface User {
@@ -89,6 +90,8 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
             )}
           </button>
         </div>
+
+
         
         <button 
           className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
@@ -96,6 +99,12 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
         >
           <FiHelpCircle className="h-5 w-5" />
         </button>
+
+        <div>
+        <DarkModeToggle />
+
+        </div>
+
 
         <div className="relative" ref={profileRef}>
           <button 

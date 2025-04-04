@@ -57,7 +57,10 @@ export default function ViewRentCarPage() {
       try {
         setLoading(true);
         setError(null);
+        console.log(`Fetching rent car with ID: ${id}`);
+        
         const response = await fetchRentCarById(Number(id));
+        console.log('API Response:', response);
         
         if (response.success && response.data) {
           setCar(response.data);
@@ -65,8 +68,8 @@ export default function ViewRentCarPage() {
           setError(response.message || "Rented car not found");
         }
       } catch (err) {
+        console.error("Error loading rent car:", err);
         setError("Failed to load rented car details");
-        console.error("Error loading rented car:", err);
       } finally {
         setLoading(false);
       }

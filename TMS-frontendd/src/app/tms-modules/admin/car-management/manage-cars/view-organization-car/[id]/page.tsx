@@ -40,7 +40,10 @@ export default function ViewOrganizationCarPage() {
       try {
         setLoading(true);
         setError(null);
+        console.log(`Fetching organization car with ID: ${id}`);
+        
         const response = await fetchOrganizationCarById(Number(id));
+        console.log('API Response:', response);
         
         if (response.success && response.data) {
           setCar(response.data);
@@ -48,8 +51,8 @@ export default function ViewOrganizationCarPage() {
           setError(response.message || "Organization car not found");
         }
       } catch (err) {
-        setError("Failed to load organization car details");
         console.error("Error loading organization car:", err);
+        setError("Failed to load organization car details");
       } finally {
         setLoading(false);
       }
@@ -57,6 +60,9 @@ export default function ViewOrganizationCarPage() {
     
     loadCar();
   }, [id]);
+
+  // ... (keep the rest of your component JSX the same)
+  // Just make sure to use the car data properly in your render
 
   if (loading) {
     return (

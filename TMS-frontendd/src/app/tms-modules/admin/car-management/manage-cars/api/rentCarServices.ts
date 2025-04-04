@@ -120,30 +120,33 @@ export const deleteRentCar = async (id: number): Promise<ApiResponse<null>> => {
   }
 };
 
+
 export const fetchRentCarById = async (id: number): Promise<ApiResponse<any>> => {
   try {
     const response = await axios.get(`${API_URL}/${id}`);
-    const data = response.data;
-
-    if (response.status !== 200) {
+    
+    if (response.status >= 200 && response.status < 300) {
       return {
-        success: false,
-        message: data.message || 'Failed to fetch rent car',
-        data: null
+        success: true,
+        message: response.data.message || 'Rent car fetched successfully',
+        data: response.data.rentCar // Access nested rentCar property
       };
     }
 
     return {
-      success: true,
-      message: data.message || 'Rent car fetched successfully',
-      data: data
+      success: false,
+      message: response.data.message || 'Failed to fetch rent car',
+      data: null
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching rent car:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Failed to fetch rent car',
+      message: error.response?.data?.message || 
+              error.message || 
+              'Failed to fetch rent car',
       data: null
     };
   }
 };
+
