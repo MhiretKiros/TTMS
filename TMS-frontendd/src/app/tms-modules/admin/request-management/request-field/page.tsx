@@ -67,7 +67,7 @@ export default function ServiceRequestPage() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {activeTab === 'field' && <TravelRequestForm actorType="corporator" onSuccess={handleSuccess} />
+            {activeTab === 'field' && <TravelRequestForm actorType="manager" onSuccess={handleSuccess} />
           }
             {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
             {activeTab === 'comment' && <CommentForm onSuccess={handleSuccess} />}

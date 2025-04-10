@@ -1,0 +1,189 @@
+// src/api/handlers.ts
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8080/api/travel-requests';
+
+export interface TravelRequest {
+  id?: number;
+  startingPlace: string;
+  destinationPlace: string;
+  travelers: string[];
+  travelReason: string;
+  carType?: string;
+  travelDistance?: number;
+  startingDate: string; // ISO format "2025-04-10T09:00:00"
+  returnDate?: string;  // ISO format "2025-04-10T18:00:00"
+  department: string;
+  jobStatus: string;
+  claimantName: string;
+  teamLeaderName: string;
+  approvement?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  serviceProviderName?: string;
+  assignedCarType?: string;
+  assignedDriver?: string;
+  vehicleDetails?: string;
+  actualStartingDate?: string;
+  actualReturnDate?: string;
+  startingKilometers?: number;
+  endingKilometers?: number;
+  kmDifference?: number;
+  cargoType?: string;
+  cargoWeight?: number;
+  numberOfPassengers?: number;
+}
+
+// Helper function to parse dates in API responses
+const parseDates = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') return obj;
+  
+  for (const key in obj) {
+    if (typeof obj[key] === 'string') {
+      // Try to parse ISO dates
+      const dateMatch = obj[key].match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
+      if (dateMatch) {
+        obj[key] = dateMatch[0]; // Keep only the date-time part
+      }
+    } else if (typeof obj[key] === 'object') {
+      parseDates(obj[key]);
+    }
+  }
+  return obj;
+};
+
+export const TravelApi = {
+  async getRequests(actorType: 'user' | 'manager' | 'corporator'): Promise<TravelRequest[]> {
+    try {
+      const endpoint = actorType === 'user' ? '/user' : 
+                      actorType === 'manager' ? '/manager' : '/corporator';
+      const response = await axios.get(`${API_BASE_URL}${endpoint}`);
+      return response.data.map((req: any) => ({
+        ...parseDates(req),
+        travelers: Array.isArray(req.travelers) ? req.travelers : []
+      }));
+    } catch (error) {
+      throw new Error(axios.isAxiosError(error) 
+        ? error.response?.data?.message || error.message 
+        : 'Failed to load requests');
+    }
+  },
+
+  async getRequestById(id: number): Promise<TravelRequest> {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/${id}`);
+      return {
+        ...parseDates(response.data),
+        travelers: Array.isArray(response.data.travelers) 
+          ? response.data.travelers 
+          : response.data.travelers ? [response.data.travelers] : []
+      };
+    } catch (error) {
+      throw new Error(axios.isAxiosError(error) 
+        ? error.response?.data?.message || error.message 
+        : 'Failed to load request');
+    }
+  },
+
+  async createRequest(requestData: Omit<TravelRequest, 'id'>): Promise<TravelRequest> {
+    try {
+      const payload = {
+        ...requestData,
+        startingDate: this.formatDateTime(requestData.startingDate),
+        returnDate: requestData.returnDate ? this.formatDateTime(requestData.returnDate) : undefined,
+        travelers: requestData.travelers.filter(t => t.trim())
+      };
+      
+      const response = await axios.post(API_BASE_URL, payload);
+      return parseDates(response.data);
+    } catch (error) {
+      throw new Error(axios.isAxiosError(error) 
+        ? error.response?.data?.message || error.message 
+        : 'Failed to create request');
+    }
+  },
+
+  async updateRequestStatus(id: number, status: 'APPROVED' | 'REJECTED'): Promise<TravelRequest> {
+    try {
+      const response = await axios.patch(`${API_BASE_URL}/${id}/status`, null, {
+        params: { status }
+      });
+      return parseDates(response.data);
+    } catch (error) {
+      throw new Error(axios.isAxiosError(error) 
+        ? error.response?.data?.message || error.message 
+        : 'Failed to update status');
+    }
+  },
+
+  async completeTravelRequest(data: {
+    id?: number;
+    serviceProviderName: string;
+    assignedCarType: string;
+    assignedDriver: string;
+    vehicleDetails: string;
+    actualStartingDate?: string;
+    actualReturnDate?: string;
+    startingKilometers?: number | string;
+    endingKilometers?: number | string;
+    cargoType?: string;
+    cargoWeight?: number | string;
+    numberOfPassengers?: number | string;
+  }): Promise<TravelRequest> {
+    try {
+      if (!data.id) throw new Error('Request ID is required');
+  
+      // Convert all number fields from string to number
+      const payload = {
+        serviceProviderName: data.serviceProviderName,
+        assignedCarType: data.assignedCarType,
+        assignedDriver: data.assignedDriver,
+        vehicleDetails: data.vehicleDetails,
+        actualStartingDate: data.actualStartingDate ? this.formatDateTime(data.actualStartingDate) : undefined,
+        actualReturnDate: data.actualReturnDate ? this.formatDateTime(data.actualReturnDate) : undefined,
+        startingKilometers: data.startingKilometers ? Number(data.startingKilometers) : undefined,
+        endingKilometers: data.endingKilometers ? Number(data.endingKilometers) : undefined,
+        cargoType: data.cargoType,
+        cargoWeight: data.cargoWeight ? Number(data.cargoWeight) : undefined,
+        numberOfPassengers: data.numberOfPassengers ? Number(data.numberOfPassengers) : undefined
+      };
+  
+      // Debug log
+      console.log('Sending completion payload:', payload);
+  
+      // Make the request and accept 400 status as potential success
+      const response = await axios.post(`${API_BASE_URL}/${data.id}/complete`, payload, {
+        validateStatus: (status) => status === 200 || status === 400
+      });
+  
+      // Debug log
+      console.log('Received response:', response);
+  
+      // If we have data even with 400, try to proceed
+      if (response.data) {
+        return parseDates(response.data);
+      }
+  
+      throw new Error(response.statusText || 'Request completed but with unexpected response');
+    } catch (error) {
+      console.error('API Error:', error);
+      throw new Error(axios.isAxiosError(error) 
+        ? error.response?.data?.message || error.message 
+        : 'Failed to complete request');
+    }
+  },
+
+  formatDateTime(dateString: string): string {
+    if (!dateString) return '';
+    // If already in ISO format with time, return as-is
+    if (dateString.includes('T') && dateString.includes(':')) {
+      return dateString;
+    }
+    // If just date (YYYY-MM-DD), add default time
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      return `${dateString}T00:00:00`;
+    }
+    // Try to parse as date
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? '' : date.toISOString();
+  }
+};

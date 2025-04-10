@@ -1,5 +1,5 @@
 "use client";
-import TravelRequestForm from '../components/FieldRequestForm';
+import FieldRequestForm from '../components/FieldRequestForm';
 import CarServiceForm from '../components/CarServiceForm';
 import CommentForm from '../components/CommentForm';
 
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {  FiTool, FiMessageSquare, FiSend, FiX, FiTruck } from 'react-icons/fi';
 
 export default function ServiceRequestPage() {
-  const [activeTab, setActiveTab] = useState<'field' |'service'  | 'comment'>('field');
+  const [activeTab, setActiveTab] = useState<'service' | 'field' | 'comment'>('service');
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSuccess = () => {
@@ -38,8 +38,8 @@ export default function ServiceRequestPage() {
         {/* Tab Navigation */}
         <motion.div className="flex mb-8 border-b border-gray-200">
           {[
-            { id: 'field', icon: <FiTool className="mr-2" />, label: 'Field Request' },
             { id: 'service', icon: <FiTruck className="mr-2" />, label: 'Car Service' },
+            { id: 'field', icon: <FiTool className="mr-2" />, label: 'Field Request' },
             { id: 'comment', icon: <FiMessageSquare className="mr-2" />, label: 'Send Complaint' }
           ].map((tab) => (
             <motion.button
@@ -67,9 +67,8 @@ export default function ServiceRequestPage() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {activeTab === 'field' && <TravelRequestForm actorType="corporator" onSuccess={handleSuccess} />
-          }
             {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
+            {activeTab === 'field' && <FieldRequestForm onSuccess={handleSuccess} />}
             {activeTab === 'comment' && <CommentForm onSuccess={handleSuccess} />}
           </motion.div>
         </AnimatePresence>

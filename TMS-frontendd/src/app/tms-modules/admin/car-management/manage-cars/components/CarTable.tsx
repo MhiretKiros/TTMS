@@ -33,13 +33,13 @@ const CarTable = ({ cars, onEdit, onDelete, onView }: {
   };
 
   return (
-    <motion.div
+    <div className="overflow-x-auto">
+        <motion.table
       className="overflow-x-auto"
       initial="hidden"
       animate="show"
       variants={containerVariants}
     >
-      <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plate Number</th>
@@ -118,8 +118,8 @@ const CarTable = ({ cars, onEdit, onDelete, onView }: {
             </motion.tr>
           ))}
         </tbody>
-      </table>
-    </motion.div>
+        </motion.table>
+      </div>
   );
 };
 
