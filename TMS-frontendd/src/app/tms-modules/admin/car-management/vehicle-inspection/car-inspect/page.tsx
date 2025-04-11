@@ -1,7 +1,7 @@
 'use client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { updateCarInspectionStatus, storedInspectionResults, StoredInspectionResult } from '../page';
+import { updateCarInspectionStatus, storedInspectionResults, StoredInspectionResult } from '../utils';
 
 type MechanicalInspection = {
   engineCondition: boolean;
