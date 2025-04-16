@@ -29,6 +29,6 @@ export interface FuelRequest {
     returnTime: string;
     dutyTravelKm: number;
     garageKm: number;
-    assemblyName: string;
+    assemblerName: string;
     dateReturned: Date;
   }

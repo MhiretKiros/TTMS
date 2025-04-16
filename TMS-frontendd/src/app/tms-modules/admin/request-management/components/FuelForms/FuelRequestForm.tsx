@@ -1,265 +1,327 @@
 "use client";
+
 import { useState, useEffect } from 'react';
 import { FuelRequest } from '../../types/fuelTypes';
-import { FuelApi } from '../../api/fuelApi';
+import { TravelApi, TravelRequest } from '../../api/handlers';
 import { SearchBar } from '../SearchBar';
 import styles from './styles.module.css';
+import Swal from 'sweetalert2';
+import { 
+  FiAlertCircle, FiMapPin, FiSend, FiCalendar, FiCheckCircle, 
+  FiUser, FiUsers, FiTool, FiPlus, FiMinus, FiTruck, FiPackage,
+  FiSearch, FiArrowRight, FiX
+} from 'react-icons/fi';
+
+interface Traveler {
+  id?: number;
+  name: string;
+}
 
 interface FuelRequestFormProps {
   travelRequestId?: number;
-  defaultValues?: Partial<Omit<FuelRequest, 'id' | 'status' | 'dateRequested'>>;
+  defaultValues?: {
+    travelers: Traveler[] | string[]; // Accept both object and string arrays
+    startingPlace?: string;
+    destinationPlace?: string;
+    vehicleType?: string;
+    licensePlate?: string;
+    assignedDriver?: string;
+    travelDistance?: number;
+    tripExplanation?: string;
+    claimantName?: string;
+    serviceNumber?: string;
+    actualStartingDate?: string;
+    actualReturnDate?: string;
+  };
   onSuccess: () => void;
-  onRequestComplete?: (requestId: string) => void;
-  onSearchResultSelect?: (request: FuelRequest) => void;
 }
 
 export const FuelRequestForm = ({ 
   travelRequestId, 
   defaultValues, 
-  onSuccess,
-  onRequestComplete, 
-  onSearchResultSelect 
+  onSuccess
 }: FuelRequestFormProps) => {
-  const [formData, setFormData] = useState<Omit<FuelRequest, 'id' | 'status' | 'dateRequested'>>({
-    serviceNumber: '',
-    workLocation: '',
-    travelerName: '',
-    requiredService: '',
-    travelDistance: 0,
-    vehicleType: '',
-    licensePlate: '',
-    assignedDriver: '',
-    tripExplanation: '',
-    requestedFuelAmount: 0,
+  const normalizeTravelers = (travelers: Traveler[] | string[] | undefined) => {
+    if (!travelers) return [''];
+    if (typeof travelers[0] === 'string') return travelers as string[];
+    return (travelers as Traveler[]).map(t => t.name);
+  };
+  const [formData, setFormData] = useState({
+    travelers: normalizeTravelers(defaultValues?.travelers),
+    workLocation: defaultValues?.startingPlace || '',
+    destinationPlace: defaultValues?.destinationPlace || '',
+    vehicleType: defaultValues?.vehicleType || '',
+    licensePlate: defaultValues?.licensePlate || '',
+    assignedDriver: defaultValues?.assignedDriver || '',
+    travelDistance: defaultValues?.travelDistance || 0,
+    tripExplanation: defaultValues?.tripExplanation || '',
+    claimantName: defaultValues?.claimantName || '',
+    serviceNumber: defaultValues?.serviceNumber || '',
+    actualStartingDate: defaultValues?.actualStartingDate || '',
+    actualReturnDate: defaultValues?.actualReturnDate || '',
     authorizerName: '',
-    accountNumber: '',
-    ...defaultValues
+    accountNumber: ''
   });
+  
+  const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
+  const [apiError, setApiError] = useState('');
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<FuelRequest[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isReadOnly, setIsReadOnly] = useState(!!defaultValues);
+  const isReadOnly = !!defaultValues;
 
-  useEffect(() => {
-    if (defaultValues) {
-      setFormData(prev => ({
-        ...prev,
-        ...defaultValues
-      }));
-      setIsReadOnly(true);
-    }
-  }, [defaultValues]);
-
-  useEffect(() => {
-    if (searchQuery.trim() && !isReadOnly) {
-      const timer = setTimeout(() => {
-        FuelApi.searchRequests(searchQuery).then(setSearchResults);
-      }, 300);
-      return () => clearTimeout(timer);
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery, isReadOnly]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      if (travelRequestId) {
-        // Submit with travel request ID
-        await FuelApi.createRequestForTravel(travelRequestId, formData);
-        onSuccess();
-      } else if (onRequestComplete) {
-        // Original standalone form behavior
-        const createdRequest = await FuelApi.createRequest(formData);
-        onRequestComplete(createdRequest.id);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleTravelerChange = (index: number, value: string) => {
+    const newTravelers = [...formData.travelers];
+    newTravelers[index] = value;
+    setFormData(prev => ({ ...prev, travelers: newTravelers }));
   };
 
-  return (
-    <div className={styles.formContainer}>
-      <h2 className={styles.formTitle}>Fuel Request for Fieldwork</h2>
-      
-      {!isReadOnly && (
-        <div className="mb-6">
-          <SearchBar 
-            value={searchQuery} 
-            onChange={setSearchQuery}
-            placeholder="Search service requests..."
-          />
-          {searchResults.length > 0 && (
-            <div className="mt-2 border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-              {searchResults.map(request => (
-                <div 
-                  key={request.id} 
-                  className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
-                  onClick={() => {
-                    onSearchResultSelect?.(request);
-                    setSearchQuery('');
-                    setSearchResults([]);
-                  }}
-                >
-                  <div className="font-medium">{request.serviceNumber} - {request.travelerName}</div>
-                  <div className="text-sm text-gray-500">{request.workLocation} • {request.vehicleType}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+const showSuccessAlert = (title: string, message: string) => {
+  Swal.fire({
+    title: title,
+    text: message,
+    icon: 'success',
+    confirmButtonText: 'OK',
+    customClass: {
+      confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg'
+    }
+  });
+};
+
+const handleFuelSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  setIsSubmitting(true);
+  setApiError('');
+
+  // Check if travelRequestId is available before calling the API
+  if (!travelRequestId) {
+    setApiError('Request ID is required');
+    setIsSubmitting(false);
+    return;
+  }
+
+  try {
+    // Pass the travelRequestId along with the other form data
+    await TravelApi.fuelRequest({
+      id: travelRequestId, // Pass the correct ID here
+      authorizerName: formData.authorizerName,
+      accountNumber: formData.accountNumber,
+      status: 'FINISHED',
+      assignedCarType: formData.vehicleType || '',
+
+    });
+
+    showSuccessAlert('Success!', 'Fuel request submitted successfully');
+    onSuccess();
+  } catch (error: any) {
+    setApiError(error.message || 'Failed to save service information');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-1">
+      <form onSubmit={handleFuelSubmit} className="space-y-4">
+        {/* Service Number and Claimant Name */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className={styles.formGroup}>
-            <label>Service Number</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Service Number</label>
             <input
               type="text"
+              name="serviceNumber"
               value={formData.serviceNumber}
-              onChange={(e) => !isReadOnly && setFormData({...formData, serviceNumber: e.target.value})}
-              required
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
               readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
             />
           </div>
-          
-          <div className={styles.formGroup}>
-            <label>Work Location</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Claimant Name</label>
             <input
               type="text"
-              value={formData.workLocation}
-              onChange={(e) => !isReadOnly && setFormData({...formData, workLocation: e.target.value})}
-              required
+              name="claimantName"
+              value={formData.claimantName}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
               readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>Traveler Name</label>
-            <input
-              type="text"
-              value={formData.travelerName}
-              onChange={(e) => !isReadOnly && setFormData({...formData, travelerName: e.target.value})}
-              required
-              readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>Required Service</label>
-            <input
-              type="text"
-              value={formData.requiredService}
-              onChange={(e) => !isReadOnly && setFormData({...formData, requiredService: e.target.value})}
-              required
-              readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>Travel Distance (km)</label>
-            <input
-              type="number"
-              value={formData.travelDistance || ''}
-              onChange={(e) => !isReadOnly && setFormData({...formData, travelDistance: Number(e.target.value)})}
-              required
-              min="0"
-              readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>Vehicle Type</label>
-            <input
-              type="text"
-              value={formData.vehicleType}
-              onChange={(e) => !isReadOnly && setFormData({...formData, vehicleType: e.target.value})}
-              required
-              readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>License Plate</label>
-            <input
-              type="text"
-              value={formData.licensePlate}
-              onChange={(e) => !isReadOnly && setFormData({...formData, licensePlate: e.target.value})}
-              required
-              readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>Assigned Driver</label>
-            <input
-              type="text"
-              value={formData.assignedDriver}
-              onChange={(e) => !isReadOnly && setFormData({...formData, assignedDriver: e.target.value})}
-              required
-              readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
-            />
-          </div>
-          
-          <div className={`${styles.formGroup} md:col-span-2`}>
-            <label>Trip Explanation</label>
-            <textarea
-              value={formData.tripExplanation}
-              onChange={(e) => !isReadOnly && setFormData({...formData, tripExplanation: e.target.value})}
-              rows={3}
-              readOnly={isReadOnly}
-              className={isReadOnly ? 'bg-gray-100' : ''}
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>Requested Fuel Amount</label>
-            <input
-              type="number"
-              value={formData.requestedFuelAmount || ''}
-              onChange={(e) => setFormData({...formData, requestedFuelAmount: Number(e.target.value)})}
-              required
-              min="0"
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>Authorizer Name</label>
-            <input
-              type="text"
-              value={formData.authorizerName}
-              onChange={(e) => setFormData({...formData, authorizerName: e.target.value})}
-              required
-            />
-          </div>
-          
-          <div className={styles.formGroup}>
-            <label>Account Number</label>
-            <input
-              type="text"
-              value={formData.accountNumber}
-              onChange={(e) => setFormData({...formData, accountNumber: e.target.value})}
-              required
             />
           </div>
         </div>
-        
+
+        {/* Travel Dates */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Starting Date</label>
+            <input
+              type="date"
+              name="actualStartingDate"
+              value={formData.actualStartingDate}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+              readOnly={isReadOnly}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Ending Date</label>
+            <input
+              type="date"
+              name="actualReturnDate"
+              value={formData.actualReturnDate}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+              readOnly={isReadOnly}
+            />
+          </div>
+        </div>
+
+        {/* Travelers Section */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Travelers</label>
+          {formData.travelers.map((traveler, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={traveler}
+                onChange={(e) => handleTravelerChange(index, e.target.value)}
+                className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+                readOnly={isReadOnly}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Location Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Work Location</label>
+            <input
+              type="text"
+              name="workLocation"
+              value={formData.workLocation}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+              readOnly={isReadOnly}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Destination</label>
+            <input
+              type="text"
+              name="destinationPlace"
+              value={formData.destinationPlace}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+              readOnly={isReadOnly}
+            />
+          </div>
+        </div>
+
+        {/* Vehicle Details */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Vehicle Type</label>
+            <input
+              type="text"
+              name="vehicleType"
+              value={formData.vehicleType}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+              readOnly={isReadOnly}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">License Plate</label>
+            <input
+              type="text"
+              name="licensePlate"
+              value={formData.licensePlate}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+              readOnly={isReadOnly}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Assigned Driver</label>
+            <input
+              type="text"
+              name="assignedDriver"
+              value={formData.assignedDriver}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+              readOnly={isReadOnly}
+            />
+          </div>
+        </div>
+
+        {/* Travel Distance and Explanation */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Travel Distance (km)</label>
+            <input
+              type="number"
+              name="travelDistance"
+              value={formData.travelDistance}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+              readOnly={isReadOnly}
+              min="0"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Trip Explanation</label>
+          <textarea
+            name="tripExplanation"
+            value={formData.tripExplanation}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
+            readOnly={isReadOnly}
+            rows={3}
+          />
+        </div>
+
+        {/* Editable Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Authorizer Name</label>
+            <input
+              type="text"
+              name="authorizerName"
+              value={formData.authorizerName}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded border border-gray-300"
+              required
+              placeholder="Enter assembler's full name"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Account Number</label>
+            <input
+              type="text"
+              name="accountNumber"
+              value={formData.accountNumber}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded border border-gray-300"
+              required
+              placeholder="Enter account number"
+            />
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={isSubmitting}
-          className={`${styles.submitButton} ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+          className={`w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
         >
-          {isSubmitting ? 'Submitting...' : 'Submit Request'}
+          {isSubmitting ? 'Submitting...' : 'Submit Fuel Request'}
         </button>
       </form>
     </div>

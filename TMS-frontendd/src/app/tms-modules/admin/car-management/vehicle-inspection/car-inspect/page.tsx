@@ -805,8 +805,16 @@ const handlePhase1SubmitInternal = async () => {
           </div>
         )}
       </div>
-      <PhaseActions onBack={() => setPhase(1)} backLabel="Back to Mechanical" onNext={handlePhase2Submit}
-        nextLabel="Continue to Interior Inspection" isNextDisabled={!inspectorName.trim()} isLoading={isLoading} />
+      // Inside Phase2BodyInspection component
+
+<PhaseActions
+  onBack={() => setPhase(1)}
+  backLabel="Back to Mechanical"
+  onNext={handlePhase2Submit} // Function to move to Phase 3
+  nextLabel="Continue to Interior Inspection" // The button text
+  isNextDisabled={!inspectorName.trim()} // <--- THIS is the key condition
+  isLoading={isLoading}
+/>
     </PhaseContainer>
   );
 

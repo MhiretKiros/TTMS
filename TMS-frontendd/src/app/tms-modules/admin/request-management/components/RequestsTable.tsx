@@ -1,18 +1,28 @@
 "use client";
 import { useState } from 'react';
 import Swal from 'sweetalert2';
+import { motion } from 'framer-motion';
 import { TravelRequest } from '../api/handlers';
 
 interface RequestsTableProps {
   requests: TravelRequest[];
-  actorType: 'user' | 'manager' | 'corporator';
+  actorType: 'user' | 'manager' | 'corporator' | 'driver';
   onRowClick: (request: TravelRequest) => void;
-  onStatusChange?: (id: number, status: 'Approved' | 'Rejected') => Promise<void>;
+  onStatusChange?: (id: number, status: 'APPROVED' | 'REJECTED') => Promise<void>;
+  onCompleteTrip?: (id: number) => Promise<void>;
+  driverSearchQuery?: string; // Add this line
 }
 
-export default function RequestsTable({ requests, actorType, onRowClick, onStatusChange }: RequestsTableProps) {
+export default function RequestsTable({ 
+  requests, 
+  actorType, 
+  onRowClick, 
+  onStatusChange,
+  onCompleteTrip ,
+  driverSearchQuery = '' // Add default value
+}: RequestsTableProps) {
   const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
-  const [status, setStatus] = useState<'Approved' | 'Rejected'>('Approved');
+  const [status, setStatus] = useState<'APPROVED' | 'REJECTED'>('APPROVED');
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleRowClick = (request: TravelRequest) => {
@@ -31,11 +41,25 @@ export default function RequestsTable({ requests, actorType, onRowClick, onStatu
       }
     }
   };
-  // Filter the requests to show only "Approved" ones for the manager
-const filteredRequests = actorType === 'manager' 
-? requests.filter(req => req.status === 'APPROVED') // Adjusted to match the status enum value from API
-: requests;
 
+  const handleCompleteTrip = async () => {
+    if (selectedRequest && onCompleteTrip) {
+      setIsUpdating(true);
+      try {
+        await onCompleteTrip(selectedRequest.id);
+        setSelectedRequest(null);
+      } finally {
+        setIsUpdating(false);
+      }
+    }
+  };
+
+  // Filter requests based on actor type
+  const filteredRequests = actorType === 'manager' 
+    ? requests.filter(req => req.status === 'APPROVED')
+    : actorType === 'driver'
+    ? requests.filter(req => req.status === 'COMPLETED')
+    : requests;
 
   const showRejectedAlert = (request: TravelRequest) => {
     Swal.fire({
@@ -46,80 +70,98 @@ const filteredRequests = actorType === 'manager'
     });
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
+  };
+
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
+  };
+
   return (
     <div className="mt-8">
-      <h3 className="text-lg font-medium text-gray-700 mb-4">Travel Requests</h3>
+      <h3 className="text-lg font-medium text-gray-700 mb-4">
+        {actorType === 'manager' ? 'Approved Travel Requests' : 
+         actorType === 'corporator' ? 'All Travel Requests' : 
+         actorType === 'driver' ? 'My Assigned Trips' : 'Travel Requests'}
+      </h3>
+      
       <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-        <table className="min-w-full divide-y divide-gray-300">
+        <motion.table
+          className="min-w-full divide-y divide-gray-300"
+          initial="hidden"
+          animate="show"
+          variants={containerVariants}
+        >
           <thead className="bg-gray-50">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Travelers</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {actorType === 'driver' ? 'Driver' : 'Department'}
+              </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredRequests.map((request) => (
-              <tr 
-                key={request.id} 
-                className={`hover:bg-gray-50 cursor-pointer ${selectedRequest?.id === request.id ? 'bg-blue-50' : ''}`}
-                onClick={() => {
-                  if (actorType === 'manager' && request.status === 'Rejected') {
-                    showRejectedAlert(request);
-                  } else {
-                    handleRowClick(request);
-                  }
-                }}
-              >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.startingPlace}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.destinationPlace}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {request.travelers.slice(0, 2).map(t => typeof t === 'object' ? t.name : t).join(', ')}
-                  {request.travelers.length > 2 && ` +${request.travelers.length - 2}`}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.department}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    request.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                    request.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                    request.status === 'Completed' ? 'bg-blue-100 text-blue-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {request.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {actorType === 'corporator' && selectedRequest && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h4 className="text-md font-medium text-gray-700 mb-3">Change Request Status</h4>
-          <div className="flex items-center space-x-4">
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as 'Approved' | 'Rejected')}
-              className="block w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              <option value="Approved">Approve</option>
-              <option value="Rejected">Reject</option>
-            </select>
-            <button
-              onClick={handleStatusSubmit}
-              disabled={isUpdating}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isUpdating ? 'Updating...' : 'Update Status'}
-            </button>
-          </div>
+        </motion.table>
+        
+        {/* Scrollable tbody */}
+        <div className="overflow-y-auto max-h-[calc(7*3.5rem)]">
+          <motion.table
+            className="min-w-full divide-y divide-gray-300"
+            initial="hidden"
+            animate="show"
+            variants={containerVariants}
+          >
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredRequests.map((request) => (
+                <motion.tr 
+                  key={request.id} 
+                  variants={rowVariants}
+                  whileHover={{ scale: 1.01, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                  className={`hover:bg-gray-50 cursor-pointer ${selectedRequest?.id === request.id ? 'bg-blue-50' : ''}`}
+                  onClick={() => {
+                    if (actorType === 'manager' && request.status === 'REJECTED') {
+                      showRejectedAlert(request);
+                    } else {
+                      handleRowClick(request);
+                    }
+                  }}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.startingPlace}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.destinationPlace}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {request.travelers.slice(0, 2).map(t => typeof t === 'object' ? t.name : t).join(', ')}
+                    {request.travelers.length > 2 && ` +${request.travelers.length - 2}`}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {actorType === 'driver' ? request.assignedDriver || '-' : request.department}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${request.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                       request.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                       request.status === 'COMPLETED' ? 'bg-blue-100 text-blue-800' :
+                       'bg-yellow-100 text-yellow-800'}`}>
+                      {request.status}
+                    </span>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </motion.table>
         </div>
-      )}
+      </div>
     </div>
   );
 }

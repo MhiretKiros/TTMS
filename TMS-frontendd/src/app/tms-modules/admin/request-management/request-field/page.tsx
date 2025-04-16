@@ -6,15 +6,17 @@ import CommentForm from '../components/CommentForm';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {  FiTool, FiMessageSquare, FiSend, FiX, FiTruck } from 'react-icons/fi';
+import DailyServiceRequestForm from '../components/DailyServiceRequestForm';
 
 export default function ServiceRequestPage() {
-  const [activeTab, setActiveTab] = useState<'field' |'service'  | 'comment'>('field');
+  const [activeTab, setActiveTab] = useState<'field' |'service' | 'daily' | 'comment'>('field');
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSuccess = () => {
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
   };
+  
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8">
@@ -40,6 +42,7 @@ export default function ServiceRequestPage() {
           {[
             { id: 'field', icon: <FiTool className="mr-2" />, label: 'Field Request' },
             { id: 'service', icon: <FiTruck className="mr-2" />, label: 'Car Service' },
+            { id: 'daily', icon: <FiTruck className="mr-2" />, label: 'Daily Service Request' },
             { id: 'comment', icon: <FiMessageSquare className="mr-2" />, label: 'Send Complaint' }
           ].map((tab) => (
             <motion.button
@@ -67,9 +70,12 @@ export default function ServiceRequestPage() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {activeTab === 'field' && <TravelRequestForm actorType="manager" onSuccess={handleSuccess} />
+
+            {activeTab === 'field' && <TravelRequestForm actorType="driver" onSuccess={handleSuccess} />
           }
             {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
+            {activeTab === 'daily' && <DailyServiceRequestForm actorType="driver" onSuccess={handleSuccess} />
+          }
             {activeTab === 'comment' && <CommentForm onSuccess={handleSuccess} />}
           </motion.div>
         </AnimatePresence>
