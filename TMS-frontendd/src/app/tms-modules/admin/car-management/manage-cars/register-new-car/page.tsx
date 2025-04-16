@@ -33,8 +33,7 @@ export default function RegisterNewCar() {
           <CarForm
             car={null}
             onClose={() => window.location.href = '/tms-modules/admin/car-management/manage-cars'}
-            onSubmit={handleSubmit}
-          />
+            onSubmit={handleSubmit} isSubmitting={false}          />
         )}
       </AnimatePresence>
     </div>
