@@ -20,7 +20,7 @@ interface RentCar {
   door: string;
   cylinder: string;
   fuelType: string;
-  vehiclesStatus: string;
+  status: string;
   otherDescription: string;
   radio: string;
   antena: string;
@@ -69,7 +69,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     door: '',
     cylinder: '',
     fuelType: 'Petrol',
-    vehiclesStatus: 'Active',
+    status: 'Active',
     otherDescription: '',
     radio: '',
     antena: '',
@@ -397,8 +397,8 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Vehicles Status</label>
                     <select
-                      name="vehiclesStatus"
-                      value={formData.vehiclesStatus}
+                      name="status"
+                      value={formData.status}
                       onChange={handleChange}
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={isSubmitting}

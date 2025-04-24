@@ -1,10 +1,10 @@
 'use client';
+import React, { useState, useEffect, useCallback } from 'react'; // Import React
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheck, FiX, FiAlertTriangle, FiChevronRight, FiInfo } from 'react-icons/fi';
 
-// --- Enums and Constants ---
+// Enums (InspectionStatus, ServiceStatus, SeverityLevel) remain the same
 enum InspectionStatus {
   Approved = 'Approved',
   Rejected = 'Rejected',
@@ -24,6 +24,7 @@ enum SeverityLevel {
   NONE = 'NONE',
 }
 
+
 // Define critical mechanical checks in one place
 const CRITICAL_MECHANICAL_CHECKS: (keyof MechanicalInspection)[] = [
   'engineCondition', 'brakes', 'steering', 'suspension',
@@ -32,7 +33,7 @@ const CRITICAL_MECHANICAL_CHECKS: (keyof MechanicalInspection)[] = [
 // API Base URL (Consider moving to .env.local)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
 
-// --- Types ---
+// --- Types --- (CarType, Car, ItemCondition, MechanicalInspection, BodyInspection, InteriorInspection, InspectionResultState, InspectionPayload) remain the same
 type CarType = 'personal' | 'organization' | 'rented';
 
 interface Car {
@@ -137,6 +138,7 @@ type InspectionPayload = {
   rejectionReason?: string;
 };
 
+
 // Helper function to create default ItemCondition
 const createDefaultItemCondition = (): ItemCondition => ({
   problem: false,
@@ -166,6 +168,315 @@ interface Phase1Props {
     checkMechanicalPass: () => boolean;
 }
 
+// --- Props Interface for Checkbox --- (Moved before usage)
+interface InspectionCheckboxProps {
+  label: string;
+  checked?: boolean;
+  onChange?: () => void;
+  itemCondition?: ItemCondition;
+  onConditionChange?: (property: keyof ItemCondition, value: boolean | SeverityLevel | string) => void; // Updated value type
+  isProblemOriented?: boolean;
+}
+
+// --- Reusable UI Components --- (PhaseContainer, PhaseHeader, SectionHeader, PhaseActions, InspectionCheckbox) remain the same
+// Define them before they are used in Phase components or the main component
+
+const PhaseContainer = ({ children }: { children: React.ReactNode }) => (
+    <motion.div
+      initial={{ opacity: 0, x: 100 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -100 }}
+      transition={{ duration: 0.4, ease: "easeInOut" }}
+      className="bg-white rounded-xl shadow-lg p-6 border border-gray-100"
+    >
+      {children}
+    </motion.div>
+  );
+
+const PhaseHeader = ({ plateNumber, phase }: { plateNumber: string | null, phase: 1 | 2 | 3 }) => (
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-200">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-800">
+          Vehicle Inspection - <span className="text-blue-600 font-mono">{plateNumber || 'N/A'}</span>
+        </h2>
+        <div className="flex items-center mt-1 text-sm text-gray-500">
+          <span className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium ${
+              phase === 1 ? 'bg-blue-100 text-blue-800' :
+              phase === 2 ? 'bg-indigo-100 text-indigo-800' :
+              'bg-purple-100 text-purple-800'
+            }`}>
+            Phase {phase} of 3
+          </span>
+          <FiChevronRight className="mx-1 text-gray-400" />
+          <span className="font-medium">
+            {phase === 1 ? 'Mechanical' : phase === 2 ? 'Body Exterior' : 'Interior & Electrical'} Inspection
+          </span>
+        </div>
+      </div>
+      <div className="text-sm text-gray-500 mt-2 sm:mt-0 whitespace-nowrap">
+        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+      </div>
+    </div>
+  );
+
+const SectionHeader = ({ title, score, status }: { title: string; score?: number; status?: string }) => (
+    <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
+      <h3 className="font-semibold text-gray-700">{title}</h3>
+      {score !== undefined && status !== undefined && (
+        <div className="flex items-center space-x-2">
+          <span className="text-sm font-medium text-gray-600">{score}% Pass</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+            score >= 90 ? 'bg-green-100 text-green-800' :
+            score >= 75 ? 'bg-yellow-100 text-yellow-800' :
+            score >= 60 ? 'bg-orange-100 text-orange-800' :
+            'bg-red-100 text-red-800'
+          }`}>
+            {status}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
+const PhaseActions = ({ phase, onBack, onNext, backLabel, nextLabel, isNextDisabled, isLoading }: {
+    phase: 1 | 2 | 3;
+    onBack?: () => void;
+    onNext: () => Promise<void>;
+    backLabel?: string;
+    nextLabel: string;
+    isNextDisabled: boolean;
+    isLoading: boolean;
+  }) => (
+    <div className="flex flex-col sm:flex-row justify-between items-center mt-8 pt-6 border-t border-gray-200 gap-4">
+       <div className="text-sm text-gray-500 text-center sm:text-left">
+        {phase === 1 ? 'Ensure all critical mechanical systems are checked.' :
+         phase === 2 ? 'Document any exterior body damage or wear.' :
+         'Check all interior components and finalize the inspection.'}
+      </div>
+      <div className="flex space-x-3 w-full sm:w-auto justify-center">
+        {onBack && (
+          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onBack} disabled={isLoading}
+            className="px-5 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50">
+            {backLabel || 'Back'}
+          </motion.button>
+        )}
+        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onNext} disabled={isNextDisabled || isLoading}
+          className={`px-5 py-2 text-white rounded-lg transition-all flex-1 sm:flex-none ${
+            isNextDisabled || isLoading
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+          }`}>
+          {isLoading ? (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+              <span>Processing...</span>
+            </div>
+          ) : ( nextLabel )}
+        </motion.button>
+      </div>
+    </div>
+  );
+
+const InspectionCheckbox = ({ label, checked, onChange, itemCondition, onConditionChange, isProblemOriented = false }: InspectionCheckboxProps) => {
+    const isConditionMode = itemCondition !== undefined && onConditionChange !== undefined;
+    const isOk = isConditionMode ? !itemCondition.problem : checked;
+
+    const handleClick = useCallback(() => {
+      if (isConditionMode) {
+        onConditionChange?.('problem', !itemCondition.problem);
+      } else {
+        onChange?.();
+      }
+    }, [isConditionMode, itemCondition, onConditionChange, onChange]);
+
+    const handleSeverityChange = useCallback((value: SeverityLevel) => {
+        if (isConditionMode) onConditionChange?.('severity', value);
+    }, [isConditionMode, onConditionChange]);
+
+    const handleNotesChange = useCallback((value: string) => {
+        if (isConditionMode) onConditionChange?.('notes', value);
+    }, [isConditionMode, onConditionChange]);
+
+    return (
+      <div className="space-y-2 py-3 px-3 -mx-3 hover:bg-gray-50 rounded-lg transition-colors duration-150">
+        <div className="flex items-start space-x-3 cursor-pointer group" onClick={handleClick}>
+          <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded border mt-0.5 transition-colors ${
+            isOk ? 'border-green-400 bg-green-50 group-hover:border-green-500' : 'border-red-400 bg-red-50 group-hover:border-red-500'
+          }`}>
+            {isOk ? <FiCheck className="w-4 h-4 text-green-600" /> : <FiX className="w-4 h-4 text-red-600" />}
+          </div>
+          <span className={`flex-1 text-sm ${ isOk ? 'text-gray-700' : 'text-red-700 font-medium' }`}>
+            {label}
+          </span>
+        </div>
+
+        {isConditionMode && itemCondition.problem && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }} className="pl-8 space-y-3 mt-2 overflow-hidden">
+            <div className="flex items-center space-x-3">
+              <label className="text-xs font-medium text-gray-600">Severity:</label>
+              <div className="flex space-x-1.5">
+                {([SeverityLevel.LOW, SeverityLevel.MEDIUM, SeverityLevel.HIGH] as const).map((level) => (
+                  <button key={level} type="button"
+                    className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                      itemCondition.severity === level
+                        ? level === SeverityLevel.LOW ? 'bg-yellow-500 text-white'
+                          : level === SeverityLevel.MEDIUM ? 'bg-orange-500 text-white'
+                          : 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                    onClick={(e) => { e.stopPropagation(); handleSeverityChange(level); }}>
+                    {level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Notes:</label>
+              <textarea
+                className="w-full text-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-vertical min-h-[40px]"
+                rows={2} placeholder="Describe the issue..." value={itemCondition.notes}
+                onChange={(e) => handleNotesChange(e.target.value)} onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </motion.div>
+        )}
+      </div>
+    );
+  };
+
+
+// --- Phase 1 Component - Wrapped with React.memo ---
+const Phase1MechanicalInspection = React.memo(({
+    initialInspectorName,
+    onNameFinalized,
+    inspection,
+    setInspection,
+    handleMechanicalCheck,
+    plateNumber,
+    setPhase,
+    setShowFailAlert,
+    setIsLoading,
+    isLoading,
+    router,
+    checkMechanicalPass,
+}: Phase1Props) => {
+  const [localInspectorName, setLocalInspectorName] = useState(initialInspectorName);
+
+  const criticalChecksMap = CRITICAL_MECHANICAL_CHECKS.reduce((acc, key) => {
+      acc[key] = true;
+      return acc;
+  }, {} as Partial<Record<keyof MechanicalInspection, boolean>>);
+
+  const handlePhase1SubmitInternal = useCallback(async () => {
+    if (!localInspectorName.trim()) {
+        alert("Please enter the inspector's name.");
+        return;
+    }
+    onNameFinalized(localInspectorName);
+    setIsLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const mechanicalPass = checkMechanicalPass();
+    if (mechanicalPass) {
+      setPhase(2);
+    } else {
+      setInspection(prev => ({
+        ...prev,
+        overallStatus: InspectionStatus.Rejected,
+        serviceStatus: ServiceStatus.NotReady,
+        rejectionReason: 'Failed one or more mechanical inspection items.'
+      }));
+      setShowFailAlert(true);
+    }
+    setIsLoading(false);
+  }, [localInspectorName, onNameFinalized, setIsLoading, checkMechanicalPass, setPhase, setInspection, setShowFailAlert]);
+
+
+  return (
+    <PhaseContainer>
+      <PhaseHeader plateNumber={plateNumber} phase={1} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+        {/* Column 1 */}
+        <div className="space-y-4">
+          <SectionHeader title="Engine & Drivetrain" />
+          {(Object.keys(inspection.mechanical) as Array<keyof MechanicalInspection>)
+            .filter(key => ['engineCondition', 'enginePower', 'gearbox', 'mileage'].includes(key))
+            .map(key => (
+              <InspectionCheckbox
+                key={key}
+                label={`${formatLabel(key)} ${criticalChecksMap[key] ? '*' : ''}`}
+                checked={inspection.mechanical[key]}
+                onChange={() => handleMechanicalCheck(key)}
+              />
+          ))}
+        </div>
+        {/* Column 2 */}
+        <div className="space-y-4">
+          <SectionHeader title="Chassis & Controls" />
+           {(Object.keys(inspection.mechanical) as Array<keyof MechanicalInspection>)
+            .filter(key => ['suspension', 'brakes', 'steering'].includes(key))
+            .map(key => (
+              <InspectionCheckbox
+                key={key}
+                label={`${formatLabel(key)} ${criticalChecksMap[key] ? '*' : ''}`}
+                checked={inspection.mechanical[key]}
+                onChange={() => handleMechanicalCheck(key)}
+              />
+          ))}
+          <div className="p-3 border border-gray-200 rounded-lg bg-gray-50/50">
+            <label className="text-sm font-medium text-gray-600 block mb-2">Gauges Functional:</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1">
+              {(Object.keys(inspection.mechanical) as Array<keyof MechanicalInspection>)
+                .filter(key => ['fuelGauge', 'tempGauge', 'oilGauge'].includes(key))
+                .map(key => (
+                  <InspectionCheckbox
+                    key={key}
+                    label={formatLabel(key)}
+                    checked={inspection.mechanical[key]}
+                    onChange={() => handleMechanicalCheck(key)}
+                  />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Inspector Name and Info Box */}
+      <div className="mt-8 space-y-4">
+        <div>
+          <label htmlFor="inspectorName" className="block text-sm font-medium text-gray-700 mb-1">Inspector Name *</label>
+          <input
+            id="inspectorName"
+            type="text"
+            className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150"
+            value={localInspectorName}
+            onChange={(e) => setLocalInspectorName(e.target.value)}
+            required
+            placeholder="Enter your full name"
+          />
+        </div>
+        <div className="bg-blue-50 p-3 rounded-lg flex items-start border border-blue-100">
+          <FiInfo className="text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
+          <p className="text-sm text-blue-700">
+            Items marked with * are critical. Failure of any critical item will result in immediate rejection. Ensure all systems are checked thoroughly.
+          </p>
+        </div>
+      </div>
+      <PhaseActions
+        phase={1}
+        onBack={() => router.back()}
+        backLabel="Cancel Inspection"
+        onNext={handlePhase1SubmitInternal}
+        nextLabel={checkMechanicalPass() ? 'Continue to Body Inspection' : 'Submit as Failed (Critical Failure)'}
+        isNextDisabled={!localInspectorName.trim()}
+        isLoading={isLoading}
+      />
+    </PhaseContainer>
+  );
+});
+Phase1MechanicalInspection.displayName = 'Phase1MechanicalInspection';
+
+
+// --- Main CarInspectPage Component ---
 export default function CarInspectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -173,7 +484,7 @@ export default function CarInspectPage() {
   const carTypeParam = searchParams.get('type') as CarType | null;
 
   const [phase, setPhase] = useState<1 | 2 | 3>(1);
-  const [inspectorName, setInspectorName] = useState(''); // Parent state for inspector name
+  const [inspectorName, setInspectorName] = useState('');
   const [inspection, setInspection] = useState<InspectionResultState>({
     mechanical: {
       engineCondition: true, enginePower: true, suspension: true, brakes: true,
@@ -209,26 +520,27 @@ export default function CarInspectPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   // --- Handlers ---
-
-  // Use useCallback to prevent unnecessary re-creation of handlers passed as props
   const handleMechanicalCheck = useCallback((field: keyof MechanicalInspection) => {
     setInspection(prev => ({
       ...prev,
       mechanical: { ...prev.mechanical, [field]: !prev.mechanical[field] }
     }));
-  }, []); // Empty dependency array as it doesn't depend on component state/props
+  }, []);
 
   const handleItemConditionChange = useCallback((
     section: 'body' | 'interior',
     field: keyof BodyInspection | keyof InteriorInspection,
     property: keyof ItemCondition,
-    value: boolean | SeverityLevel | string // More specific type
+    value: boolean | SeverityLevel | string
   ) => {
     setInspection(prev => {
       const currentSection = prev[section];
+      if (!currentSection || !(field in currentSection)) {
+        console.error(`Field ${String(field)} not found in section ${section}`);
+        return prev;
+      }
       const currentItem = currentSection[field as keyof typeof currentSection] as ItemCondition;
       const resetOnProblemFalse = (property === 'problem' && value === false);
-
       return {
         ...prev,
         [section]: {
@@ -236,25 +548,24 @@ export default function CarInspectPage() {
           [field]: {
             ...currentItem,
             [property]: value,
-            ...(resetOnProblemFalse && { severity: SeverityLevel.NONE, notes: '' }) // Reset if problem is false
+            ...(resetOnProblemFalse && { severity: SeverityLevel.NONE, notes: '' })
           }
         }
       };
     });
-  }, []); // Empty dependency array
+  }, []);
 
   // --- Calculations ---
-
-  const calculateScore = (section: 'body' | 'interior') => {
+  const calculateScore = useCallback((section: 'body' | 'interior') => {
     const items = Object.values(inspection[section]) as ItemCondition[];
     const totalItems = items.length;
     if (totalItems === 0) return 100;
     const passedItems = items.filter(item => !item.problem).length;
     return Math.round((passedItems / totalItems) * 100);
-  };
+  }, [inspection]);
 
-  const calculateBodyScore = () => calculateScore('body');
-  const calculateInteriorScore = () => calculateScore('interior');
+  const calculateBodyScore = useCallback(() => calculateScore('body'), [calculateScore]);
+  const calculateInteriorScore = useCallback(() => calculateScore('interior'), [calculateScore]);
 
   const getOverallStatusFromScore = (score: number) => {
     if (score >= 90) return 'Excellent';
@@ -263,40 +574,72 @@ export default function CarInspectPage() {
     return 'Poor';
   };
 
-  const getOverallBodyStatus = () => getOverallStatusFromScore(calculateBodyScore());
-  const getOverallInteriorStatus = () => getOverallStatusFromScore(calculateInteriorScore());
+  const getOverallBodyStatus = useCallback(() => getOverallStatusFromScore(calculateBodyScore()), [calculateBodyScore]);
+  const getOverallInteriorStatus = useCallback(() => getOverallStatusFromScore(calculateInteriorScore()), [calculateInteriorScore]);
 
- // Inside CarInspectPage component
+  const checkMechanicalPass = useCallback(() => {
+    const { mechanical } = inspection;
+    const anyCriticalFailed = CRITICAL_MECHANICAL_CHECKS.some(key => !mechanical[key]);
+    if (anyCriticalFailed) {
+      console.warn("CRITICAL Mechanical check failed.");
+      return false;
+    }
+    return true;
+  }, [inspection.mechanical]);
 
-const checkMechanicalPass = useCallback(() => {
-  const { mechanical } = inspection;
-  // Get all keys from the mechanical inspection object
-  const allMechanicalKeys = Object.keys(mechanical) as Array<keyof MechanicalInspection>;
+  const checkBodyPass = useCallback(() => Object.values(inspection.body).every(item => !item.problem), [inspection.body]);
+  const checkInteriorPass = useCallback(() => Object.values(inspection.interior).every(item => !item.problem), [inspection.interior]);
 
-  // Check if EVERY mechanical item is true (passed)
-  const allMechanicalPassed = allMechanicalKeys.every(key => {
-      const passed = mechanical[key];
-      // Optional: Keep logging for debugging if needed
-      // console.log(`checkMechanicalPass - Checking key: ${key}, Value: ${passed}`);
-      return passed;
-  });
+  // --- >>> NEW: Function to Update Car Status <<< ---
+  const updateCarStatusAfterInspection = useCallback(async (
+    plate: string,
+    inspectionStatus: InspectionStatus, // Pass the result status
+    inspectionId: number // Pass the new inspection ID
+  ) => {
+    console.log(`Attempting to update status for car ${plate} based on inspection ${inspectionId} (${inspectionStatus})`);
 
-  if (!allMechanicalPassed) {
-      // Find which items failed
-      const failedItems = allMechanicalKeys.filter(key => !mechanical[key]);
-      console.warn("Mechanical check failed. Failing items:", failedItems);
-  }
-  // console.log("checkMechanicalPass - Final Result (Any Failure):", allMechanicalPassed);
-  return allMechanicalPassed; // Return true only if ALL items are true
-}, [inspection.mechanical]); // Dependency remains the same
- // Dependency on mechanical part of state
+    const token = localStorage.getItem('token');
+    if (!token || token.trim() === '') {
+      console.error('Cannot update car status: Authentication token missing.');
+      // Optionally show a non-blocking warning to the user
+      // alert('Warning: Could not update car status due to missing authentication.');
+      return; // Exit the function
+    }
 
-  const checkBodyPass = () => Object.values(inspection.body).every(item => !item.problem);
-  const checkInteriorPass = () => Object.values(inspection.interior).every(item => !item.problem);
+    try {
+      // *** Adjust this API endpoint as needed for your backend ***
+      const response = await fetch(`${API_BASE_URL}/cars/update-inspection-status`, {
+        method: 'POST', // Or 'PUT'
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          plateNumber: plate,
+          latestInspectionId: inspectionId,
+          status: inspectionStatus, // Send the inspection status (Approved, Rejected, etc.)
+          // You might need to map InspectionStatus to a specific Car Status on the backend
+        }),
+      });
 
-  // --- API Submission ---
+      if (!response.ok) {
+        let errorMsg = `Failed to update car status (HTTP ${response.status})`;
+        try { const errorData = await response.json(); errorMsg = errorData.message || errorData.error || errorMsg; } catch (e) { /* Ignore */ }
+        console.warn(`Car Status Update Warning: ${errorMsg}`);
+        // alert('Warning: Could not update the car status automatically.'); // Optional user warning
+      } else {
+        const result = await response.json();
+        console.log(`Car status updated successfully for ${plate}:`, result);
+      }
 
-  const submitInspectionToBackend = async (payload: InspectionPayload) => {
+    } catch (error: any) {
+      console.error('Error calling updateCarStatusAfterInspection:', error);
+      // alert('Warning: An error occurred while updating the car status.'); // Optional user warning
+    }
+  }, []); // No external dependencies needed if API_BASE_URL is constant
+
+  // --- API Submission (Modified) ---
+  const submitInspectionToBackend = useCallback(async (payload: InspectionPayload) => {
     setIsLoading(true);
     console.log("Submitting Inspection Payload:", JSON.stringify(payload, null, 2));
 
@@ -305,8 +648,8 @@ const checkMechanicalPass = useCallback(() => {
       console.error('No valid authentication token found.');
       alert('Authentication error. Please log in again.');
       setIsLoading(false);
-      // router.push('/login'); // Optional redirect
-      return;
+      router.push('/login');
+      return null;
     }
 
     try {
@@ -315,64 +658,72 @@ const checkMechanicalPass = useCallback(() => {
         'Authorization': `Bearer ${token}`,
       };
 
-      const response = await fetch(`${API_BASE_URL}/inspections/create`, { // Use configured URL
+      const response = await fetch(`${API_BASE_URL}/inspections/create`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payload)
-        
       });
 
       if (!response.ok) {
+        // ... (Keep existing detailed error handling for inspection creation) ...
         let errorMessage = `HTTP error! Status: ${response.status}`;
         let errorDetails = null;
         try {
-          // Attempt to parse backend error response for more details
           errorDetails = await response.json();
           errorMessage = errorDetails.message || errorDetails.error || JSON.stringify(errorDetails);
-          if (response.status === 400) {
-             console.error("Backend Validation Errors:", errorDetails);
-             // Try to format validation errors if available
-             if (errorDetails.errors && Array.isArray(errorDetails.errors)) {
-                 const validationMessages = errorDetails.errors.map((err: any) => `${err.field}: ${err.defaultMessage || err.message}`).join(', ');
-                 errorMessage = `Submission failed due to invalid data: ${validationMessages}`;
-             } else {
-                 errorMessage = `Submission failed due to invalid data: ${errorMessage}`;
-             }
+          if (response.status === 400 && errorDetails.errors && Array.isArray(errorDetails.errors)) {
+             const validationMessages = errorDetails.errors.map((err: any) => `${err.field}: ${err.defaultMessage || err.message}`).join(', ');
+             errorMessage = `Submission failed due to invalid data: ${validationMessages}`;
           } else if (response.status === 401 || response.status === 403) {
              errorMessage = "Authentication failed. Please log in again.";
-             // router.push('/login'); // Optional redirect
+             router.push('/login');
           } else if (response.status >= 500) {
              errorMessage = `Server error (${response.status}). Please try again later.`;
           }
         } catch (jsonError) {
-          // If response is not JSON or parsing fails
           errorMessage = `HTTP error! Status: ${response.status} - ${response.statusText}`;
         }
         throw new Error(errorMessage);
       }
-      
 
       const result = await response.json();
       console.log('Submission successful:', result);
-      alert('Inspection submitted successfully!');
-      router.push('/tms-modules/admin/car-management/vehicle-inspection'); // Adjust target route
+
+      if (result && result.id && payload.plateNumber) { // Ensure ID and plateNumber exist
+        alert('Inspection submitted successfully!');
+
+        // 2. Update the car's status - NOW WE WAIT for this to finish
+        console.log("Waiting for car status update...");
+        await updateCarStatusAfterInspection(payload.plateNumber, payload.inspectionStatus, result.id);
+        console.log("Car status update attempt finished.");
+
+        // 3. Redirect to the results page AFTER status update attempt
+        router.push(`/tms-modules/admin/car-management/vehicle-inspection/result?inspectionId=${result.id}`);
+        return result; // Return the successful inspection result
+
+      } else {
+        console.warn("Submission successful, but missing ID or PlateNumber for status update:", result, payload.plateNumber);
+        alert('Inspection submitted, but could not retrieve necessary info for car status update. Redirecting to list.');
+        router.push('/tms-modules/admin/car-management/vehicle-inspection');
+        return null;
+      }
+      // --- >>> END MODIFIED SUCCESS BLOCK <<< ---
 
     } catch (error: any) {
       console.error('Submission error:', error);
       alert(`Submission failed: ${error.message || 'An unknown error occurred.'}`);
+      return null;
     } finally {
       setIsLoading(false);
     }
-  };
+    // Added updateCarStatusAfterInspection to dependencies
+  }, [router, updateCarStatusAfterInspection]);
+
 
   // --- Final Submission Logic ---
-
-  const handleSubmit = async () => {
-    // Ensure inspectorName is not empty before final submission
+  const handleSubmit = useCallback(async () => {
     if (!inspectorName.trim()) {
         alert("Inspector name cannot be empty for final submission.");
-        // Optionally, force back to phase 1 or highlight the field
-        // setPhase(1);
         return;
     }
 
@@ -383,30 +734,27 @@ const checkMechanicalPass = useCallback(() => {
     let finalServiceStatus: ServiceStatus = ServiceStatus.NotReady;
     let finalWarningMessage: string | undefined = undefined;
     let finalWarningDeadline: string | undefined = undefined;
-    let finalRejectionReason: string | undefined = inspection.rejectionReason; // Start with existing reason if any
+    let finalRejectionReason: string | undefined = inspection.rejectionReason;
 
     if (mechPass) {
         if (bodyPass && interiorPass) {
             finalOverallStatus = InspectionStatus.Approved;
             finalServiceStatus = ServiceStatus.Ready;
-            finalRejectionReason = undefined; // Clear rejection if all passed
+            finalRejectionReason = undefined;
         } else {
             finalOverallStatus = InspectionStatus.ConditionallyApproved;
             finalServiceStatus = ServiceStatus.ReadyWithWarning;
             const issues = [];
             if (!bodyPass) issues.push('body exterior');
             if (!interiorPass) issues.push('interior/electrical');
-            // More specific warning message
             finalWarningMessage = `Minor issues found in: ${issues.join(', ')}. Requires attention within the specified deadline.`;
-            // Calculate deadline (e.g., 30 days from now)
             const deadlineDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            finalWarningDeadline = deadlineDate.toISOString().split('T')[0]; // yyyy-MM-dd
-            finalRejectionReason = undefined; // Clear rejection for conditional approval
+            finalWarningDeadline = deadlineDate.toISOString().split('T')[0];
+            finalRejectionReason = undefined;
         }
     } else {
         finalOverallStatus = InspectionStatus.Rejected;
         finalServiceStatus = ServiceStatus.NotReady;
-        // Ensure rejection reason is set if mechanical failed
         finalRejectionReason = finalRejectionReason || 'Failed critical mechanical inspection items.';
         finalWarningMessage = undefined;
         finalWarningDeadline = undefined;
@@ -414,7 +762,7 @@ const checkMechanicalPass = useCallback(() => {
 
     const finalPayload: InspectionPayload = {
       plateNumber,
-      inspectorName, // Use the parent state value here
+      inspectorName,
       inspectionStatus: finalOverallStatus,
       serviceStatus: finalServiceStatus,
       bodyScore: calculateBodyScore(),
@@ -430,14 +778,16 @@ const checkMechanicalPass = useCallback(() => {
     };
 
     await submitInspectionToBackend(finalPayload);
-  };
+  }, [
+      inspectorName, plateNumber, checkMechanicalPass, checkBodyPass, checkInteriorPass,
+      calculateBodyScore, calculateInteriorScore, notes, inspection, submitInspectionToBackend
+  ]);
 
-  const handleFinalRejection = async () => {
+
+  // Handles confirming rejection from the modal
+  const handleFinalRejection = useCallback(async () => {
     setShowFailAlert(false);
     const rejectionMsg = inspection.rejectionReason || 'Failed critical mechanical inspection items.';
-    // Ensure state reflects rejection before submitting
-    // Update parent inspectorName state before final submit
-    // Note: handleSubmit already reads the parent inspectorName state
     setInspection(prev => ({
       ...prev,
       overallStatus: InspectionStatus.Rejected,
@@ -445,388 +795,76 @@ const checkMechanicalPass = useCallback(() => {
       rejectionReason: rejectionMsg
     }));
     setNotes(prevNotes => prevNotes ? `${prevNotes}\n\nREJECTED: ${rejectionMsg}` : `REJECTED: ${rejectionMsg}`);
-    await handleSubmit(); // handleSubmit will use the updated state
-  };
+    await handleSubmit();
+  }, [inspection.rejectionReason, setInspection, setNotes, handleSubmit]);
 
   // --- Phase Transition Handlers ---
-  // Note: Phase transition logic is now mostly inside Phase1MechanicalInspection
-
-  const handlePhase2Submit = async () => {
+  const handlePhase2Submit = useCallback(async () => {
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate check
     setPhase(3);
     setIsLoading(false);
-  };
+  }, [setIsLoading, setPhase]);
 
-  const handlePhase3Submit = async () => {
-    await handleSubmit(); // Consolidate final logic here
-  };
+  const handlePhase3Submit = useCallback(async () => {
+    await handleSubmit();
+  }, [handleSubmit]);
 
-  // --- Reusable UI Components ---
-
-  const PhaseContainer = ({ children }: { children: React.ReactNode }) => (
-    <motion.div
-      key={`phase-${phase}`} // Key ensures component remounts on phase change if needed by AnimatePresence
-      initial={{ opacity: 0, x: phase === 1 ? 0 : (phase === 2 ? 50 : -50) }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: phase === 3 ? 0 : (phase === 1 ? -50 : 50) }}
-      transition={{ duration: 0.4, ease: "easeInOut" }}
-      className="bg-white rounded-xl shadow-lg p-6 border border-gray-100"
-    >
-      {children}
-    </motion.div>
-  );
-
-  const PhaseHeader = ({ plateNumber }: { plateNumber: string | null }) => (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-200">
-      <div>
-        <h2 className="text-xl font-semibold text-gray-800">
-          Vehicle Inspection - <span className="text-blue-600 font-mono">{plateNumber || 'N/A'}</span>
-        </h2>
-        <div className="flex items-center mt-1 text-sm text-gray-500">
-          <span className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium ${
-              phase === 1 ? 'bg-blue-100 text-blue-800' :
-              phase === 2 ? 'bg-indigo-100 text-indigo-800' :
-              'bg-purple-100 text-purple-800'
-            }`}>
-            Phase {phase} of 3
-          </span>
-          <FiChevronRight className="mx-1 text-gray-400" />
-          <span className="font-medium">
-            {phase === 1 ? 'Mechanical' : phase === 2 ? 'Body Exterior' : 'Interior & Electrical'} Inspection
-          </span>
-        </div>
-      </div>
-      <div className="text-sm text-gray-500 mt-2 sm:mt-0 whitespace-nowrap">
-        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-      </div>
-    </div>
-  );
-
-  const SectionHeader = ({ title, score, status }: { title: string; score?: number; status?: string }) => (
-    <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
-      <h3 className="font-semibold text-gray-700">{title}</h3>
-      {score !== undefined && status !== undefined && (
-        <div className="flex items-center space-x-2">
-          <span className="text-sm font-medium text-gray-600">{score}% Pass</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            score >= 90 ? 'bg-green-100 text-green-800' :
-            score >= 75 ? 'bg-yellow-100 text-yellow-800' :
-            score >= 60 ? 'bg-orange-100 text-orange-800' :
-            'bg-red-100 text-red-800'
-          }`}>
-            {status}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-
-  const PhaseActions = ({ onBack, onNext, backLabel, nextLabel, isNextDisabled, isLoading }: {
-    onBack?: () => void; onNext: () => Promise<void>; backLabel?: string; nextLabel: string; isNextDisabled: boolean; isLoading: boolean;
-  }) => (
-    <div className="flex flex-col sm:flex-row justify-between items-center mt-8 pt-6 border-t border-gray-200 gap-4">
-       <div className="text-sm text-gray-500 text-center sm:text-left">
-        {phase === 1 ? 'Ensure all critical mechanical systems are checked.' :
-         phase === 2 ? 'Document any exterior body damage or wear.' :
-         'Check all interior components and finalize the inspection.'}
-      </div>
-      <div className="flex space-x-3 w-full sm:w-auto justify-center">
-        {onBack && (
-          <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onBack} disabled={isLoading}
-            className="px-5 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50">
-            {backLabel || 'Back'}
-          </motion.button>
-        )}
-        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onNext} disabled={isNextDisabled || isLoading}
-          className={`px-5 py-2 text-white rounded-lg transition-all flex-1 sm:flex-none ${
-            isNextDisabled || isLoading
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-          }`}>
-          {isLoading ? (
-            <div className="flex items-center justify-center space-x-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-              <span>Processing...</span>
-            </div>
-          ) : ( nextLabel )}
-        </motion.button>
-      </div>
-    </div>
-  );
-
-  const InspectionCheckbox = ({ label, checked, onChange, itemCondition, onConditionChange, isProblemOriented = false }: InspectionCheckboxProps) => {
-    const isConditionMode = itemCondition !== undefined && onConditionChange !== undefined;
-    const isOk = isConditionMode ? !itemCondition.problem : checked;
-
-    // Memoize handlers if needed, but likely okay here unless performance is critical
-    const handleClick = () => {
-      if (isConditionMode) {
-        onConditionChange('problem', !itemCondition.problem);
-      } else if (onChange) {
-        onChange();
-      }
-    };
-
-    const handleSeverityChange = (value: SeverityLevel) => { // Use Enum
-        if (isConditionMode) onConditionChange('severity', value);
-    };
-
-    const handleNotesChange = (value: string) => {
-        if (isConditionMode) onConditionChange('notes', value);
-    };
-
-    return (
-      <div className="space-y-2 py-3 px-3 -mx-3 hover:bg-gray-50 rounded-lg transition-colors duration-150">
-        <div className="flex items-start space-x-3 cursor-pointer group" onClick={handleClick}>
-          <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded border mt-0.5 transition-colors ${
-            isOk ? 'border-green-400 bg-green-50 group-hover:border-green-500' : 'border-red-400 bg-red-50 group-hover:border-red-500'
-          }`}>
-            {isOk ? <FiCheck className="w-4 h-4 text-green-600" /> : <FiX className="w-4 h-4 text-red-600" />}
-          </div>
-          <span className={`flex-1 text-sm ${ isOk ? 'text-gray-700' : 'text-red-700 font-medium' }`}>
-            {label}
-          </span>
-        </div>
-
-        {isConditionMode && itemCondition.problem && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }} className="pl-8 space-y-3 mt-2 overflow-hidden">
-            <div className="flex items-center space-x-3">
-              <label className="text-xs font-medium text-gray-600">Severity:</label>
-              <div className="flex space-x-1.5">
-                {([SeverityLevel.LOW, SeverityLevel.MEDIUM, SeverityLevel.HIGH] as const).map((level) => ( // Use Enum
-                  <button key={level} type="button"
-                    className={`px-2 py-0.5 text-xs rounded transition-colors ${
-                      itemCondition.severity === level
-                        ? level === SeverityLevel.LOW ? 'bg-yellow-500 text-white'
-                          : level === SeverityLevel.MEDIUM ? 'bg-orange-500 text-white'
-                          : 'bg-red-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                    onClick={(e) => { e.stopPropagation(); handleSeverityChange(level); }}>
-                    {level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Notes:</label>
-              <textarea
-                className="w-full text-xs p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-vertical min-h-[40px]"
-                rows={2} placeholder="Describe the issue..." value={itemCondition.notes}
-                onChange={(e) => handleNotesChange(e.target.value)} onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          </motion.div>
-        )}
-      </div>
-    );
-  };
 
   // --- Phase Specific Render Functions ---
-
-  // Phase 1 Component - Now manages its own inspector name state locally
-  const Phase1MechanicalInspection = ({
-      initialInspectorName,
-      onNameFinalized,
-      inspection,
-      handleMechanicalCheck,
-      plateNumber,
-      setPhase,
-      setShowFailAlert,
-      setIsLoading,
-      isLoading,
-      router,
-      checkMechanicalPass,
-      setInspection // Pass setInspection for updating rejection reason
-  }: Phase1Props) => {
-    // Local state for inspector name, initialized from parent
-    const [localInspectorName, setLocalInspectorName] = useState(initialInspectorName);
-
-    // Log local state at the start of render for debugging
-    console.log("Rendering Phase 1. Current LOCAL inspectorName state:", localInspectorName);
-
-    // Create a map for quick lookup of critical checks for UI indication
-    const criticalChecksMap = CRITICAL_MECHANICAL_CHECKS.reduce((acc, key) => {
-        acc[key] = true;
-        return acc;
-    }, {} as Partial<Record<keyof MechanicalInspection, boolean>>);
-
-    // Handler for submitting Phase 1
-    // Inside Phase1MechanicalInspection component -> handlePhase1SubmitInternal function
-
-const handlePhase1SubmitInternal = async () => {
-  // ... (validation and name finalization logic remains the same) ...
-  setIsLoading(true);
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  const mechanicalPass = checkMechanicalPass(); // Uses the updated checkMechanicalPass
-
-  if (mechanicalPass) {
-    console.log("Phase 1 Submit: All mechanical checks passed. Proceeding.");
-    setPhase(2);
-  } else {
-    console.log("Phase 1 Submit: One or more mechanical checks failed. Setting rejection.");
-    // Update the main inspection state with a more general rejection reason
-    setInspection(prev => ({
-      ...prev,
-      overallStatus: InspectionStatus.Rejected,
-      serviceStatus: ServiceStatus.NotReady,
-      // Updated rejection reason:
-      rejectionReason: 'Failed one or more mechanical inspection items.'
-    }));
-    setShowFailAlert(true);
-  }
-  setIsLoading(false);
-};
-
-
-
+  const Phase2BodyInspection = useCallback(() => {
     return (
-      <PhaseContainer>
-        <PhaseHeader plateNumber={plateNumber} />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-          {/* Column 1 */}
-          <div className="space-y-4">
-            <SectionHeader title="Engine & Drivetrain" />
-            {(Object.keys(inspection.mechanical) as Array<keyof MechanicalInspection>)
-              .filter(key => ['engineCondition', 'enginePower', 'gearbox', 'mileage'].includes(key)) // Filter for this column
-              .map(key => (
-                <InspectionCheckbox
-                  key={key}
-                  label={`${formatLabel(key)} ${criticalChecksMap[key] ? '*' : ''}`}
-                  checked={inspection.mechanical[key]}
-                  onChange={() => handleMechanicalCheck(key)}
-                />
-            ))}
-          </div>
-
-          {/* Column 2 */}
-          <div className="space-y-4">
-            <SectionHeader title="Chassis & Controls" />
-             {(Object.keys(inspection.mechanical) as Array<keyof MechanicalInspection>)
-              .filter(key => ['suspension', 'brakes', 'steering'].includes(key)) // Filter for this column
-              .map(key => (
-                <InspectionCheckbox
-                  key={key}
-                  label={`${formatLabel(key)} ${criticalChecksMap[key] ? '*' : ''}`}
-                  checked={inspection.mechanical[key]}
-                  onChange={() => handleMechanicalCheck(key)}
-                />
-            ))}
-            {/* Gauges grouped */}
-            <div className="p-3 border border-gray-200 rounded-lg bg-gray-50/50">
-              <label className="text-sm font-medium text-gray-600 block mb-2">Gauges Functional:</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1">
-                {(Object.keys(inspection.mechanical) as Array<keyof MechanicalInspection>)
-                  .filter(key => ['fuelGauge', 'tempGauge', 'oilGauge'].includes(key)) // Filter for gauges
-                  .map(key => (
-                    <InspectionCheckbox
-                      key={key}
-                      label={formatLabel(key)}
-                      checked={inspection.mechanical[key]}
-                      onChange={() => handleMechanicalCheck(key)}
-                    />
+        <PhaseContainer>
+            <PhaseHeader plateNumber={plateNumber} phase={2} />
+            <div className="space-y-5">
+                <SectionHeader title="Exterior Body Condition" score={calculateBodyScore()} status={getOverallBodyStatus()} />
+                <div className="space-y-1">
+                {(Object.keys(inspection.body) as Array<keyof BodyInspection>).map((key) => (
+                    <InspectionCheckbox key={key} label={formatLabel(key)} itemCondition={inspection.body[key]}
+                    onConditionChange={(property, value) => handleItemConditionChange('body', key, property, value)}
+                    isProblemOriented={true} />
                 ))}
-              </div>
+                </div>
+                <div className="mt-4">
+                <label htmlFor="bodyNotes" className="block text-sm font-medium text-gray-700 mb-1">Body Inspection Notes (Optional)</label>
+                <textarea id="bodyNotes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
+                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150"
+                    placeholder="Document overall body condition observations..." />
+                </div>
+                {calculateBodyScore() < 90 && (
+                <div className={`p-3 rounded-lg border ${ calculateBodyScore() >= 75 ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200' }`}>
+                    <div className="flex items-start">
+                    <FiAlertTriangle className={`mt-0.5 mr-2 flex-shrink-0 ${ calculateBodyScore() >= 75 ? 'text-yellow-500' : 'text-orange-500' }`} />
+                    <div>
+                        <h4 className={`font-medium ${ calculateBodyScore() >= 75 ? 'text-yellow-800' : 'text-orange-800' }`}>Body Condition Advisory</h4>
+                        <p className={`text-sm mt-1 ${ calculateBodyScore() >= 75 ? 'text-yellow-700' : 'text-orange-700' }`}>
+                        This vehicle has body issues ({100 - calculateBodyScore()}% failed checks) that may require attention. Document severity and details.
+                        </p>
+                    </div>
+                    </div>
+                </div>
+                )}
             </div>
-          </div>
-        </div>
-
-        {/* Inspector Name and Info Box */}
-        <div className="mt-8 space-y-4">
-          <div>
-            <label htmlFor="inspectorName" className="block text-sm font-medium text-gray-700 mb-1">Inspector Name *</label>
-            <input
-              id="inspectorName"
-              type="text"
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150"
-              value={localInspectorName} // Use local state for value
-              onChange={(e) => {
-                // Log the value being set for debugging
-                console.log("Setting LOCAL inspector name:", e.target.value);
-                setLocalInspectorName(e.target.value); // Update local state
-              }}
-              required
-              placeholder="Enter your full name"
+            <PhaseActions
+                phase={2}
+                onBack={() => setPhase(1)}
+                backLabel="Back to Mechanical"
+                onNext={handlePhase2Submit}
+                nextLabel="Continue to Interior Inspection"
+                isNextDisabled={!inspectorName.trim()}
+                isLoading={isLoading}
             />
-          </div>
-          <div className="bg-blue-50 p-3 rounded-lg flex items-start border border-blue-100">
-            <FiInfo className="text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
-            <p className="text-sm text-blue-700">
-              Items marked with * are critical. Failure of any critical item will result in immediate rejection. Ensure all systems are checked thoroughly.
-            </p>
-          </div>
-        </div>
-
-        <PhaseActions
-          onBack={() => router.back()} // Use router passed via props
-          backLabel="Cancel Inspection"
-          onNext={handlePhase1SubmitInternal} // Use the internal handler
-          nextLabel={checkMechanicalPass() ? 'Continue to Body Inspection' : 'Submit as Failed (Critical Failure)'}
-          isNextDisabled={!localInspectorName.trim()} // Disable based on local state
-          isLoading={isLoading}
-        />
-      </PhaseContainer>
+        </PhaseContainer>
     );
-  };
+  }, [plateNumber, calculateBodyScore, getOverallBodyStatus, inspection.body, handleItemConditionChange, notes, setNotes, setPhase, handlePhase2Submit, inspectorName, isLoading]);
 
-  const Phase2BodyInspection = () => (
-    <PhaseContainer>
-      <PhaseHeader plateNumber={plateNumber} />
-      <div className="space-y-5">
-        <SectionHeader title="Exterior Body Condition" score={calculateBodyScore()} status={getOverallBodyStatus()} />
-        <div className="space-y-1">
-          {(Object.keys(inspection.body) as Array<keyof BodyInspection>).map((key) => (
-            <InspectionCheckbox key={key} label={formatLabel(key)} itemCondition={inspection.body[key]}
-              onConditionChange={(property, value) => handleItemConditionChange('body', key, property, value)}
-              isProblemOriented={true} />
-          ))}
-        </div>
-        <div className="mt-4">
-          <label htmlFor="bodyNotes" className="block text-sm font-medium text-gray-700 mb-1">Body Inspection Notes (Optional)</label>
-          <textarea id="bodyNotes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
-            className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150"
-            placeholder="Document overall body condition observations..." />
-        </div>
-        {calculateBodyScore() < 90 && (
-          <div className={`p-3 rounded-lg border ${ calculateBodyScore() >= 75 ? 'bg-yellow-50 border-yellow-200' : 'bg-orange-50 border-orange-200' }`}>
-            <div className="flex items-start">
-              <FiAlertTriangle className={`mt-0.5 mr-2 flex-shrink-0 ${ calculateBodyScore() >= 75 ? 'text-yellow-500' : 'text-orange-500' }`} />
-              <div>
-                <h4 className={`font-medium ${ calculateBodyScore() >= 75 ? 'text-yellow-800' : 'text-orange-800' }`}>Body Condition Advisory</h4>
-                <p className={`text-sm mt-1 ${ calculateBodyScore() >= 75 ? 'text-yellow-700' : 'text-orange-700' }`}>
-                  This vehicle has body issues ({100 - calculateBodyScore()}% failed checks) that may require attention. Document severity and details.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      // Inside Phase2BodyInspection component
-
-<PhaseActions
-  onBack={() => setPhase(1)}
-  backLabel="Back to Mechanical"
-  onNext={handlePhase2Submit} // Function to move to Phase 3
-  nextLabel="Continue to Interior Inspection" // The button text
-  isNextDisabled={!inspectorName.trim()} // <--- THIS is the key condition
-  isLoading={isLoading}
-/>
-    </PhaseContainer>
-  );
-
-  const Phase3InteriorInspection = () => {
-    // Define columns for better organization
+  const Phase3InteriorInspection = useCallback(() => {
     const column1Keys: (keyof InteriorInspection)[] = ['seatComfort', 'seatFabric', 'floorMat', 'rearViewMirror', 'mirrorAdjustment', 'doorLock', 'ventilationSystem', 'interiorRoof', 'windowCurtain'];
     const column2Keys: (keyof InteriorInspection)[] = ['dashboardDecoration', 'seatBelt', 'sunshade', 'carIgnition', 'clock', 'rpm', 'carTab', 'engineExhaust', 'fuelConsumption'];
     const column3Keys: (keyof InteriorInspection)[] = ['headlights', 'rainWiper', 'turnSignalLight', 'brakeLight', 'licensePlateLight', 'batteryStatus', 'chargingIndicator'];
 
     return (
         <PhaseContainer>
-            <PhaseHeader plateNumber={plateNumber} />
+            <PhaseHeader plateNumber={plateNumber} phase={3} />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 mb-6">
                 {/* Column 1 */}
                 <div className="space-y-4">
@@ -883,11 +921,19 @@ const handlePhase1SubmitInternal = async () => {
                     </div>
                 )}
             </div>
-            <PhaseActions onBack={() => setPhase(2)} backLabel="Back to Body" onNext={handlePhase3Submit}
-                nextLabel="Complete & Submit Inspection" isNextDisabled={!inspectorName.trim()} isLoading={isLoading} />
+            <PhaseActions
+                phase={3}
+                onBack={() => setPhase(2)}
+                backLabel="Back to Body"
+                onNext={handlePhase3Submit}
+                nextLabel="Complete & Submit Inspection"
+                isNextDisabled={!inspectorName.trim()}
+                isLoading={isLoading}
+            />
         </PhaseContainer>
     );
-  };
+  }, [plateNumber, calculateInteriorScore, getOverallInteriorStatus, inspection.interior, handleItemConditionChange, notes, setNotes, setPhase, handlePhase3Submit, inspectorName, isLoading]);
+
 
   // --- Main Render ---
   return (
@@ -901,7 +947,7 @@ const handlePhase1SubmitInternal = async () => {
             <p className="text-gray-600 mt-1">Step-by-step assessment for vehicle readiness.</p>
           </div>
           <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200">
-             <motion.div key={phase} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+             <motion.div key={`indicator-${phase}`} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                 className={`h-2.5 w-2.5 rounded-full ${ phase === 1 ? 'bg-blue-500' : phase === 2 ? 'bg-indigo-500' : 'bg-purple-500' }`} />
             <span className="text-sm font-medium text-gray-700">
               {phase === 1 ? 'Phase 1: Mechanical' : phase === 2 ? 'Phase 2: Body Exterior' : 'Phase 3: Interior & Electrical'}
@@ -912,27 +958,32 @@ const handlePhase1SubmitInternal = async () => {
         {/* Animated Phase Content */}
         <AnimatePresence mode="wait">
           {phase === 1 && (
-            <Phase1MechanicalInspection
-              key="phase1" // Add explicit key for AnimatePresence
-              initialInspectorName={inspectorName}
-              onNameFinalized={setInspectorName} // Pass the parent state setter
-              inspection={inspection}
-              setInspection={setInspection} // Pass setInspection
-              handleMechanicalCheck={handleMechanicalCheck}
-              plateNumber={plateNumber}
-              setPhase={setPhase}
-              setShowFailAlert={setShowFailAlert}
-              setIsLoading={setIsLoading}
-              isLoading={isLoading}
-              router={router}
-              checkMechanicalPass={checkMechanicalPass}
-            />
+            <motion.div key="phase1-motion">
+              <Phase1MechanicalInspection
+                initialInspectorName={inspectorName}
+                onNameFinalized={setInspectorName}
+                inspection={inspection}
+                setInspection={setInspection}
+                handleMechanicalCheck={handleMechanicalCheck}
+                plateNumber={plateNumber}
+                setPhase={setPhase}
+                setShowFailAlert={setShowFailAlert}
+                setIsLoading={setIsLoading}
+                isLoading={isLoading}
+                router={router}
+                checkMechanicalPass={checkMechanicalPass}
+              />
+            </motion.div>
           )}
           {phase === 2 && (
-             <Phase2BodyInspection key="phase2" /> // Add explicit key
+             <motion.div key="phase2-motion">
+               <Phase2BodyInspection />
+             </motion.div>
           )}
           {phase === 3 && (
-             <Phase3InteriorInspection key="phase3" /> // Add explicit key
+             <motion.div key="phase3-motion">
+               <Phase3InteriorInspection />
+             </motion.div>
           )}
         </AnimatePresence>
 
@@ -951,7 +1002,6 @@ const handlePhase1SubmitInternal = async () => {
                   <h3 className="mt-3 text-lg font-semibold text-gray-900">Inspection Failed</h3>
                   <div className="mt-2 px-2 text-sm text-gray-500">
                     <p>The vehicle did not pass critical mechanical checks and cannot be approved.</p>
-                    {/* Display rejection reason from state */}
                     {inspection.rejectionReason && ( <p className="mt-2 font-medium text-red-700">Reason: {inspection.rejectionReason}</p> )}
                   </div>
                 </div>
@@ -981,14 +1031,4 @@ const handlePhase1SubmitInternal = async () => {
       </div>
     </div>
   );
-}
-
-// --- Props Interface for Checkbox ---
-interface InspectionCheckboxProps {
-  label: string;
-  checked?: boolean;
-  onChange?: () => void;
-  itemCondition?: ItemCondition;
-  onConditionChange?: (property: keyof ItemCondition, value: boolean | SeverityLevel | string) => void; // Updated value type
-  isProblemOriented?: boolean;
 }

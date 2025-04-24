@@ -14,7 +14,7 @@ interface RentCar {
   motorCapacity: string;
   totalKm: string;
   fuelType: string;
-  vehiclesStatus: string;
+  status: string;
   registeredDate: string;
   parkingLocation: string;
 }
@@ -94,10 +94,10 @@ const RentCarTable = ({ cars, onEdit, onDelete, onView }: {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{car.fuelType}</td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                  ${car.vehiclesStatus === 'Active' ? 'bg-green-100 text-green-800' : 
-                    car.vehiclesStatus === 'Maintenance' ? 'bg-yellow-100 text-yellow-800' : 
+                  ${car.status === 'Active' ? 'bg-green-100 text-green-800' : 
+                    car.status === 'Maintenance' ? 'bg-yellow-100 text-yellow-800' : 
                     'bg-red-100 text-red-800'}`}>
-                  {car.vehiclesStatus}
+                  {car.status}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

@@ -22,7 +22,7 @@ interface RentCar {
   door: string;
   cylinder: string;
   km: string;
-  vehiclesStatus: string;
+  status: string;
   vehiclesUsed: string;
   bodyType: string;
   vehiclesUserName: string;
@@ -256,7 +256,7 @@ export default function ViewRentCarPage() {
                 { label: "Doors", value: car.door },
                 { label: "Cylinders", value: car.cylinder },
                 { label: "Mileage", value: `${car.km} km` },
-                { label: "Vehicle Status", value: car.vehiclesStatus },
+                { label: "Vehicle Status", value: car.status },
                 { label: "Vehicle Used", value: car.vehiclesUsed },
                 { label: "Body Type", value: car.bodyType }
               ].map((item, index) => (
