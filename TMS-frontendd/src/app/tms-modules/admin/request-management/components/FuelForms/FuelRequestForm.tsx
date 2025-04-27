@@ -32,6 +32,8 @@ interface FuelRequestFormProps {
     serviceNumber?: string;
     actualStartingDate?: string;
     actualReturnDate?: string;
+    accountNumber?: string;
+    paymentType?: string;
   };
   onSuccess: () => void;
 }
@@ -59,8 +61,11 @@ export const FuelRequestForm = ({
     serviceNumber: defaultValues?.serviceNumber || '',
     actualStartingDate: defaultValues?.actualStartingDate || '',
     actualReturnDate: defaultValues?.actualReturnDate || '',
+    confirmation:false,
     authorizerName: '',
-    accountNumber: ''
+    accountNumber: defaultValues?.accountNumber || '',
+    paymentType: defaultValues?.accountNumber ? 'cash' : 'fuel', // New field
+
   });
   
   const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
@@ -75,7 +80,7 @@ export const FuelRequestForm = ({
     setFormData(prev => ({ ...prev, travelers: newTravelers }));
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -288,9 +293,42 @@ const handleFuelSubmit = async (e: React.FormEvent) => {
           />
         </div>
 
-        {/* Editable Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+          {/* Editable Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+         
+          
+          {formData.accountNumber ? (
+            // Show Account Number if it exists
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Account Number</label>
+              <input
+                type="text"
+                name="accountNumber"
+                value={formData.accountNumber}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded border border-gray-300"
+                readOnly={isReadOnly}
+                placeholder="Enter account number"
+              />
+            </div>
+          ) : (
+            // Show Payment Type selector if no account number
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Payment Type</label>
+              <select
+                name="paymentType"
+                value={formData.paymentType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded border border-gray-300"
+                disabled
+              >
+                <option value="fuel">Fuel</option>
+                <option value="cash">Cash</option>
+              </select>
+            </div>
+          )}
+
+           <div>
             <label className="block text-sm font-medium text-gray-700">Authorizer Name</label>
             <input
               type="text"
@@ -302,18 +340,22 @@ const handleFuelSubmit = async (e: React.FormEvent) => {
               placeholder="Enter assembler's full name"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Account Number</label>
+        </div>
+
+        <div className="my-4">
+          <label className="inline-flex items-start gap-2 text-sm text-gray-700">
             <input
-              type="text"
-              name="accountNumber"
-              value={formData.accountNumber}
-              onChange={handleChange}
-              className="w-full px-3 py-2 rounded border border-gray-300"
+              type="checkbox"
+              name="confirmation"
+              checked={formData.confirmation || false}
+              onChange={(e) => setFormData({ ...formData, confirmation: e.target.checked })}
               required
-              placeholder="Enter account number"
+              className="mt-1"
             />
-          </div>
+            <span>
+              We ask for the necessary fuel supply based on the information described above.
+            </span>
+          </label>
         </div>
 
         <button

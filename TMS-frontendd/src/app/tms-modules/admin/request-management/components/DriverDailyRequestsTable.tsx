@@ -9,13 +9,15 @@ interface DriverDailyRequestsTableProps {
   actorType: 'manager' | 'driver';
   onRowClick: (request: DailyServiceRequest) => void;
   onCompleteTrip?: (id: number) => Promise<void>;
+  driverSearchQuery?: string; // Add this line
 }
 
 export default function DriverDailyRequestsTable({ 
   requests, 
   actorType, 
   onRowClick, 
-  onCompleteTrip
+  onCompleteTrip,
+  driverSearchQuery = '' // Add default value
 }: DriverDailyRequestsTableProps) {
   const [selectedRequest, setSelectedRequest] = useState<DailyServiceRequest | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -37,10 +39,21 @@ export default function DriverDailyRequestsTable({
     }
   };
 
-  // Filter requests based on actor type and status
+  // Filter requests based on actor type
   const filteredRequests = actorType === 'manager' 
     ? requests.filter(req => req.status === 'PENDING')
-    : requests.filter(req => req.status === 'COMPLETED');
+    : actorType === 'driver'
+    ? requests.filter(req => req.status === 'ASSIGNED')
+    : requests;
+
+  const showRejectedAlert = (request: DailyServiceRequest) => {
+    Swal.fire({
+      title: 'Request Rejected',
+      text: `Request from ${request.claimantName} has been rejected and cannot be processed.`,
+      icon: 'info',
+      confirmButtonText: 'OK'
+    });
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -80,9 +93,6 @@ export default function DriverDailyRequestsTable({
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requester</th>
               )}
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              {actorType === 'driver' && (
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KM Driven</th>
-              )}
             </tr>
           </thead>
           

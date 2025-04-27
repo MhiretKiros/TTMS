@@ -10,7 +10,7 @@ interface RequestsTableProps {
   onRowClick: (request: TravelRequest) => void;
   onStatusChange?: (id: number, status: 'APPROVED' | 'REJECTED') => Promise<void>;
   onCompleteTrip?: (id: number) => Promise<void>;
-  driverSearchQuery?: string; // Add this line
+  driverSearchQuery?: string;
 }
 
 export default function RequestsTable({ 
@@ -18,8 +18,8 @@ export default function RequestsTable({
   actorType, 
   onRowClick, 
   onStatusChange,
-  onCompleteTrip ,
-  driverSearchQuery = '' // Add default value
+  onCompleteTrip,
+  driverSearchQuery = ''
 }: RequestsTableProps) {
   const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
   const [status, setStatus] = useState<'APPROVED' | 'REJECTED'>('APPROVED');
@@ -54,11 +54,18 @@ export default function RequestsTable({
     }
   };
 
-  // Filter requests based on actor type
+  // Updated sorting logic for corporator
   const filteredRequests = actorType === 'manager' 
     ? requests.filter(req => req.status === 'APPROVED')
     : actorType === 'driver'
     ? requests.filter(req => req.status === 'COMPLETED')
+    : actorType === 'corporator'
+    ? [...requests].sort((a, b) => {
+        // Show PENDING first, others in their original order
+        if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+        if (b.status === 'PENDING' && a.status !== 'PENDING') return 1;
+        return 0;
+      })
     : requests;
 
   const showRejectedAlert = (request: TravelRequest) => {
@@ -114,7 +121,6 @@ export default function RequestsTable({
           </thead>
         </motion.table>
         
-        {/* Scrollable tbody */}
         <div className="overflow-y-auto max-h-[calc(7*3.5rem)]">
           <motion.table
             className="min-w-full divide-y divide-gray-300"

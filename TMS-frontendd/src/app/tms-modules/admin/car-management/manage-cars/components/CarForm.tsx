@@ -200,6 +200,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={isSubmitting}
                 >
+                  <option value="Authomobile">Authomobile</option>
                   <option value="Minibus">Minibus</option>
                   <option value="Bus">Bus</option>
                   <option value="Sedan">Sedan</option>
@@ -329,6 +330,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                   disabled={isSubmitting}
                 >
                   <option value="Active">Active</option>
+                  <option value="Approved">Approved</option>
                   <option value="Maintenance">Maintenance</option>
                   <option value="Inactive">Inactive</option>
                 </select>

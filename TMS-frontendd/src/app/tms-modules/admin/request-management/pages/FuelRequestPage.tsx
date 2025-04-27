@@ -131,6 +131,7 @@ const FuelManagementPage = () => {
                       serviceNumber: `FR-${selectedRequest.id}`,
                       actualStartingDate: selectedRequest.actualStartingDate,
                       actualReturnDate: selectedRequest.actualReturnDate,
+                      accountNumber: selectedRequest.accountNumber,
                     }}
                     onSuccess={handleSuccess}
                   />

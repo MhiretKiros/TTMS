@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect,useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiAlertCircle, FiMapPin, FiSend, FiCalendar, FiCheckCircle, 
@@ -10,6 +10,7 @@ import Swal from 'sweetalert2';
 import { TravelApi, TravelRequest } from '../api/handlers';
 import RequestsTable from './RequestsTable';
 import { FuelRequestForm } from '../components/FuelForms/FuelRequestForm';
+import axios from 'axios';
 
 const showSuccessAlert = (title: string, message: string) => {
   Swal.fire({
@@ -68,6 +69,8 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     jobStatus: '',
     claimantName: '',
     teamLeaderName: '',
+    accountNumber: '',
+    paymentType: '',
     approvement: '',
     serviceProviderName: '',
     assignedCarType: '',
@@ -81,7 +84,8 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     cargoType: '',
     cargoWeight: '',
     numberOfPassengers: '',
-    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED'
+    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED',
+    vehicleType: '' as 'car' | 'organization' | 'rent' | ''
   });
 
   const [requests, setRequests] = useState<TravelRequest[]>([]);
@@ -93,11 +97,113 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
   const [apiError, setApiError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
-  const [showUserModal, setShowUserModal] = useState(actorType !== 'user');
+  const [showUserModal, setShowUserModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showFuelModal, setShowFuelModal] = useState(false);
   const [driverNameFilter, setDriverNameFilter] = useState('');
   const [driverSearchQuery, setDriverSearchQuery] = useState('');
+
+  
+  // Plate search functionality
+  interface VehicleSuggestion {
+    plate: string;
+    driver: string;
+    carType: string;
+    status: string;
+    type: 'car' | 'organization' | 'rent'; // Add type discriminator
+
+  }
+    // State declarations
+    const [vehicleSuggestions, setVehicleSuggestions] = useState<VehicleSuggestion[]>([]);
+    const [plateSearchQuery, setPlateSearchQuery] = useState('');
+  
+    // Fetch vehicles data
+// Update the vehicle fetching useEffect
+useEffect(() => {
+  const fetchAllVehicles = async () => {
+    try {
+      const [carsRes, orgCarsRes, rentCarsRes] = await Promise.all([
+        TravelApi.getAllCars(),
+        TravelApi.getAllOrganizationCars(),
+        TravelApi.getAllRentCars()
+      ]);
+
+      const vehicles = [
+        ...(carsRes.data.carList || []).filter((car: { status: string }) => 
+          car.status.toLowerCase() === 'approved').map((v: any) => ({
+          plate: v.plateNumber,
+          driver: v.driverName || 'No driver assigned',
+          carType: v.carType,
+          type: 'car' as const // Add type identifier
+        })),
+        ...(orgCarsRes.data.organizationCarList || []).filter((car: { status: string }) => 
+          car.status.toLowerCase() === 'approved').map((v: any) => ({
+          plate: v.plateNumber,
+          driver: v.driverName || 'No driver assigned',
+          carType: v.carType,
+          type: 'organization' as const // Add type identifier
+        })),
+        ...(rentCarsRes.data.rentCarList || []).filter((car: { status: string }) => 
+          car.status.toLowerCase() === 'approved').map((v: any) => ({
+          plate: v.licensePlate,
+          driver: v.driverName || 'No driver assigned',
+          carType: v.vehicleType,
+          type: 'rent' as const // Add type identifier
+        }))
+      ].filter(v => v.plate !== 'N/A');
+
+      setVehicleSuggestions(vehicles);
+    } catch (error) {
+      console.error('Vehicle fetch error:', error);
+    }
+  };
+
+  if (showServiceModal) fetchAllVehicles();
+}, [showServiceModal]);
+  
+    // Enhanced search logic
+const filteredVehicles = useMemo(() => {
+  if (!plateSearchQuery.trim()) return [];
+  
+  const query = plateSearchQuery.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  return vehicleSuggestions
+    .filter(vehicle => {
+      const plate = vehicle?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
+      return plate.includes(query);
+    })
+    .sort((a, b) => {
+      const aPlate = a?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
+      const bPlate = b?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
+
+      // Exact match first
+      if (aPlate === query) return -1;
+      if (bPlate === query) return 1;
+      
+      // Then startsWith matches
+      const aStartsWith = aPlate.startsWith(query);
+      const bStartsWith = bPlate.startsWith(query);
+      if (aStartsWith && !bStartsWith) return -1;
+      if (bStartsWith && !aStartsWith) return 1;
+      
+      // Alphabetical order
+      return aPlate.localeCompare(bPlate);
+    })
+    .slice(0, 5);
+}, [plateSearchQuery, vehicleSuggestions]);
+  
+    // Plate selection handler
+// Update handlePlateSelect function
+const handlePlateSelect = (vehicle: VehicleSuggestion) => {
+  setFormData(prev => ({
+    ...prev,
+    vehicleDetails: vehicle.plate,
+    assignedDriver: vehicle.driver,
+    assignedCarType: vehicle.carType,
+    vehicleType: vehicle.type // Store vehicle type in form data
+  }));
+  setPlateSearchQuery(vehicle.plate);
+};
 
   useEffect(() => {
     const loadRequests = async () => {
@@ -203,6 +309,7 @@ useEffect(() => {
     } else {
       // Existing population for other roles
       setFormData({
+        paymentType:request.paymentType ||'',
         startingPlace: request.startingPlace,
         destinationPlace: request.destinationPlace,
         travelers: request.travelers.map(t => t.name),
@@ -214,6 +321,7 @@ useEffect(() => {
         department: request.department,
         jobStatus: request.jobStatus,
         claimantName: request.claimantName,
+        accountNumber:request.accountNunber,
         teamLeaderName: request.teamLeaderName,
         approvement: request.approvement || '',
         serviceProviderName: request.serviceProviderName || '',
@@ -228,7 +336,7 @@ useEffect(() => {
         cargoType: request.cargoType || '',
         cargoWeight: request.cargoWeight?.toString() || '',
         numberOfPassengers: request.numberOfPassengers?.toString() || '',
-        status: request.status
+        status: request.status,
       });
     }
   };
@@ -433,6 +541,31 @@ useEffect(() => {
     
     if (!validateUserSection()) return;
   
+     // Add confirmation for cash payments
+     if (formData.paymentType === 'cash') {
+      const resultss = await Swal.fire({
+        title: 'Confirm Account Number',
+        html: `<div class="text-left">
+          <p class="mb-2">Please confirm the account number for cash payment:</p>
+          <div class="bg-gray-100 p-3 rounded-lg font-mono">${formData.accountNumber}</div>
+        </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, it\'s correct',
+        cancelButtonText: 'No, edit it',
+        confirmButtonColor: '#3B82F6',
+        cancelButtonColor: '#6B7280',
+        customClass: {
+        popup: 'rounded-xl',
+        confirmButton: 'px-4 py-2 rounded-lg',
+        cancelButton: 'px-4 py-2 rounded-lg'
+        }
+      });
+
+      if (!resultss.isConfirmed) {
+        return; // Stop submission if user cancels
+      }
+     }
     setIsSubmitting(true);
     setApiError('');
     setSuccessMessage('');
@@ -455,6 +588,7 @@ useEffect(() => {
         jobStatus: formData.jobStatus,
         claimantName: formData.claimantName,
         teamLeaderName: formData.teamLeaderName,
+        accountNumber: formData.accountNumber,
         status: 'PENDING'
       };
 
@@ -530,8 +664,73 @@ useEffect(() => {
         vehicleDetails: formData.vehicleDetails,
         status: 'ASSIGNED' // Add this to update status
       });
-  
-      showSuccessAlert('Success!', 'You have assigned service successfully!');
+// Before making the status update call, add this validation:
+if (!formData.vehicleType || !formData.vehicleDetails) {
+  showSuccessAlert(
+    'Error!',
+    'Please select a vehicle first'
+  );
+  return; // Stop execution
+}
+
+// Also verify the vehicleType is one of the expected values
+const validVehicleTypes = ['car', 'organization', 'rent'];
+if (!validVehicleTypes.includes(formData.vehicleType)) {
+  showSuccessAlert(
+    'Error!',
+    'Invalid vehicle type selected'
+  );
+  return;
+}
+    // Update vehicle status to "Filed"
+    if (formData.vehicleType && formData.vehicleDetails) {
+      try {
+        let response;
+        const statusUpdate = { status: 'Field' }; // Consistent payload
+    
+        if (formData.vehicleType === 'car') {
+          response = await axios.put(
+            `http://localhost:8080/auth/car/status/${formData.vehicleDetails}`,
+            statusUpdate
+          );
+        } 
+        else if (formData.vehicleType === 'organization') {
+          response = await axios.put(
+            `http://localhost:8080/auth/organization-car/status/${formData.vehicleDetails}`,
+            statusUpdate
+          );
+        } 
+        else if (formData.vehicleType === 'rent') { // Changed from your second 'organization' check
+          response = await axios.put(
+            `http://localhost:8080/auth/rent-car/status/${formData.vehicleDetails}`,
+            statusUpdate
+          );
+        }
+    
+        if (response && response.status === 200) {
+          showSuccessAlert(
+            'Success!',
+            'Status changed successfully!'
+          );
+        } else {
+          showSuccessAlert(
+            'Error!',
+            'Status not changed successfully!'
+          );
+        }
+      } catch (error) {
+        console.error('API Error:', error);
+        showSuccessAlert(
+          'Error!',
+          'Failed to update status. Please try again.'
+        );
+      }
+    } else {
+      showSuccessAlert(
+        'Error!',
+        'Missing vehicle type or details!'
+      );
+    }
       
       // Refresh requests
       const updatedRequests = await TravelApi.getRequests(actorType);
@@ -539,20 +738,10 @@ useEffect(() => {
       setFilteredRequests(updatedRequests);
       
       // Show fuel request confirmation
-      const { isConfirmed } = await Swal.fire({
-        title: 'Proceed to Fuel Request?',
-        text: 'Would you like to fill out the fuel request form now?',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, continue',
-        cancelButtonText: 'No, close'
-      });
+
   
       setShowServiceModal(false);
   
-      if (isConfirmed) {
-        setShowFuelModal(true);
-      }
     } catch (error: any) {
       setApiError(error.message || 'Failed to save service information');
     } finally {
@@ -597,10 +786,56 @@ useEffect(() => {
 
     await TravelApi.completeTravelRequest(completionData);
 
-    showSuccessAlert(
-      'Success!', 
-      'Trip details have been submitted successfully!'
-    );
+    if (formData.vehicleType && formData.vehicleDetails) {
+      try {
+        let response;
+        const statusUpdate = { status: 'Field' }; // Consistent payload
+    
+        if (formData.vehicleType === 'car') {
+          response = await axios.put(
+            `http://localhost:8080/auth/car/status/${formData.vehicleDetails}`,
+            statusUpdate
+          );
+        } 
+        else if (formData.vehicleType === 'organization') {
+          response = await axios.put(
+            `http://localhost:8080/auth/organization-car/status/${formData.vehicleDetails}`,
+            statusUpdate
+          );
+        } 
+        else if (formData.vehicleType === 'rent') { // Changed from your second 'organization' check
+          response = await axios.put(
+            `http://localhost:8080/auth/rent-car/status/${formData.vehicleDetails}`,
+            statusUpdate
+          );
+        }
+    
+        if (response && response.status === 200) {
+          showSuccessAlert(
+            'Success!',
+            'Status changed successfully!'
+          );
+        } else {
+          showSuccessAlert(
+            'Error!',
+            'Status not changed successfully!'
+          );
+        }
+      } catch (error) {
+        console.error('API Error:', error);
+        showSuccessAlert(
+          'Error!',
+          'Failed to update status. Please try again.'
+        );
+      }
+    } else {
+      showSuccessAlert(
+        'Error!',
+        'Missing vehicle type or details!'
+      );
+    }
+
+  
 
     // Refresh the requests
     let finishedRequests;
@@ -862,8 +1097,8 @@ const validateDriverSection = () => {
             <div className="mt-6">
               <motion.button
                 type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
+                whileTap={{ scale: 0.95 }}
                 disabled={isSubmitting}
                 className={`w-full flex justify-center items-center px-6 py-3 rounded-lg text-white font-medium transition-all ${
                   isSubmitting
@@ -1046,7 +1281,7 @@ const validateDriverSection = () => {
   
             {/* Travel Distance */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Distance (km)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Total Distance (km)</label>
               <input
                 type="number"
                 name="travelDistance"
@@ -1193,8 +1428,28 @@ const validateDriverSection = () => {
               )}
             </div>
   
-            {/* Approvement */}
-            <div>
+        {/* Payment Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type *</label>
+          <select
+            name="paymentType"
+            value={formData.paymentType}
+            onChange={handleChange}
+            disabled={isFormDisabled}
+            className={`w-full px-4 py-3 rounded-lg border ${errors.paymentType ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+          >
+            <option value="">Select payment type</option>
+            <option value="fuel">Fuel</option>
+            <option value="cash">Cash</option>
+          </select>
+          {errors.paymentType && (
+            <p className="mt-1 text-sm text-red-500 flex items-center">
+              <FiAlertCircle className="mr-1" /> {errors.paymentType}
+            </p>
+          )}
+        </div>
+    {/* Approvement */}
+    <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Approval Status</label>
               <input
                 type="text"
@@ -1212,7 +1467,28 @@ const validateDriverSection = () => {
                 </p>
               )}
             </div>
+        {/* Conditional Account Number Field */}
+        {formData.paymentType === 'cash' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account Number *</label>
+            <input
+              type="text"
+              name="accountNumber"
+              value={formData.accountNumber}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.accountNumber ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              placeholder="Enter account number"
+              maxLength={20}
+            />
+            {errors.accountNumber && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.accountNumber}
+              </p>
+            )}
           </div>
+        )}
+      </div>
   
           {/* Submit Button for User Section */}
           <motion.div className="mt-8">
@@ -1716,168 +1992,217 @@ const validateDriverSection = () => {
           </AnimatePresence>
 
           {/* Service Provider Modal */}
-    <AnimatePresence>
-  {showServiceModal && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={{ duration: 0.2 }}
-        className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-      >
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-              <FiTool className="mr-2" />
-              Car Assignment Form
-            </h3>
-            <button
-              onClick={closeModals}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <FiX className="text-gray-500" />
-            </button>
-          </div>
-
-          {apiError && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
-              <div className="flex items-center">
-                <FiAlertCircle className="mr-2" />
-                <span>{apiError}</span>
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={handleServiceSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Service Provider */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Service Provider *
-                </label>
-                <input
-                  type="text"
-                  name="serviceProviderName"
-                  value={formData.serviceProviderName}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.serviceProviderName ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Company name"
-                />
-                {errors.serviceProviderName && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.serviceProviderName}
-                  </p>
-                )}
-              </div>
-
-              {/* Assigned Car Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Car Type *
-                </label>
-                <select
-                  name="assignedCarType"
-                  value={formData.assignedCarType}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.assignedCarType ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+          <AnimatePresence>
+      {showServiceModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          >
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+                  <FiTool className="mr-2" />
+                  Car Assignment Form
+                </h3>
+                <button
+                  onClick={closeModals}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <option value="">Select car type</option>
-                  {carTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-                {errors.assignedCarType && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.assignedCarType}
-                  </p>
-                )}
+                  <FiX className="text-gray-500" />
+                </button>
               </div>
 
-              {/* Driver Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Driver Name *
-                </label>
-                <input
-                  type="text"
-                  name="assignedDriver"
-                  value={formData.assignedDriver}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.assignedDriver ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Driver full name"
-                />
-                {errors.assignedDriver && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.assignedDriver}
-                  </p>
-                )}
-              </div>
+              {/* API Error */}
+              {apiError && (
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                  <div className="flex items-center">
+                    <FiAlertCircle className="mr-2" />
+                    <span>{apiError}</span>
+                  </div>
+                </div>
+              )}
 
-              {/* Vehicle Details */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Plate Number *
-                </label>
-                <input
-                  type="text"
-                  name="vehicleDetails"
-                  value={formData.vehicleDetails}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.vehicleDetails ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="License plate and model"
-                />
-                {errors.vehicleDetails && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.vehicleDetails}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <motion.button
-                type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={isSubmitting}
-                className={`w-full flex justify-center items-center px-6 py-3 rounded-lg text-white font-medium transition-all ${
-                  isSubmitting
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <motion.span
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
+              {/* Form Start */}
+              <form onSubmit={handleServiceSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Service Provider */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Service Provider *
+                    </label>
+                    <input
+                      type="text"
+                      name="serviceProviderName"
+                      value={formData.serviceProviderName}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 rounded-lg border ${
+                        errors.serviceProviderName ? 'border-red-500' : 'border-gray-300'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      placeholder="Company name"
                     />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <FiCheckCircle className="mr-2" />
-                    Assign
-                  </>
-                )}
-              </motion.button>
+                    {errors.serviceProviderName && (
+                      <p className="mt-1 text-sm text-red-500">{errors.serviceProviderName}</p>
+                    )}
+                  </div>
+
+{/* Plate Number Search */}
+<div className="relative col-span-2">
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Search Plate Number
+  </label>
+  <div className="relative">
+    <FiSearch className="absolute left-3 top-3 text-gray-400" />
+    <input
+      type="text"
+      value={plateSearchQuery}
+      readOnly={!!formData.vehicleDetails}
+      onChange={(e) => setPlateSearchQuery(e.target.value)}
+      placeholder="Start typing plate number..."
+      className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+        errors.vehicleDetails ? 'border-red-500' : 'border-gray-300'
+      } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+    />
+    
+    {/* Clear selection button */}
+    {formData.vehicleDetails && (
+      <button
+        type="button"
+        onClick={() => {
+          setPlateSearchQuery('');
+          setFormData(prev => ({
+            ...prev,
+            vehicleDetails: '',
+            assignedDriver: '',
+            assignedCarType: ''
+          }));
+        }}
+        className="absolute right-3 top-3 p-1 text-gray-500 hover:text-gray-700"
+      >
+        <FiX className="w-5 h-5" />
+      </button>
+    )}
+
+    {/* Dropdown list */}
+    {plateSearchQuery && !formData.vehicleDetails && (
+      <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
+        {filteredVehicles.length > 0 ? (
+          filteredVehicles.map((vehicle) => (
+            <div
+              key={vehicle.plate}
+              onClick={() => {
+                setFormData(prev => ({
+                  ...prev,
+                  vehicleDetails: vehicle.plate,
+                  assignedDriver: vehicle.driver,
+                  assignedCarType: vehicle.carType
+                }));
+                setPlateSearchQuery(vehicle.plate);
+              }}
+              className="p-3 hover:bg-gray-100 cursor-pointer transition-colors flex justify-between items-center"
+            >
+              <span className="font-mono">{vehicle.plate}</span>
+              <span className="text-sm text-gray-600">{vehicle.driver}</span>
             </div>
-          </form>
-        </div>
-      </motion.div>
-    </div>
+          ))
+        ) : (
+          <div className="p-3 text-gray-500 text-sm">
+            No vehicles found matching "{plateSearchQuery}"
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+  {errors.vehicleDetails && (
+    <p className="mt-1 text-sm text-red-500">{errors.vehicleDetails}</p>
   )}
-</AnimatePresence>
+</div>
+
+
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Car Type *
+  </label>
+  <input
+    type="text"
+    name="assignedCarType"
+    value={formData.assignedCarType}
+    readOnly
+    className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed"
+    placeholder="Auto-filled from plate selection"
+  />
+  {errors.assignedCarType && (
+    <p className="mt-1 text-sm text-red-500">{errors.assignedCarType}</p>
+  )}
+</div>
+
+
+                  {/* Driver Name */}
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Driver Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="assignedDriver"
+                      placeholder="Auto-filled from plate selection"
+                      value={formData.assignedDriver}
+                      readOnly
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                    />
+                    {errors.assignedDriver && (
+                      <p className="mt-1 text-sm text-red-500">{errors.assignedDriver}</p>
+                    )}
+                  </div>
+
+                </div> {/* End Grid */}
+
+                {/* Submit Button */}
+                <div className="mt-6">
+                  <motion.button
+                    type="submit"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={isSubmitting}
+                    className={`w-full flex justify-center items-center px-6 py-3 rounded-lg text-white font-medium transition-all ${
+                      isSubmitting
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <motion.span
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
+                        />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <FiCheckCircle className="mr-2" />
+                        Assign
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+
+              </form> {/* End Form */}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
 
           {/* Fuel Request Modal */}
           <AnimatePresence>

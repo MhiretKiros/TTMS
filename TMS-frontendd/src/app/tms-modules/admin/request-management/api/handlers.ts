@@ -31,7 +31,7 @@ export interface TravelRequest {
   cargoType?: string;
   cargoWeight?: number;
   numberOfPassengers?: number;
-  accountNunber?:string;
+  accountNumber?:string;
   authorizerName?:string;
   assemblerName?:string;
 }
@@ -373,5 +373,28 @@ async completeTrip(data: {
     // Try to parse as date
     const date = new Date(dateString);
     return isNaN(date.getTime()) ? '' : date.toISOString();
-  }
+  },
+  // In your TravelApi class
+ // Add these to your TravelApi
+// Change these methods in the TravelApi object// CORRECT API ENDPOINTS
+async getAllCars() {
+  return axios.get('http://localhost:8080/auth/car/all');
+},
+
+async getAllOrganizationCars() {
+  return axios.get('http://localhost:8080/auth/organization-car/all');
+},
+
+async getAllRentCars() {
+  return axios.get('http://localhost:8080/auth/rent-car/all');
+},
+
+updateCarStatus: (plateNumber: string, data: { status: string }) => 
+  axios.put(`http://localhost:8080/auth/car/status/${plateNumber}`, data),
+
+updateOrganizationCarStatus: (plateNumber: string, data: { status: string }) => 
+  axios.put(`http://localhost:8080/auth/organization-car/update/${plateNumber}`, data),
+
+updateRentCarStatus: (plateNumber: string, data: { status: string }) => 
+  axios.put(`http://localhost:8080/auth/rent-car/update/${plateNumber}`, data),
 };
