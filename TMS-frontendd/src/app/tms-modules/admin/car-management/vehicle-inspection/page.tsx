@@ -134,8 +134,6 @@ export default function CarInspectionPage() {
   const handleInspect = (car: Car) => {
     router.push(`vehicle-inspection/car-inspect?plateNumber=${car.plateNumber}&type=${activeTab}`);
   };
-
-  // Fetch cars when tab changes or on initial load
   useEffect(() => {
     fetchCars();
   }, [fetchCars]);

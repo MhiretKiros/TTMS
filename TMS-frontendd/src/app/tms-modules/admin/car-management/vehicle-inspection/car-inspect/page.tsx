@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react'; // Import React
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheck, FiX, FiAlertTriangle, FiChevronRight, FiInfo } from 'react-icons/fi';
+// Consider using a toast library for better user feedback
+// import { toast } from 'react-toastify';
 
 // Enums (InspectionStatus, ServiceStatus, SeverityLevel) remain the same
 enum InspectionStatus {
@@ -23,7 +25,6 @@ enum SeverityLevel {
   HIGH = 'HIGH',
   NONE = 'NONE',
 }
-
 
 // Define critical mechanical checks in one place
 const CRITICAL_MECHANICAL_CHECKS: (keyof MechanicalInspection)[] = [
@@ -165,7 +166,7 @@ interface Phase1Props {
     setIsLoading: (loading: boolean) => void;
     isLoading: boolean;
     router: ReturnType<typeof useRouter>; // Pass router for navigation
-    checkMechanicalPass: () => boolean;
+    checkMechanicalPass: () => boolean; // Still useful for messaging
 }
 
 // --- Props Interface for Checkbox --- (Moved before usage)
@@ -249,7 +250,7 @@ const PhaseActions = ({ phase, onBack, onNext, backLabel, nextLabel, isNextDisab
   }) => (
     <div className="flex flex-col sm:flex-row justify-between items-center mt-8 pt-6 border-t border-gray-200 gap-4">
        <div className="text-sm text-gray-500 text-center sm:text-left">
-        {phase === 1 ? 'Ensure all critical mechanical systems are checked.' :
+        {phase === 1 ? 'Ensure all mechanical systems are checked. Any failure prevents continuation.' : // Updated text
          phase === 2 ? 'Document any exterior body damage or wear.' :
          'Check all interior components and finalize the inspection.'}
       </div>
@@ -359,7 +360,7 @@ const Phase1MechanicalInspection = React.memo(({
     setIsLoading,
     isLoading,
     router,
-    checkMechanicalPass,
+    checkMechanicalPass, // Keep this for potential specific messaging or button label
 }: Phase1Props) => {
   const [localInspectorName, setLocalInspectorName] = useState(initialInspectorName);
 
@@ -368,6 +369,7 @@ const Phase1MechanicalInspection = React.memo(({
       return acc;
   }, {} as Partial<Record<keyof MechanicalInspection, boolean>>);
 
+  // --- MODIFIED SUBMIT HANDLER ---
   const handlePhase1SubmitInternal = useCallback(async () => {
     if (!localInspectorName.trim()) {
         alert("Please enter the inspector's name.");
@@ -375,22 +377,53 @@ const Phase1MechanicalInspection = React.memo(({
     }
     onNameFinalized(localInspectorName);
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    const mechanicalPass = checkMechanicalPass();
-    if (mechanicalPass) {
-      setPhase(2);
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Short delay
+
+    // Check if *ALL* mechanical items passed
+    const allMechanicalItemsPassed = Object.values(inspection.mechanical).every(value => value === true);
+    const criticalItemsPassed = checkMechanicalPass(); // Check critical status separately for messaging
+
+    if (allMechanicalItemsPassed) {
+      // --- ONLY if ALL items passed ---
+      setPhase(2); // Proceed to Phase 2
     } else {
+      // --- If ANY item failed ---
+      // Determine the reason based on whether a critical item failed or not
+      const reason = !criticalItemsPassed
+        ? 'Failed one or more critical mechanical inspection items.'
+        : 'Failed one or more non-critical mechanical inspection items.';
+
       setInspection(prev => ({
         ...prev,
         overallStatus: InspectionStatus.Rejected,
         serviceStatus: ServiceStatus.NotReady,
-        rejectionReason: 'Failed one or more mechanical inspection items.'
+        rejectionReason: reason // Use the determined reason
       }));
-      setShowFailAlert(true);
+      setShowFailAlert(true); // Show the failure modal, DO NOT proceed
     }
     setIsLoading(false);
-  }, [localInspectorName, onNameFinalized, setIsLoading, checkMechanicalPass, setPhase, setInspection, setShowFailAlert]);
+  }, [
+      localInspectorName,
+      onNameFinalized,
+      setIsLoading,
+      checkMechanicalPass, // Still needed for reason determination
+      setPhase,
+      setInspection,
+      setShowFailAlert,
+      inspection.mechanical // Add inspection.mechanical as a dependency
+  ]);
+  // --- END OF MODIFIED SUBMIT HANDLER ---
 
+
+  // --- Determine button label based on the new logic ---
+  const allMechanicalItemsPassed = Object.values(inspection.mechanical).every(value => value === true);
+  const criticalItemsPassed = checkMechanicalPass(); // Re-use the critical check result
+
+  const nextButtonLabel = allMechanicalItemsPassed
+    ? 'Continue to Body Inspection'
+    : !criticalItemsPassed
+      ? 'Submit as Failed (Critical Failure)'
+      : 'Submit as Failed (Failure)'; // Simpler label if non-critical failed
 
   return (
     <PhaseContainer>
@@ -461,12 +494,13 @@ const Phase1MechanicalInspection = React.memo(({
           </p>
         </div>
       </div>
+      {/* --- UPDATED PhaseActions --- */}
       <PhaseActions
         phase={1}
         onBack={() => router.back()}
         backLabel="Cancel Inspection"
         onNext={handlePhase1SubmitInternal}
-        nextLabel={checkMechanicalPass() ? 'Continue to Body Inspection' : 'Submit as Failed (Critical Failure)'}
+        nextLabel={nextButtonLabel} // Use the dynamically determined label
         isNextDisabled={!localInspectorName.trim()}
         isLoading={isLoading}
       />
@@ -577,6 +611,7 @@ export default function CarInspectPage() {
   const getOverallBodyStatus = useCallback(() => getOverallStatusFromScore(calculateBodyScore()), [calculateBodyScore]);
   const getOverallInteriorStatus = useCallback(() => getOverallStatusFromScore(calculateInteriorScore()), [calculateInteriorScore]);
 
+  // Checks if CRITICAL mechanical items passed
   const checkMechanicalPass = useCallback(() => {
     const { mechanical } = inspection;
     const anyCriticalFailed = CRITICAL_MECHANICAL_CHECKS.some(key => !mechanical[key]);
@@ -587,27 +622,33 @@ export default function CarInspectPage() {
     return true;
   }, [inspection.mechanical]);
 
+  // Checks if ALL body items passed (no problems)
   const checkBodyPass = useCallback(() => Object.values(inspection.body).every(item => !item.problem), [inspection.body]);
+  // Checks if ALL interior items passed (no problems)
   const checkInteriorPass = useCallback(() => Object.values(inspection.interior).every(item => !item.problem), [inspection.interior]);
 
-  // --- >>> NEW: Function to Update Car Status <<< ---
+  // --- >>> MODIFIED: Function to Update Car Status <<< ---
   const updateCarStatusAfterInspection = useCallback(async (
     plate: string,
-    inspectionStatus: InspectionStatus, // Pass the result status
-    inspectionId: number // Pass the new inspection ID
+    inspectionId: number, // Pass the new inspection ID
+    // Add serviceStatus parameter
+    serviceStatus: ServiceStatus, // Pass the service status (Ready, NotReady, etc.)
+    inspectionStatus: InspectionStatus // Keep inspectionStatus if backend needs it too, otherwise remove
   ) => {
-    console.log(`Attempting to update status for car ${plate} based on inspection ${inspectionId} (${inspectionStatus})`);
+    // Log which status is being sent for clarity
+    console.log(`Attempting to update status for car ${plate} to Service Status: ${serviceStatus} (Inspection ID: ${inspectionId}, Result: ${inspectionStatus})`);
 
     const token = localStorage.getItem('token');
     if (!token || token.trim() === '') {
       console.error('Cannot update car status: Authentication token missing.');
-      // Optionally show a non-blocking warning to the user
-      // alert('Warning: Could not update car status due to missing authentication.');
+      // Consider a non-blocking warning
+      // toast.warn('Warning: Could not update car status due to missing authentication.');
       return; // Exit the function
     }
 
     try {
-      // *** Adjust this API endpoint as needed for your backend ***
+      // *** Ensure this API endpoint expects the 'serviceStatus' in the 'status' field ***
+      // *** The backend should handle setting 'inspected = true' and updating the car's operational status ***
       const response = await fetch(`${API_BASE_URL}/cars/update-inspection-status`, {
         method: 'POST', // Or 'PUT'
         headers: {
@@ -617,8 +658,10 @@ export default function CarInspectPage() {
         body: JSON.stringify({
           plateNumber: plate,
           latestInspectionId: inspectionId,
-          status: inspectionStatus, // Send the inspection status (Approved, Rejected, etc.)
-          // You might need to map InspectionStatus to a specific Car Status on the backend
+          // --- Send the SERVICE STATUS here ---
+          status: serviceStatus,
+          // Optionally, send inspectionResult if backend needs both:
+          // inspectionResult: inspectionStatus,
         }),
       });
 
@@ -626,19 +669,22 @@ export default function CarInspectPage() {
         let errorMsg = `Failed to update car status (HTTP ${response.status})`;
         try { const errorData = await response.json(); errorMsg = errorData.message || errorData.error || errorMsg; } catch (e) { /* Ignore */ }
         console.warn(`Car Status Update Warning: ${errorMsg}`);
-        // alert('Warning: Could not update the car status automatically.'); // Optional user warning
+        // toast.warn(`Warning: Could not update the car status automatically. ${errorMsg}`);
       } else {
         const result = await response.json();
         console.log(`Car status updated successfully for ${plate}:`, result);
+        // toast.success('Car status updated successfully.');
       }
 
     } catch (error: any) {
       console.error('Error calling updateCarStatusAfterInspection:', error);
-      // alert('Warning: An error occurred while updating the car status.'); // Optional user warning
+      // toast.error('An error occurred while updating the car status.');
     }
-  }, []); // No external dependencies needed if API_BASE_URL is constant
+    // Dependencies might need adjustment if you added/removed parameters
+  }, []); // API_BASE_URL is constant, no other external deps if token logic is self-contained
 
-  // --- API Submission (Modified) ---
+
+  // --- API Submission (Modified Call) ---
   const submitInspectionToBackend = useCallback(async (payload: InspectionPayload) => {
     setIsLoading(true);
     console.log("Submitting Inspection Payload:", JSON.stringify(payload, null, 2));
@@ -646,7 +692,7 @@ export default function CarInspectPage() {
     const token = localStorage.getItem('token');
     if (!token || token.trim() === '') {
       console.error('No valid authentication token found.');
-      alert('Authentication error. Please log in again.');
+      alert('Authentication error. Please log in again.'); // Keep alert for critical auth errors
       setIsLoading(false);
       router.push('/login');
       return null;
@@ -676,7 +722,7 @@ export default function CarInspectPage() {
              errorMessage = `Submission failed due to invalid data: ${validationMessages}`;
           } else if (response.status === 401 || response.status === 403) {
              errorMessage = "Authentication failed. Please log in again.";
-             router.push('/login');
+             router.push('/login'); // Redirect on auth failure
           } else if (response.status >= 500) {
              errorMessage = `Server error (${response.status}). Please try again later.`;
           }
@@ -690,11 +736,17 @@ export default function CarInspectPage() {
       console.log('Submission successful:', result);
 
       if (result && result.id && payload.plateNumber) { // Ensure ID and plateNumber exist
-        alert('Inspection submitted successfully!');
+        alert('Inspection submitted successfully!'); // Keep alert for primary success
 
         // 2. Update the car's status - NOW WE WAIT for this to finish
         console.log("Waiting for car status update...");
-        await updateCarStatusAfterInspection(payload.plateNumber, payload.inspectionStatus, result.id);
+        // --- MODIFIED CALL: Pass payload.serviceStatus ---
+        await updateCarStatusAfterInspection(
+            payload.plateNumber,
+            result.id,
+            payload.serviceStatus, // Pass the service status
+            payload.inspectionStatus // Pass inspection status too (if needed by backend)
+        );
         console.log("Car status update attempt finished.");
 
         // 3. Redirect to the results page AFTER status update attempt
@@ -703,21 +755,20 @@ export default function CarInspectPage() {
 
       } else {
         console.warn("Submission successful, but missing ID or PlateNumber for status update:", result, payload.plateNumber);
-        alert('Inspection submitted, but could not retrieve necessary info for car status update. Redirecting to list.');
+        alert('Inspection submitted, but could not retrieve necessary info for car status update. Redirecting to list.'); // Keep alert for this edge case
         router.push('/tms-modules/admin/car-management/vehicle-inspection');
         return null;
       }
-      // --- >>> END MODIFIED SUCCESS BLOCK <<< ---
 
     } catch (error: any) {
       console.error('Submission error:', error);
-      alert(`Submission failed: ${error.message || 'An unknown error occurred.'}`);
+      alert(`Submission failed: ${error.message || 'An unknown error occurred.'}`); // Keep alert for submission failure
       return null;
     } finally {
       setIsLoading(false);
     }
     // Added updateCarStatusAfterInspection to dependencies
-  }, [router, updateCarStatusAfterInspection]);
+  }, [router, updateCarStatusAfterInspection]); // Ensure updateCarStatusAfterInspection is in dependency array
 
 
   // --- Final Submission Logic ---
@@ -727,20 +778,23 @@ export default function CarInspectPage() {
         return;
     }
 
-    const mechPass = checkMechanicalPass();
+    // Check if ALL mechanical items passed (not just critical)
+    const allMechPassed = Object.values(inspection.mechanical).every(value => value === true);
     const bodyPass = checkBodyPass();
     const interiorPass = checkInteriorPass();
+
     let finalOverallStatus: InspectionStatus = InspectionStatus.Rejected;
     let finalServiceStatus: ServiceStatus = ServiceStatus.NotReady;
     let finalWarningMessage: string | undefined = undefined;
     let finalWarningDeadline: string | undefined = undefined;
+    // Use the reason set during Phase 1 failure if it exists, otherwise determine based on critical/non-critical
     let finalRejectionReason: string | undefined = inspection.rejectionReason;
 
-    if (mechPass) {
+    if (allMechPassed) { // Only proceed if ALL mechanical items passed
         if (bodyPass && interiorPass) {
             finalOverallStatus = InspectionStatus.Approved;
             finalServiceStatus = ServiceStatus.Ready;
-            finalRejectionReason = undefined;
+            finalRejectionReason = undefined; // Clear any previous rejection reason
         } else {
             finalOverallStatus = InspectionStatus.ConditionallyApproved;
             finalServiceStatus = ServiceStatus.ReadyWithWarning;
@@ -748,14 +802,21 @@ export default function CarInspectPage() {
             if (!bodyPass) issues.push('body exterior');
             if (!interiorPass) issues.push('interior/electrical');
             finalWarningMessage = `Minor issues found in: ${issues.join(', ')}. Requires attention within the specified deadline.`;
-            const deadlineDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            const deadlineDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
             finalWarningDeadline = deadlineDate.toISOString().split('T')[0];
-            finalRejectionReason = undefined;
+            finalRejectionReason = undefined; // Clear any previous rejection reason
         }
     } else {
+        // If we reach here, it means a mechanical item failed (handled in Phase 1)
         finalOverallStatus = InspectionStatus.Rejected;
         finalServiceStatus = ServiceStatus.NotReady;
-        finalRejectionReason = finalRejectionReason || 'Failed critical mechanical inspection items.';
+        // Ensure rejection reason is set (should have been set in Phase 1)
+        if (!finalRejectionReason) {
+            const criticalFailed = !checkMechanicalPass(); // Re-check if it was critical
+            finalRejectionReason = criticalFailed
+                ? 'Failed critical mechanical inspection items.'
+                : 'Failed non-critical mechanical inspection items.';
+        }
         finalWarningMessage = undefined;
         finalWarningDeadline = undefined;
     }
@@ -764,7 +825,7 @@ export default function CarInspectPage() {
       plateNumber,
       inspectorName,
       inspectionStatus: finalOverallStatus,
-      serviceStatus: finalServiceStatus,
+      serviceStatus: finalServiceStatus, // Ensure serviceStatus is correctly determined
       bodyScore: calculateBodyScore(),
       interiorScore: calculateInteriorScore(),
       notes: notes,
@@ -781,31 +842,41 @@ export default function CarInspectPage() {
   }, [
       inspectorName, plateNumber, checkMechanicalPass, checkBodyPass, checkInteriorPass,
       calculateBodyScore, calculateInteriorScore, notes, inspection, submitInspectionToBackend
+      // Removed checkMechanicalPass from here as the primary check is now allMechPassed
   ]);
 
 
-  // Handles confirming rejection from the modal
+  // Handles confirming rejection from the modal (triggered in Phase 1)
   const handleFinalRejection = useCallback(async () => {
     setShowFailAlert(false);
-    const rejectionMsg = inspection.rejectionReason || 'Failed critical mechanical inspection items.';
+    // The rejection reason should already be set in the inspection state by handlePhase1SubmitInternal
+    const rejectionMsg = inspection.rejectionReason || 'Failed mechanical inspection items.';
+    // Ensure state reflects rejection before submitting
     setInspection(prev => ({
       ...prev,
       overallStatus: InspectionStatus.Rejected,
-      serviceStatus: ServiceStatus.NotReady,
-      rejectionReason: rejectionMsg
+      serviceStatus: ServiceStatus.NotReady, // Ensure service status is NotReady on rejection
+      rejectionReason: rejectionMsg // Ensure it's set
     }));
-    setNotes(prevNotes => prevNotes ? `${prevNotes}\n\nREJECTED: ${rejectionMsg}` : `REJECTED: ${rejectionMsg}`);
+    // Append rejection reason to notes if not already there
+    setNotes(prevNotes => {
+        const rejectionText = `REJECTED: ${rejectionMsg}`;
+        return prevNotes.includes(rejectionText) ? prevNotes : (prevNotes ? `${prevNotes}\n\n${rejectionText}` : rejectionText);
+    });
+    // Call the main submit handler which will now use the Rejected status
     await handleSubmit();
   }, [inspection.rejectionReason, setInspection, setNotes, handleSubmit]);
 
   // --- Phase Transition Handlers ---
   const handlePhase2Submit = useCallback(async () => {
+    // No specific checks needed here unless you add rules for body phase
     setIsLoading(true);
     setPhase(3);
     setIsLoading(false);
   }, [setIsLoading, setPhase]);
 
   const handlePhase3Submit = useCallback(async () => {
+    // Final submission is handled by the main handleSubmit function
     await handleSubmit();
   }, [handleSubmit]);
 
@@ -850,7 +921,7 @@ export default function CarInspectPage() {
                 backLabel="Back to Mechanical"
                 onNext={handlePhase2Submit}
                 nextLabel="Continue to Interior Inspection"
-                isNextDisabled={!inspectorName.trim()}
+                isNextDisabled={!inspectorName.trim()} // Still require inspector name
                 isLoading={isLoading}
             />
         </PhaseContainer>
@@ -927,7 +998,7 @@ export default function CarInspectPage() {
                 backLabel="Back to Body"
                 onNext={handlePhase3Submit}
                 nextLabel="Complete & Submit Inspection"
-                isNextDisabled={!inspectorName.trim()}
+                isNextDisabled={!inspectorName.trim()} // Still require inspector name
                 isLoading={isLoading}
             />
         </PhaseContainer>
@@ -971,7 +1042,7 @@ export default function CarInspectPage() {
                 setIsLoading={setIsLoading}
                 isLoading={isLoading}
                 router={router}
-                checkMechanicalPass={checkMechanicalPass}
+                checkMechanicalPass={checkMechanicalPass} // Pass the critical check function
               />
             </motion.div>
           )}
@@ -1001,7 +1072,9 @@ export default function CarInspectPage() {
                   </div>
                   <h3 className="mt-3 text-lg font-semibold text-gray-900">Inspection Failed</h3>
                   <div className="mt-2 px-2 text-sm text-gray-500">
-                    <p>The vehicle did not pass critical mechanical checks and cannot be approved.</p>
+                    {/* Updated message to be more general */}
+                    <p>The vehicle did not pass the mechanical inspection and cannot be approved.</p>
+                    {/* Display the specific reason set in the state */}
                     {inspection.rejectionReason && ( <p className="mt-2 font-medium text-red-700">Reason: {inspection.rejectionReason}</p> )}
                   </div>
                 </div>
