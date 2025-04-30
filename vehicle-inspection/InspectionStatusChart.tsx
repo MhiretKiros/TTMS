@@ -13,8 +13,8 @@ const COLORS = {
   Approved: '#10B981', // Emerald 500
   Rejected: '#EF4444', // Red 500
   ConditionallyApproved: '#F59E0B', // Amber 500
-  InspectedOther: '#A855F7', // Purple 500 (Used for inspected but unknown result)
   NotInspected: '#6B7280', // Gray 500
+  Pending: '#A855F7', // Purple 500
   Unknown: '#D1D5DB', // Gray 300
 };
 
@@ -23,8 +23,8 @@ const processChartData = (cars: Car[]) => {
     Approved: 0,
     Rejected: 0,
     ConditionallyApproved: 0,
-    InspectedOther: 0, // Renamed from Pending
     NotInspected: 0,
+    Pending: 0,
   };
 
   cars.forEach(car => {
@@ -37,33 +37,13 @@ const processChartData = (cars: Car[]) => {
     } else if (car.inspectionResult === 'ConditionallyApproved') { // Check if this status exists
       counts.ConditionallyApproved++;
     } else {
-      // If inspected but result is null/undefined/unknown, count as 'InspectedOther'
-      counts.InspectedOther++;
+      counts.Pending++;
     }
   });
 
   return Object.entries(counts)
     .map(([name, value]) => ({ name, value }))
     .filter(item => item.value > 0); // Only include statuses with counts > 0
-};
-
-// Custom label renderer
-const RADIAN = Math.PI / 180;
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value }: any) => {
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-  // Only show label if percentage is significant enough (e.g., > 5%)
-  if (percent * 100 < 5) {
-      return null;
-  }
-
-  return (
-    <text x={x} y={y} fill="black" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="12px" fontWeight="bold">
-      {`${value} (${(percent * 100).toFixed(0)}%)`}
-    </text>
-  );
 };
 
 const InspectionStatusChart: React.FC<InspectionStatusChartProps> = ({ cars }) => {
@@ -81,11 +61,10 @@ const InspectionStatusChart: React.FC<InspectionStatusChartProps> = ({ cars }) =
           cx="50%"
           cy="50%"
           labelLine={false}
-          innerRadius={60} // Make it a donut chart
-          outerRadius={110} // Slightly larger outer radius
+          outerRadius={100}
           fill="#8884d8"
           dataKey="value"
-          label={renderCustomizedLabel} // Use custom label
+          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
         >
           {chartData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS] || COLORS.Unknown} />

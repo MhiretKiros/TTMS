@@ -638,15 +638,13 @@ export default function CarInspectPage() {
     // Log which status is being sent for clarity
     console.log(`Attempting to update status for car ${plate} to Service Status: ${serviceStatus} (Inspection ID: ${inspectionId}, Result: ${inspectionStatus})`);
 
-    // --- TEMPORARILY COMMENTED OUT - Assuming backend doesn't require auth yet ---
-    // const token = localStorage.getItem('token');
-    // if (!token || token.trim() === '') {
-    //   console.error('Cannot update car status: Authentication token missing.');
-    //   // Consider a non-blocking warning
-    //   // toast.warn('Warning: Could not update car status due to missing authentication.');
-    //   return; // Exit the function
-    // }
-    // --- END OF TEMPORARY COMMENT ---
+    const token = localStorage.getItem('token');
+    if (!token || token.trim() === '') {
+      console.error('Cannot update car status: Authentication token missing.');
+      // Consider a non-blocking warning
+      // toast.warn('Warning: Could not update car status due to missing authentication.');
+      return; // Exit the function
+    }
 
     try {
       // *** Ensure this API endpoint expects the 'serviceStatus' in the 'status' field ***
@@ -655,9 +653,7 @@ export default function CarInspectPage() {
         method: 'POST', // Or 'PUT'
         headers: {
           'Content-Type': 'application/json',
-          // --- TEMPORARILY COMMENTED OUT - Assuming backend doesn't require auth yet ---
-          // 'Authorization': `Bearer ${token}`,
-          // --- END OF TEMPORARY COMMENT ---
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           plateNumber: plate,
@@ -693,23 +689,19 @@ export default function CarInspectPage() {
     setIsLoading(true);
     console.log("Submitting Inspection Payload:", JSON.stringify(payload, null, 2));
 
-    // --- TEMPORARILY COMMENTED OUT - Assuming backend doesn't require auth yet ---
-    // const token = localStorage.getItem('token');
-    // if (!token || token.trim() === '') {
-    //   console.error('No valid authentication token found.');
-    //   alert('Authentication error. Please log in again.'); // Keep alert for critical auth errors
-    //   setIsLoading(false);
-    //   // router.push('/login'); // Don't redirect if no login page exists
-    //   return null;
-    // }
-    // --- END OF TEMPORARY COMMENT ---
+    const token = localStorage.getItem('token');
+    if (!token || token.trim() === '') {
+      console.error('No valid authentication token found.');
+      alert('Authentication error. Please log in again.'); // Keep alert for critical auth errors
+      setIsLoading(false);
+      router.push('/login');
+      return null;
+    }
 
     try {
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        // --- TEMPORARILY COMMENTED OUT - Assuming backend doesn't require auth yet ---
-        // 'Authorization': `Bearer ${token}`,
-        // --- END OF TEMPORARY COMMENT ---
+        'Authorization': `Bearer ${token}`,
       };
 
       const response = await fetch(`${API_BASE_URL}/inspections/create`, {
@@ -730,8 +722,7 @@ export default function CarInspectPage() {
              errorMessage = `Submission failed due to invalid data: ${validationMessages}`;
           } else if (response.status === 401 || response.status === 403) {
              errorMessage = "Authentication failed. Please log in again.";
-             // Don't redirect if no login page exists and auth isn't implemented
-             // router.push('/login');
+             router.push('/login'); // Redirect on auth failure
           } else if (response.status >= 500) {
              errorMessage = `Server error (${response.status}). Please try again later.`;
           }

@@ -9,33 +9,6 @@ import '@sweetalert2/theme-material-ui/material-ui.css';
 // Import the chart component (adjust path if necessary)
 import InspectionStatusChart from './InspectionStatusChart';
 
-// --- Define types for detailed inspection results (mirroring backend DTOs) ---
-// These might need adjustment based on the exact structure returned by GET /api/inspections/{id}
-type ItemConditionDTO = { problem: boolean; severity: string; notes: string; };
-type MechanicalInspectionDTO = { engineCondition: boolean; enginePower: boolean; suspension: boolean; brakes: boolean; steering: boolean; gearbox: boolean; mileage: boolean; fuelGauge: boolean; tempGauge: boolean; oilGauge: boolean; };
-type BodyInspectionDTO = { bodyCollision: ItemConditionDTO; bodyScratches: ItemConditionDTO; paintCondition: ItemConditionDTO; breakages: ItemConditionDTO; cracks: ItemConditionDTO; };
-type InteriorInspectionDTO = { engineExhaust: ItemConditionDTO; seatComfort: ItemConditionDTO; seatFabric: ItemConditionDTO; floorMat: ItemConditionDTO; rearViewMirror: ItemConditionDTO; carTab: ItemConditionDTO; mirrorAdjustment: ItemConditionDTO; doorLock: ItemConditionDTO; ventilationSystem: ItemConditionDTO; dashboardDecoration: ItemConditionDTO; seatBelt: ItemConditionDTO; sunshade: ItemConditionDTO; windowCurtain: ItemConditionDTO; interiorRoof: ItemConditionDTO; carIgnition: ItemConditionDTO; fuelConsumption: ItemConditionDTO; headlights: ItemConditionDTO; rainWiper: ItemConditionDTO; turnSignalLight: ItemConditionDTO; brakeLight: ItemConditionDTO; licensePlateLight: ItemConditionDTO; clock: ItemConditionDTO; rpm: ItemConditionDTO; batteryStatus: ItemConditionDTO; chargingIndicator: ItemConditionDTO; };
-
-interface DetailedInspectionResult {
-  id: number;
-  inspectionStatus: 'Approved' | 'Rejected' | 'ConditionallyApproved';
-  inspectionDate: string;
-  inspectorName: string;
-  notes?: string;
-  // Add more detailed fields as needed from your backend response
-  // Example:
-  // mechanical?: MechanicalInspectionDTO;
-  // body?: BodyInspectionDTO;
-  // interior?: InteriorInspectionDTO;
-  // bodyScore?: number;
-  // interiorScore?: number;
-  // serviceStatus?: string;
-  // warningMessage?: string;
-  // warningDeadline?: string;
-  // rejectionReason?: string;
-}
-
-
 type CarType = 'personal' | 'organization' | 'rented';
 
 // Export the Car interface so the chart component can use it
@@ -61,9 +34,8 @@ export interface Car {
   ownerName?: string;
   ownerPhone?: string;
   // Add potential inspection details if available from backend
-  inspectionDate?: string; // Basic date from list view
-  inspectionNotes?: string; // Basic notes from list view
-  latestInspectionId?: number; // <-- ID needed to fetch full details
+  inspectionDate?: string;
+  inspectionNotes?: string;
 }
 
 export default function CarInspectionPage() {
@@ -118,7 +90,6 @@ export default function CarInspectionPage() {
         case 'organization': endpoint = 'http://localhost:8080/auth/organization-car/all'; break;
         case 'rented': endpoint = 'http://localhost:8080/auth/rent-car/all'; break;
       }
-      
       const carList = await fetchData(endpoint);
       console.log(`Processed ${activeTab} cars:`, carList);
       if (!Array.isArray(carList)) {
@@ -126,7 +97,6 @@ export default function CarInspectionPage() {
           throw new Error("Received invalid data format from API.");
       }
       // Ensure boolean conversion for inspected status if needed
-      // IMPORTANT: Ensure backend sends 'latestInspectionId' for inspected cars
       const processedCarList = carList.map(car => ({
         ...car,
         inspected: Boolean(car.inspected) // Explicitly cast/convert if API returns 0/1 or string
@@ -171,8 +141,32 @@ export default function CarInspectionPage() {
     router.push(`vehicle-inspection/car-inspect?plateNumber=${car.plateNumber}&type=${activeTab}`);
   };
 
-  // --- REMOVED handleShowInspectionResult function ---
+  // NEW: Handle showing inspection results when an inspected row is clicked
+  const handleShowInspectionResult = (car: Car) => {
+    if (!car.inspected) return; // Only proceed if the car is actually inspected
 
+    // Prepare details for the modal
+    let detailsHtml = `<p><strong>Status:</strong> ${car.inspectionResult || 'Pending'}</p>`;
+    if (car.inspectionDate) {
+      detailsHtml += `<p><strong>Date:</strong> ${new Date(car.inspectionDate).toLocaleDateString()}</p>`;
+    }
+    if (car.inspectionNotes) {
+      detailsHtml += `<p><strong>Notes:</strong> ${car.inspectionNotes}</p>`; // Make sure to sanitize if notes contain HTML
+    }
+
+    Swal.fire({
+      title: `Inspection Result: ${car.plateNumber}`,
+      html: detailsHtml,
+      icon: car.inspectionResult === 'Approved' ? 'success' :
+            car.inspectionResult === 'Rejected' ? 'error' :
+            car.inspectionResult === 'ConditionallyApproved' ? 'warning' :
+            'info', // For 'Pending' or unknown status
+      confirmButtonText: 'Close',
+      customClass: {
+        htmlContainer: 'text-left' // Align details left
+      }
+    });
+  };
 
   // --- useEffects remain the same ---
   useEffect(() => {
@@ -301,7 +295,7 @@ export default function CarInspectionPage() {
         )}
       </motion.div>
 
-      {/* Car List Table Section - MODIFIED onClick */}
+      {/* Car List Table Section - MODIFIED */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -329,37 +323,24 @@ export default function CarInspectionPage() {
                     {tableHeaderLabel}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inspection Status</th> {/* Changed Header */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
-              
               <tbody className="bg-white divide-y divide-gray-200">
-                
                 {filteredCars.length > 0 ? (
-                  
                   filteredCars.map((car) => {
                     const displayField = getDisplayField(car);
-                    
                     return (
-                      // MODIFIED onClick and className
+                      // MODIFIED: Added onClick and conditional class to TR
                       <tr
-                      
                         key={`${activeTab}-${car.id}`}
-                        className={`hover:bg-gray-50 transition-colors duration-150 ${car.inspected && car.latestInspectionId ? 'cursor-pointer' : ''}`} // Only make cursor pointer if inspected AND has ID
+                        className={`hover:bg-gray-50 transition-colors duration-150 ${car.inspected ? 'cursor-pointer' : ''}`}
                         onClick={() => {
-                          
                           if (car.inspected) {
-                            
-                            if (car.latestInspectionId) { // Use car.latestInspectionId
-                              // Navigate to the result page with the ID
-                              router.push(`/tms-modules/admin/car-management/vehicle-inspection/result?inspectionId=${car.latestInspectionId}`);
-                            } else {
-                              // Handle case where car is inspected but ID is missing (show alert)
-                              Swal.fire('Info', `Inspection details are not available for ${car.plateNumber}. Missing inspection ID.`, 'info');
-                              console.warn(`Clicked inspected car ${car.plateNumber} but latestInspectionId is missing.`);
-                            }
+                            handleShowInspectionResult(car); // Show result if inspected
                           }
-                          // If not inspected, do nothing (the button handles navigation)
+                          // No action if not inspected (button handles inspection)
                         }}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{car.plateNumber}</td>
@@ -367,18 +348,33 @@ export default function CarInspectionPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{displayField.value}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            (car.status?.toLowerCase() === 'active' || car.status?.toLowerCase() === 'available' || car.status?.toLowerCase() === 'inspectedandready') ? 'bg-green-100 text-green-800' : // Added InspectedAndReady
+                            (car.status?.toLowerCase() === 'active' || car.status?.toLowerCase() === 'available') ? 'bg-green-100 text-green-800' :
                             (car.status?.toLowerCase() === 'maintenance') ? 'bg-yellow-100 text-yellow-800' :
-                            (car.status?.toLowerCase() === 'inactive' || car.status?.toLowerCase() === 'rented' || car.status?.toLowerCase() === 'inspectionrejected') ? 'bg-red-100 text-red-800' : // Added InspectionRejected
-                            (car.status?.toLowerCase() === 'pendinginspection') ? 'bg-purple-100 text-purple-800' : // Added PendingInspection
+                            (car.status?.toLowerCase() === 'inactive' || car.status?.toLowerCase() === 'rented') ? 'bg-red-100 text-red-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
                             {car.status || 'Unknown'}
                           </span>
                         </td>
-
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {/* Inspection Status Badge */}
+                          {car.inspected ? (
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              car.inspectionResult === 'Approved' ? 'bg-green-100 text-green-800' :
+                              car.inspectionResult === 'Rejected' ? 'bg-red-100 text-red-800' :
+                              car.inspectionResult === 'ConditionallyApproved' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-purple-100 text-purple-800' // Pending or other
+                            }`}>
+                              {car.inspectionResult || 'Pending'}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                              Not Inspected
+                            </span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {/* The conditional rendering here is already correct */}
+                          {/* MODIFIED: Conditionally render Inspect button */}
                           {!car.inspected ? (
                             <button
                               onClick={(e) => {
