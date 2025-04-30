@@ -28,7 +28,8 @@ export const updateCarInspectionStatus = async (
   result: 'Approved' | 'Rejected',
   carType: CarType // Added carType parameter
 ) => {
-  if (!plateNumber) {
+  if (!plateNumber)
+     {
     // More specific error message
     throw new Error('Plate Number is required to update inspection status.');
   }
