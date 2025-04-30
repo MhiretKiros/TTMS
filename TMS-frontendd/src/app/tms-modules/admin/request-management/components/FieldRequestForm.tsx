@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiAlertCircle, FiMapPin, FiSend, FiCalendar, FiCheckCircle, 
   FiUser, FiUsers, FiTool, FiPlus, FiMinus, FiTruck, FiPackage,
-  FiSearch, FiArrowRight, FiX
+  FiSearch, FiArrowRight, FiX,FiChevronDown 
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import { TravelApi, TravelRequest } from '../api/handlers';
@@ -85,9 +85,12 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     cargoWeight: '',
     numberOfPassengers: '',
     status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED',
-    vehicleType: '' as 'car' | 'organization' | 'rent' | ''
   });
 
+  const [showCargoDropdown, setShowCargoDropdown] = useState(false);
+  const [selectedCargoTypes, setSelectedCargoTypes] = useState<string[]>([]);
+  const [vehicleType, setVehicleType] = useState( '' as 'car' | 'organization' | 'rent' | ''
+  );
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<TravelRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,10 +203,42 @@ const handlePlateSelect = (vehicle: VehicleSuggestion) => {
     vehicleDetails: vehicle.plate,
     assignedDriver: vehicle.driver,
     assignedCarType: vehicle.carType,
-    vehicleType: vehicle.type // Store vehicle type in form data
+    // Store vehicle type in form data
   }));
+  setVehicleType(vehicle.type)
   setPlateSearchQuery(vehicle.plate);
+  
 };
+
+useEffect(() => {
+  const determineVehicleType = async () => {
+    if (!selectedRequest?.vehicleDetails) return;
+    
+    try {
+      const [cars, orgCars, rentCars] = await Promise.all([
+        TravelApi.getAllCars(),
+        TravelApi.getAllOrganizationCars(),
+        TravelApi.getAllRentCars()
+      ]);
+
+      const plate = selectedRequest.vehicleDetails;
+      
+      if (cars.data.carList.some((c: any) => c.plateNumber === plate)) {
+        setVehicleType( 'car' );      } 
+      else if (orgCars.data.organizationCarList.some((c: any) => c.plateNumber === plate)) {
+        setVehicleType( 'organization' );
+      }
+      else if (rentCars.data.rentCarList.some((c: any) => c.licensePlate === plate)) {
+        setVehicleType( 'rent' );      }
+    } catch (error) {
+      console.error('Failed to determine vehicle type', error);
+    }
+  };
+
+  if (showUserModal && actorType === 'driver') {
+    determineVehicleType();
+  }
+}, [showUserModal, selectedRequest, actorType]);
 
   useEffect(() => {
     const loadRequests = async () => {
@@ -287,59 +322,80 @@ useEffect(() => {
   }
 }, [driverSearchQuery, searchQuery, requests, actorType]);
 
-  const populateFormData = (request: TravelRequest) => {
-    if (actorType === 'driver') {
-      // For driver, only populate the fields they need to complete
-      setFormData(prev => ({
-        ...prev,
-        serviceProviderName: request.serviceProviderName || '',
-        assignedCarType: request.assignedCarType || '',
-        assignedDriver: request.assignedDriver || '',
-        vehicleDetails: request.vehicleDetails || '',
-        // Reset editable fields when a new request is selected
-        actualStartingDate: '',
-        actualReturnDate: '',
-        startingKilometers: '',
-        endingKilometers: '',
-        kmDifference: '',
-        cargoType: '',
-        cargoWeight: '',
-        numberOfPassengers: ''
-      }));
+const populateFormData = (request: TravelRequest) => {
+  if (actorType === 'driver') {
+    setFormData(prev => ({
+      ...prev,
+      serviceProviderName: request.serviceProviderName || '',
+      assignedCarType: request.assignedCarType || '',
+      assignedDriver: request.assignedDriver || '',
+      vehicleDetails: request.vehicleDetails || '',
+      // Reset editable fields
+      actualStartingDate: '',
+      actualReturnDate: '',
+      startingKilometers: '',
+      endingKilometers: '',
+      kmDifference: '',
+      cargoType: request.cargoType || '',
+      cargoWeight: '',
+      numberOfPassengers: request.travelers.filter(t => t?.name?.trim()).length.toString(),
+      travelers: request.travelers.map(t => t?.name || '')
+    }));
+    
+    // Initialize selected cargo types from existing data
+    if (request.cargoType) {
+      setSelectedCargoTypes(
+        request.cargoType.split(',')
+          .map(t => t.trim())
+          .filter(t => t.length > 0)
+      );
     } else {
-      // Existing population for other roles
-      setFormData({
-        paymentType:request.paymentType ||'',
-        startingPlace: request.startingPlace,
-        destinationPlace: request.destinationPlace,
-        travelers: request.travelers.map(t => t.name),
-        travelReason: request.travelReason,
-        carType: request.carType || '',
-        travelDistance: request.travelDistance?.toString() || '',
-        startingDate: formatDateForInput(request.startingDate),
-        returnDate: request.returnDate ? formatDateForInput(request.returnDate) : '',
-        department: request.department,
-        jobStatus: request.jobStatus,
-        claimantName: request.claimantName,
-        accountNumber:request.accountNunber,
-        teamLeaderName: request.teamLeaderName,
-        approvement: request.approvement || '',
-        serviceProviderName: request.serviceProviderName || '',
-        assignedCarType: request.assignedCarType || '',
-        assignedDriver: request.assignedDriver || '',
-        vehicleDetails: request.vehicleDetails || '',
-        actualStartingDate: request.actualStartingDate ? formatDateForInput(request.actualStartingDate) : '',
-        actualReturnDate: request.actualReturnDate ? formatDateForInput(request.actualReturnDate) : '',
-        startingKilometers: request.startingKilometers?.toString() || '',
-        endingKilometers: request.endingKilometers?.toString() || '',
-        kmDifference: request.kmDifference?.toString() || '',
-        cargoType: request.cargoType || '',
-        cargoWeight: request.cargoWeight?.toString() || '',
-        numberOfPassengers: request.numberOfPassengers?.toString() || '',
-        status: request.status,
-      });
+      setSelectedCargoTypes([]);
     }
-  };
+  } else {
+    setFormData({
+      paymentType: request.paymentType || '',
+      startingPlace: request.startingPlace,
+      destinationPlace: request.destinationPlace,
+      travelers: request.travelers.map(t => t?.name || ''), // Safe access
+      travelReason: request.travelReason,
+      carType: request.carType || '',
+      travelDistance: request.travelDistance?.toString() || '',
+      startingDate: formatDateForInput(request.startingDate) || '',
+      returnDate: request.returnDate ? formatDateForInput(request.returnDate) : '',
+      department: request.department,
+      jobStatus: request.jobStatus,
+      claimantName: request.claimantName,
+      accountNumber: request.accountNumber || '',
+      teamLeaderName: request.teamLeaderName,
+      approvement: request.approvement || '',
+      serviceProviderName: request.serviceProviderName || '',
+      assignedCarType: request.assignedCarType || '',
+      assignedDriver: request.assignedDriver || '',
+      vehicleDetails: request.vehicleDetails || '',
+      actualStartingDate: request.actualStartingDate ? formatDateForInput(request.actualStartingDate) : '',
+      actualReturnDate: request.actualReturnDate ? formatDateForInput(request.actualReturnDate) : '',
+      startingKilometers: request.startingKilometers?.toString() || '',
+      endingKilometers: request.endingKilometers?.toString() || '',
+      kmDifference: request.kmDifference?.toString() || '',
+      cargoType: request.cargoType || '',
+      cargoWeight: request.cargoWeight?.toString() || '',
+      numberOfPassengers: request.travelers.filter(t => t?.name?.trim()).length.toString(),
+      status: request.status,
+    });
+
+    // Initialize selected cargo types from existing data
+    if (request.cargoType) {
+      setSelectedCargoTypes(
+        request.cargoType.split(',')
+          .map(t => t.trim())
+          .filter(t => t.length > 0)
+      );
+    } else {
+      setSelectedCargoTypes([]);
+    }
+  }
+};
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -448,17 +504,20 @@ useEffect(() => {
       'actualStartingDate',
       'startingKilometers',
       'endingKilometers',
-      'cargoWeight',
-      'numberOfPassengers',
-      'cargoType'
+      'cargoWeight'
     ];
-
+  
     requiredFields.forEach(field => {
       if (!formData[field]) {
         const fieldName = field.replace(/([A-Z])/g, ' $1').trim();
         newErrors[field] = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required`;
       }
     });
+  
+    // Check cargo types
+    if (selectedCargoTypes.length === 0) {
+      newErrors.cargoType = 'At least one cargo type must be selected';
+    }
 
     if (formData.startingKilometers) {
       const km = parseFloat(formData.startingKilometers);
@@ -665,17 +724,20 @@ useEffect(() => {
         status: 'ASSIGNED' // Add this to update status
       });
 // Before making the status update call, add this validation:
-if (!formData.vehicleType || !formData.vehicleDetails) {
-  showSuccessAlert(
-    'Error!',
-    'Please select a vehicle first'
-  );
-  return; // Stop execution
-}
+  if (!formData.vehicleDetails) {
+    setErrors(prev => ({
+      ...prev,
+      vehicleDetails: 'Please select a vehicle from the list',
+    }));
+    
+    // Scroll to the plate search field for better UX
+    document.getElementById('plate-search')?.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
 
 // Also verify the vehicleType is one of the expected values
 const validVehicleTypes = ['car', 'organization', 'rent'];
-if (!validVehicleTypes.includes(formData.vehicleType)) {
+if (!validVehicleTypes.includes(vehicleType)) {
   showSuccessAlert(
     'Error!',
     'Invalid vehicle type selected'
@@ -683,24 +745,24 @@ if (!validVehicleTypes.includes(formData.vehicleType)) {
   return;
 }
     // Update vehicle status to "Filed"
-    if (formData.vehicleType && formData.vehicleDetails) {
+    if (vehicleType && formData.vehicleDetails) {
       try {
         let response;
         const statusUpdate = { status: 'Field' }; // Consistent payload
     
-        if (formData.vehicleType === 'car') {
+        if (vehicleType === 'car') {
           response = await axios.put(
             `http://localhost:8080/auth/car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         } 
-        else if (formData.vehicleType === 'organization') {
+        else if (vehicleType === 'organization') {
           response = await axios.put(
             `http://localhost:8080/auth/organization-car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         } 
-        else if (formData.vehicleType === 'rent') { // Changed from your second 'organization' check
+        else if (vehicleType === 'rent') { // Changed from your second 'organization' check
           response = await axios.put(
             `http://localhost:8080/auth/rent-car/status/${formData.vehicleDetails}`,
             statusUpdate
@@ -710,7 +772,8 @@ if (!validVehicleTypes.includes(formData.vehicleType)) {
         if (response && response.status === 200) {
           showSuccessAlert(
             'Success!',
-            'Status changed successfully!'
+            'Car assigned successfully!  Please procede the fule request for this travel'
+
           );
         } else {
           showSuccessAlert(
@@ -741,6 +804,7 @@ if (!validVehicleTypes.includes(formData.vehicleType)) {
 
   
       setShowServiceModal(false);
+      setShowFuelModal(true);
   
     } catch (error: any) {
       setApiError(error.message || 'Failed to save service information');
@@ -751,59 +815,66 @@ if (!validVehicleTypes.includes(formData.vehicleType)) {
   
   // New handler specifically for drivers
   const handleDriverSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
+    
+    // Update formData with the selected cargo types before validation
+    setFormData(prev => ({
+      ...prev,
+      cargoType: selectedCargoTypes.join(', '),
+      numberOfPassengers: prev.travelers.filter(t => t.trim()).length.toString()
+    }));
   
-  if (!validateServiceSection()) return;
-  if (!selectedRequest?.id) {
-    setApiError('No request selected');
-    return;
-  }
-
-  setIsSubmitting(true);
-  setApiError('');
-
-  try {
-    // Format dates properly before sending
-    const completionData = {
-      id: selectedRequest.id,
-      serviceProviderName: formData.serviceProviderName,
-      assignedDriver: formData.assignedDriver,
-      assignedCarType: formData.assignedCarType,
-      vehicleDetails: formData.vehicleDetails,
-      actualStartingDate: formData.actualStartingDate 
-          ? `${formData.actualStartingDate}T00:00:00`
-          : undefined,
+    if (!validateServiceSection()) return;
+    if (!selectedRequest?.id) {
+      setApiError('No request selected');
+      return;
+    }
+  
+    setIsSubmitting(true);
+    setApiError('');
+  
+    try {
+      // Format dates properly before sending
+      const completionData = {
+        id: selectedRequest.id,
+        serviceProviderName: formData.serviceProviderName,
+        assignedDriver: formData.assignedDriver,
+        assignedCarType: formData.assignedCarType,
+        vehicleDetails: formData.vehicleDetails,
+        actualStartingDate: formData.actualStartingDate 
+            ? `${formData.actualStartingDate}T00:00:00`
+            : undefined,
         actualReturnDate: formData.actualReturnDate 
-          ? `${formData.actualReturnDate}T00:00:00`
-          : undefined,
-      startingKilometers: parseFloat(formData.startingKilometers),
-      endingKilometers: parseFloat(formData.endingKilometers),
-      cargoType: formData.cargoType,
-      cargoWeight: parseFloat(formData.cargoWeight),
-      numberOfPassengers: parseInt(formData.numberOfPassengers),
-      status: 'FINISHED'
-    };
+            ? `${formData.actualReturnDate}T00:00:00`
+            : undefined,
+        startingKilometers: parseFloat(formData.startingKilometers),
+        endingKilometers: parseFloat(formData.endingKilometers),
+        cargoType: selectedCargoTypes.join(', '), // Use the selected types
+        cargoWeight: parseFloat(formData.cargoWeight),
+        numberOfPassengers: formData.travelers.filter(t => t.trim()).length, // Calculate from travelers
+        status: 'FINISHED'
+      };
 
     await TravelApi.completeTravelRequest(completionData);
 
-    if (formData.vehicleType && formData.vehicleDetails) {
+    if (vehicleType && formData.vehicleDetails) {
       try {
         let response;
-        const statusUpdate = { status: 'Field' }; // Consistent payload
+        const statusUpdate = { status: 'Approved' }; // Consistent payload
     
-        if (formData.vehicleType === 'car') {
+        if (vehicleType === 'car') {
           response = await axios.put(
             `http://localhost:8080/auth/car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         } 
-        else if (formData.vehicleType === 'organization') {
+        else if (vehicleType === 'organization') {
           response = await axios.put(
             `http://localhost:8080/auth/organization-car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         } 
-        else if (formData.vehicleType === 'rent') { // Changed from your second 'organization' check
+        else if (vehicleType === 'rent') { // Changed from your second 'organization' check
           response = await axios.put(
             `http://localhost:8080/auth/rent-car/status/${formData.vehicleDetails}`,
             statusUpdate
@@ -881,626 +952,253 @@ const validateDriverSection = () => {
   const isFormDisabled = actorType !== 'user' || (selectedRequest && actorType === 'user');
   const showSearchBar = (actorType === 'manager' || actorType === 'corporator' || actorType === 'driver');
 
-  const renderDriverModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={{ duration: 0.2 }}
-        className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-      >
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-              <FiTruck className="mr-2" />
-              Complete Trip Details
-            </h3>
-            <button
-              onClick={closeModals}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <FiX className="text-gray-500" />
-            </button>
-          </div>
-  
-          <form onSubmit={handleDriverSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Read-only fields */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service Provider</label>
-                <input
-                  type="text"
-                  value={formData.serviceProviderName}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Car Type</label>
-                <input
-                  type="text"
-                  value={formData.assignedCarType}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
-                <input
-                  type="text"
-                  value={formData.assignedDriver}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Details</label>
-                <input
-                  type="text"
-                  value={formData.vehicleDetails}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
-  
-              {/* Editable fields */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Actual Starting Date *</label>
-                <div className="relative">
-                  <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="date"
-                    name="actualStartingDate"
-                    value={formData.actualStartingDate}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-                      errors.actualStartingDate ? 'border-red-500' : 'border-gray-300'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                </div>
-                {errors.actualStartingDate && (
-                  <p className="mt-1 text-sm text-red-500">{errors.actualStartingDate}</p>
-                )}
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Actual Return Date *</label>
-                <div className="relative">
-                  <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="date"
-                    name="actualReturnDate"
-                    value={formData.actualReturnDate}
-                    onChange={handleChange}
-                    min={formData.actualStartingDate}
-                    className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-                      errors.actualReturnDate ? 'border-red-500' : 'border-gray-300'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                </div>
-                {errors.actualReturnDate && (
-                  <p className="mt-1 text-sm text-red-500">{errors.actualReturnDate}</p>
-                )}
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Starting Kilometers *</label>
-                <input
-                  type="number"
-                  name="startingKilometers"
-                  value={formData.startingKilometers}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.startingKilometers ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Enter starting km"
-                  min="0"
-                  step="0.1"
-                />
-                {errors.startingKilometers && (
-                  <p className="mt-1 text-sm text-red-500">{errors.startingKilometers}</p>
-                )}
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ending Kilometers *</label>
-                <input
-                  type="number"
-                  name="endingKilometers"
-                  value={formData.endingKilometers}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.endingKilometers ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Enter ending km"
-                  min={formData.startingKilometers || 0}
-                  step="0.1"
-                />
-                {errors.endingKilometers && (
-                  <p className="mt-1 text-sm text-red-500">{errors.endingKilometers}</p>
-                )}
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">KM Difference</label>
-                <input
-                  type="number"
-                  name="kmDifference"
-                  value={formData.kmDifference}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Type *</label>
-                <select
-                  name="cargoType"
-                  value={formData.cargoType}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.cargoType ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                >
-                  <option value="">Select cargo type</option>
-                  {cargoTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-                {errors.cargoType && (
-                  <p className="mt-1 text-sm text-red-500">{errors.cargoType}</p>
-                )}
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Weight (kg) *</label>
-                <input
-                  type="number"
-                  name="cargoWeight"
-                  value={formData.cargoWeight}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.cargoWeight ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Enter weight in kg"
-                  min="0"
-                  step="0.1"
-                />
-                {errors.cargoWeight && (
-                  <p className="mt-1 text-sm text-red-500">{errors.cargoWeight}</p>
-                )}
-              </div>
-  
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Passengers *</label>
-                <input
-                  type="number"
-                  name="numberOfPassengers"
-                  value={formData.numberOfPassengers}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.numberOfPassengers ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Enter passenger count"
-                  min="1"
-                />
-                {errors.numberOfPassengers && (
-                  <p className="mt-1 text-sm text-red-500">{errors.numberOfPassengers}</p>
-                )}
-              </div>
-            </div>
-  
-            <div className="mt-6">
-              <motion.button
-                type="submit"
-                whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
-                whileTap={{ scale: 0.95 }}
-                disabled={isSubmitting}
-                className={`w-full flex justify-center items-center px-6 py-3 rounded-lg text-white font-medium transition-all ${
-                  isSubmitting
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700'
-                }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <motion.span
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
-                    />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <FiCheckCircle className="mr-2" />
-                    Submit Trip Details
-                  </>
-                )}
-              </motion.button>
-            </div>
-          </form>
+const renderDriverModal = () => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.2 }}
+      className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+    >
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+            <FiTruck className="mr-2" />
+            Complete Trip Details
+          </h3>
+          <button
+            onClick={closeModals}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <FiX className="text-gray-500" />
+          </button>
         </div>
-      </motion.div>
-    </div>
-  );
 
-   const renderUserForm = () => (
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-          {requestId ? 'Edit Travel Request' : 'New Travel Request'}
-        </h2>
-        
-        {apiError && (
-          <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
-            <div className="flex items-center">
-              <FiAlertCircle className="mr-2" />
-              <span>{apiError}</span>
-            </div>
-          </div>
-        )}
-  
-        {successMessage && (
-          <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">
-            <div className="flex items-center">
-              <FiCheckCircle className="mr-2" />
-              <span>{successMessage}</span>
-            </div>
-          </div>
-        )}
-  
-        <form onSubmit={handleUserSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Starting Place */}
+        <form onSubmit={handleDriverSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Read-only fields */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Service Provider</label>
               <input
                 type="text"
-                name="startingPlace"
-                value={formData.startingPlace}
-                onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.startingPlace ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                placeholder="Enter starting location"
-                maxLength={100}
+                value={formData.serviceProviderName}
+                readOnly
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
               />
-              {errors.startingPlace && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.startingPlace}
-                </p>
-              )}
             </div>
-  
-            {/* Destination Place */}
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Car Type</label>
               <input
                 type="text"
-                name="destinationPlace"
-                value={formData.destinationPlace}
-                onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.destinationPlace ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                placeholder="Enter destination"
-                maxLength={100}
+                value={formData.assignedCarType}
+                readOnly
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
               />
-              {errors.destinationPlace && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.destinationPlace}
-                </p>
-              )}
             </div>
-  
-            {/* Travelers */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
-              <div className="space-y-3">
-                {formData.travelers.map((traveler, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={traveler}
-                      onChange={(e) => handleTravelerChange(index, e.target.value)}
-                      disabled={isFormDisabled}
-                      className={`flex-1 px-4 py-3 rounded-lg border ${
-                        errors[`traveler-${index}`] ? 'border-red-500' : 'border-gray-300'
-                      } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                      placeholder={`Traveler ${index + 1} name`}
-                      maxLength={50}
-                    />
-                    {formData.travelers.length > 1 && !isFormDisabled && (
-                      <button
-                        type="button"
-                        onClick={() => removeTraveler(index)}
-                        className="p-3 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 transition-colors"
-                      >
-                        <FiMinus />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {!isFormDisabled && (
-                  <button
-                    type="button"
-                    onClick={addTraveler}
-                    className="mt-2 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
-                  >
-                    <FiPlus className="mr-1" /> Add another traveler
-                  </button>
-                )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
+              <input
+                type="text"
+                value={formData.assignedDriver}
+                readOnly
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Details</label>
+              <input
+                type="text"
+                value={formData.vehicleDetails}
+                readOnly
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+              />
+            </div>
+
+            {/* Editable fields */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Actual Starting Date *</label>
+              <div className="relative">
+                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="date"
+                  name="actualStartingDate"
+                  value={formData.actualStartingDate}
+                  onChange={handleChange}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                    errors.actualStartingDate ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                />
               </div>
-              {formData.travelers.map((_, index) => (
-                errors[`traveler-${index}`] && (
-                  <p key={`error-${index}`} className="mt-1 text-sm text-red-500 flex items-center">
-                    <FiAlertCircle className="mr-1" /> {errors[`traveler-${index}`]}
-                  </p>
-                )
-              ))}
-            </div>
-  
-            {/* Travel Reason */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Travel *</label>
-              <textarea
-                name="travelReason"
-                value={formData.travelReason}
-                onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.travelReason ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                placeholder="Enter reason for travel"
-                maxLength={500}
-                rows={3}
-              />
-              {errors.travelReason && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.travelReason}
-                </p>
+              {errors.actualStartingDate && (
+                <p className="mt-1 text-sm text-red-500">{errors.actualStartingDate}</p>
               )}
             </div>
-  
-            {/* Car Type */}
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Car Type</label>
-              <select
-                name="carType"
-                value={formData.carType}
-                onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${isFormDisabled ? 'bg-gray-50' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              >
-                <option value="">Select car type</option>
-                {carTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Actual Return Date *</label>
+              <div className="relative">
+                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="date"
+                  name="actualReturnDate"
+                  value={formData.actualReturnDate}
+                  onChange={handleChange}
+                  min={formData.actualStartingDate}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                    errors.actualReturnDate ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                />
+              </div>
+              {errors.actualReturnDate && (
+                <p className="mt-1 text-sm text-red-500">{errors.actualReturnDate}</p>
+              )}
             </div>
-  
-            {/* Travel Distance */}
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total Distance (km)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Starting Kilometers *</label>
               <input
                 type="number"
-                name="travelDistance"
-                value={formData.travelDistance}
+                name="startingKilometers"
+                value={formData.startingKilometers}
                 onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.travelDistance ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                placeholder="Enter distance in kilometers"
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  errors.startingKilometers ? 'border-red-500' : 'border-gray-300'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                placeholder="Enter starting km"
                 min="0"
-                step="0.01"
+                step="0.1"
               />
-              {errors.travelDistance && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.travelDistance}
-                </p>
+              {errors.startingKilometers && (
+                <p className="mt-1 text-sm text-red-500">{errors.startingKilometers}</p>
               )}
             </div>
-  
-            {/* Starting Date */}
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Starting Date *</label>
-              <div className="relative">
-                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  name="startingDate"
-                  value={formData.startingDate}
-                  onChange={handleChange}
-                  disabled={isFormDisabled}
-                  min={new Date().toISOString().split('T')[0]}
-                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.startingDate ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                />
-              </div>
-              {errors.startingDate && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.startingDate}
-                </p>
-              )}
-            </div>
-  
-            {/* Return Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
-              <div className="relative">
-                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  name="returnDate"
-                  value={formData.returnDate}
-                  onChange={handleChange}
-                  disabled={isFormDisabled}
-                  min={formData.startingDate || new Date().toISOString().split('T')[0]}
-                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.returnDate ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                />
-              </div>
-              {errors.returnDate && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.returnDate}
-                </p>
-              )}
-            </div>
-  
-            {/* Department */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
-              <select
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.department ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              >
-                <option value="">Select department</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-              {errors.department && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.department}
-                </p>
-              )}
-            </div>
-  
-            {/* Job Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Job Status *</label>
-              <select
-                name="jobStatus"
-                value={formData.jobStatus}
-                onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.jobStatus ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              >
-                <option value="">Select status</option>
-                {jobStatuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-              {errors.jobStatus && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.jobStatus}
-                </p>
-              )}
-            </div>
-  
-            {/* Claimant Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ending Kilometers *</label>
               <input
-                type="text"
-                name="claimantName"
-                value={formData.claimantName}
+                type="number"
+                name="endingKilometers"
+                value={formData.endingKilometers}
                 onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.claimantName ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                placeholder="Enter claimant's name"
-                maxLength={50}
+                min={formData.startingKilometers || 0}
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  errors.endingKilometers ? 'border-red-500' : 'border-gray-300'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                placeholder="Enter ending km"
+                step="0.1"
               />
-              {errors.claimantName && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.claimantName}
-                </p>
+              {errors.endingKilometers && (
+                <p className="mt-1 text-sm text-red-500">{errors.endingKilometers}</p>
               )}
             </div>
-  
-            {/* Team Leader Name */}
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Team Leader Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">KM Difference</label>
               <input
-                type="text"
-                name="teamLeaderName"
-                value={formData.teamLeaderName}
-                onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.teamLeaderName ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                placeholder="Enter team leader's name"
-                maxLength={50}
+                type="number"
+                name="kmDifference"
+                value={formData.kmDifference}
+                readOnly
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
               />
-              {errors.teamLeaderName && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.teamLeaderName}
-                </p>
-              )}
             </div>
+
+            {/* Updated Cargo Type */}
+{/* Updated Cargo Type */}
+<div className="relative">
+  <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Type *</label>
+  <button
+    type="button"
+    onClick={() => setShowCargoDropdown(!showCargoDropdown)}
+    className={`w-full px-4 py-2 rounded-lg border ${
+      errors.cargoType ? 'border-red-500' : 'border-gray-300'
+    } text-left flex justify-between items-center`}
+  >
+    {selectedCargoTypes.length > 0 
+      ? selectedCargoTypes.join(', ')
+      : 'Select cargo types'}
+    <FiChevronDown className={`transition-transform ${showCargoDropdown ? 'transform rotate-180' : ''}`} />
+  </button>
   
-        {/* Payment Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type *</label>
-          <select
-            name="paymentType"
-            value={formData.paymentType}
-            onChange={handleChange}
-            disabled={isFormDisabled}
-            className={`w-full px-4 py-3 rounded-lg border ${errors.paymentType ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-          >
-            <option value="">Select payment type</option>
-            <option value="fuel">Fuel</option>
-            <option value="cash">Cash</option>
-          </select>
-          {errors.paymentType && (
-            <p className="mt-1 text-sm text-red-500 flex items-center">
-              <FiAlertCircle className="mr-1" /> {errors.paymentType}
-            </p>
-          )}
+  {showCargoDropdown && (
+    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-2">
+      {cargoTypes.map(type => (
+        <div key={type} className="flex items-center p-2 hover:bg-gray-100 rounded">
+          <input
+            type="checkbox"
+            id={`cargo-${type}`}
+            checked={selectedCargoTypes.includes(type)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setSelectedCargoTypes([...selectedCargoTypes, type]);
+              } else {
+                setSelectedCargoTypes(selectedCargoTypes.filter(t => t !== type));
+              }
+              // Clear error when selecting
+              if (errors.cargoType) {
+                setErrors(prev => ({ ...prev, cargoType: '' }));
+              }
+            }}
+            className="mr-2"
+          />
+          <label htmlFor={`cargo-${type}`} className="cursor-pointer">
+            {type}
+          </label>
         </div>
-    {/* Approvement */}
-    <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Approval Status</label>
+      ))}
+    </div>
+  )}
+  {errors.cargoType && (
+    <p className="mt-1 text-sm text-red-500">{errors.cargoType}</p>
+  )}
+</div>
+
+{/* Number of Passengers */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">Number of Passengers *</label>
+  <input
+    type="number"
+    name="numberOfPassengers"
+    value={formData.travelers.filter(t => t.trim()).length}
+    readOnly
+    className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+  />
+</div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Weight (kg) *</label>
               <input
-                type="text"
-                name="approvement"
-                value={formData.approvement}
+                type="number"
+                name="cargoWeight"
+                value={formData.cargoWeight}
                 onChange={handleChange}
-                disabled={isFormDisabled}
-                className={`w-full px-4 py-3 rounded-lg border ${isFormDisabled ? 'bg-gray-50' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                placeholder="Enter approval status"
-                maxLength={100}
+                className={`w-full px-4 py-2 rounded-lg border ${
+                  errors.cargoWeight ? 'border-red-500' : 'border-gray-300'
+                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                placeholder="Enter weight in kg"
+                min="0"
+                step="0.1"
               />
-              {errors.approvement && (
-                <p className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors.approvement}
-                </p>
+              {errors.cargoWeight && (
+                <p className="mt-1 text-sm text-red-500">{errors.cargoWeight}</p>
               )}
             </div>
-        {/* Conditional Account Number Field */}
-        {formData.paymentType === 'cash' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Number *</label>
-            <input
-              type="text"
-              name="accountNumber"
-              value={formData.accountNumber}
-              onChange={handleChange}
-              disabled={isFormDisabled}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.accountNumber ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter account number"
-              maxLength={20}
-            />
-            {errors.accountNumber && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.accountNumber}
-              </p>
-            )}
           </div>
-        )}
-      </div>
-  
-          {/* Submit Button for User Section */}
-          <motion.div className="mt-8">
+
+          <div className="mt-6">
             <motion.button
               type="submit"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               disabled={isSubmitting}
-              className={`w-full flex justify-center items-center px-6 py-3 rounded-lg text-white font-medium transition-all ${
+              className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
                 isSubmitting
                   ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
               }`}
             >
               {isSubmitting ? (
@@ -1510,109 +1208,508 @@ const validateDriverSection = () => {
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                     className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
                   />
-                  {requestId ? 'Updating...' : 'Submitting...'}
+                  Submitting...
                 </>
               ) : (
                 <>
-                  <FiSend className="mr-2" />
-                  {requestId ? 'Update Travel Request' : 'Submit Travel Request'}
+                  <FiCheckCircle className="mr-2" />
+                  Submit
                 </>
               )}
             </motion.button>
-          </motion.div>
+          </div>
         </form>
       </div>
-    );
+    </motion.div>
+  </div>
+);
 
-
-    return (
-      <>
-        {actorType === 'user' ? (
-          renderUserForm()
-        ) : actorType === 'driver' ? (
-          <motion.div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
-            <div className="flex justify-between items-start mb-6">
-              <h2 className="text-2xl font-semibold text-gray-800">My Completed Trips</h2>
+  
+  const renderUserForm = () => (
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        {requestId ? 'Edit Travel Request' : 'New Travel Request'}
+      </h2>
+      
+      {apiError && (
+        <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+          <div className="flex items-center">
+            <FiAlertCircle className="mr-2" />
+            <span>{apiError}</span>
+          </div>
+        </div>
+      )}
+  
+      {successMessage && (
+        <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">
+          <div className="flex items-center">
+            <FiCheckCircle className="mr-2" />
+            <span>{successMessage}</span>
+          </div>
+        </div>
+      )}
+  
+      <form onSubmit={handleUserSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Starting Place */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
+            <input
+              type="text"
+              name="startingPlace"
+              value={formData.startingPlace}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.startingPlace ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              placeholder="Enter starting location"
+              maxLength={100}
+            />
+            {errors.startingPlace && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.startingPlace}
+              </p>
+            )}
+          </div>
+  
+          {/* Destination Place */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
+            <input
+              type="text"
+              name="destinationPlace"
+              value={formData.destinationPlace}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.destinationPlace ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              placeholder="Enter destination"
+              maxLength={100}
+            />
+            {errors.destinationPlace && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.destinationPlace}
+              </p>
+            )}
+          </div>
+  
+          {/* Travelers */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
+            <div className="space-y-3">
+              {formData.travelers.map((traveler, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={traveler}
+                    onChange={(e) => handleTravelerChange(index, e.target.value)}
+                    disabled={isFormDisabled}
+                    className={`flex-1 px-4 py-3 rounded-lg border ${
+                      errors[`traveler-${index}`] ? 'border-red-500' : 'border-gray-300'
+                    } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                    placeholder={`Traveler ${index + 1} name`}
+                    maxLength={50}
+                  />
+                  {formData.travelers.length > 1 && !isFormDisabled && (
+                    <button
+                      type="button"
+                      onClick={() => removeTraveler(index)}
+                      className="p-3 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                      <FiMinus />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!isFormDisabled && (
+                <button
+                  type="button"
+                  onClick={addTraveler}
+                  className="mt-2 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                >
+                  <FiPlus className="mr-1" /> Add another traveler
+                </button>
+              )}
+            </div>
+            {formData.travelers.map((_, index) => (
+              errors[`traveler-${index}`] && (
+                <p key={`error-${index}`} className="mt-1 text-sm text-red-500 flex items-center">
+                  <FiAlertCircle className="mr-1" /> {errors[`traveler-${index}`]}
+                </p>
+              )
+            ))}
+          </div>
+  
+          {/* Travel Reason */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Travel *</label>
+            <textarea
+              name="travelReason"
+              value={formData.travelReason}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.travelReason ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              placeholder="Enter reason for travel"
+              maxLength={500}
+              rows={3}
+            />
+            {errors.travelReason && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.travelReason}
+              </p>
+            )}
+          </div>
+  
+          {/* Car Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Car Type</label>
+            <select
+              name="carType"
+              value={formData.carType}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${isFormDisabled ? 'bg-gray-50' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+            >
+              <option value="">Select car type</option>
+              {carTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+  
+          {/* Travel Distance */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Total Distance (km)</label>
+            <input
+              type="number"
+              name="travelDistance"
+              value={formData.travelDistance}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.travelDistance ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              placeholder="Enter distance in kilometers"
+              min="0"
+              step="0.01"
+            />
+            {errors.travelDistance && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.travelDistance}
+              </p>
+            )}
+          </div>
+  
+          {/* Starting Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Starting Date *</label>
+            <div className="relative">
+              <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="date"
+                name="startingDate"
+                value={formData.startingDate}
+                onChange={handleChange}
+                disabled={isFormDisabled}
+                min={new Date().toISOString().split('T')[0]}
+                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.startingDate ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              />
+            </div>
+            {errors.startingDate && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.startingDate}
+              </p>
+            )}
+          </div>
+  
+          {/* Return Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
+            <div className="relative">
+              <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="date"
+                name="returnDate"
+                value={formData.returnDate}
+                onChange={handleChange}
+                disabled={isFormDisabled}
+                min={formData.startingDate || new Date().toISOString().split('T')[0]}
+                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.returnDate ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              />
+            </div>
+            {errors.returnDate && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.returnDate}
+              </p>
+            )}
+          </div>
+  
+          {/* Department */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
+            <select
+              name="department"
+              value={formData.department}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.department ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+            >
+              <option value="">Select department</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+            {errors.department && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.department}
+              </p>
+            )}
+          </div>
+  
+          {/* Job Status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Job Status *</label>
+            <select
+              name="jobStatus"
+              value={formData.jobStatus}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.jobStatus ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+            >
+              <option value="">Select status</option>
+              {jobStatuses.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+            {errors.jobStatus && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.jobStatus}
+              </p>
+            )}
+          </div>
+  
+          {/* Claimant Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
+            <input
+              type="text"
+              name="claimantName"
+              value={formData.claimantName}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.claimantName ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              placeholder="Enter claimant's name"
+              maxLength={50}
+            />
+            {errors.claimantName && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.claimantName}
+              </p>
+            )}
+          </div>
+  
+          {/* Team Leader Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Team Leader Name *</label>
+            <input
+              type="text"
+              name="teamLeaderName"
+              value={formData.teamLeaderName}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.teamLeaderName ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              placeholder="Enter team leader's name"
+              maxLength={50}
+            />
+            {errors.teamLeaderName && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.teamLeaderName}
+              </p>
+            )}
+          </div>
+  
+          {/* Payment Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type *</label>
+            <select
+              name="paymentType"
+              value={formData.paymentType}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${errors.paymentType ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+            >
+              <option value="">Select payment type</option>
+              <option value="fuel">Fuel</option>
+              <option value="cash">Cash</option>
+            </select>
+            {errors.paymentType && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.paymentType}
+              </p>
+            )}
+          </div>
+  
+          {/* Approvement */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Approval Status</label>
+            <input
+              type="text"
+              name="approvement"
+              value={formData.approvement}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className={`w-full px-4 py-3 rounded-lg border ${isFormDisabled ? 'bg-gray-50' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+              placeholder="Enter approval status"
+              maxLength={100}
+            />
+            {errors.approvement && (
+              <p className="mt-1 text-sm text-red-500 flex items-center">
+                <FiAlertCircle className="mr-1" /> {errors.approvement}
+              </p>
+            )}
+          </div>
+  
+          {/* Conditional Account Number Field */}
+          {formData.paymentType === 'cash' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account Number *</label>
+              <input
+                type="text"
+                name="accountNumber"
+                value={formData.accountNumber}
+                onChange={handleChange}
+                disabled={isFormDisabled}
+                className={`w-full px-4 py-3 rounded-lg border ${errors.accountNumber ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                placeholder="Enter account number"
+                maxLength={20}
+              />
+              {errors.accountNumber && (
+                <p className="mt-1 text-sm text-red-500 flex items-center">
+                  <FiAlertCircle className="mr-1" /> {errors.accountNumber}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+  
+        {/* Submit Button for User Section */}
+        <motion.div className="mt-8">
+          <motion.button
+            type="submit"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={isSubmitting}
+            className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
+              isSubmitting
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <motion.span
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
+                />
+                {requestId ? 'Updating...' : 'Submitting...'}
+              </>
+            ) : (
+              <>
+                <FiSend className="mr-2" />
+                {requestId ? 'Update' : 'Submit'}
+              </>
+            )}
+          </motion.button>
+        </motion.div>
+      </form>
+    </div>
+  );
+  
+  return (
+    <>
+      {actorType === 'user' ? (
+        renderUserForm()
+      ) : actorType === 'driver' ? (
+        <motion.div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
+          <div className="flex justify-between items-start mb-6">
+            <h2 className="text-2xl font-semibold text-gray-800">My Completed Trips</h2>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Enter your exact driver name..."
+                value={driverSearchQuery}
+                onChange={(e) => setDriverSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+  
+          {filteredRequests.length === 0 ? (
+            <div className="text-center py-8">
+              {driverSearchQuery.trim() === '' ? (
+                <div className="text-gray-500 max-w-md mx-auto">
+                  <FiSearch className="mx-auto text-3xl mb-4 text-blue-500" />
+                  <h4 className="font-medium text-lg mb-2">Find Your Completed Trips</h4>
+                  <p className="mb-4">
+                    Enter your exact registered driver name to view your trips.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-gray-500 max-w-md mx-auto">
+                  <FiAlertCircle className="mx-auto text-3xl mb-4 text-yellow-500" />
+                  <h4 className="font-medium text-lg mb-2">No Trips Found</h4>
+                  <p className="mb-3">
+                    No completed trips found for: <span className="font-semibold">"{driverSearchQuery}"</span>
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Make sure you entered your name exactly as registered
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <RequestsTable
+              requests={filteredRequests}
+              actorType={actorType}
+              onRowClick={handleRowClick}
+            />
+          )}
+  
+          {showUserModal && selectedRequest && renderDriverModal()}
+        </motion.div>
+      ) : (
+        <motion.div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
+          <div className="flex justify-between items-start mb-6">
+            <h2 className="text-2xl font-semibold text-gray-800">
+              {actorType === 'manager' ? 'Manage Travel Requests' : 
+               actorType === 'corporator' ? 'Review Travel Requests' : 
+               'Travel Requests'}
+            </h2>
+            
+            {showSearchBar && (
               <div className="relative">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                   <FiSearch className="text-gray-400" />
                 </div>
                 <input
                   type="text"
-                  placeholder="Enter your exact driver name..."
-                  value={driverSearchQuery}
-                  onChange={(e) => setDriverSearchQuery(e.target.value)}
+                  placeholder="Search requests..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-            </div>
-    
-            {filteredRequests.length === 0 ? (
-              <div className="text-center py-8">
-                {driverSearchQuery.trim() === '' ? (
-                  <div className="text-gray-500 max-w-md mx-auto">
-                    <FiSearch className="mx-auto text-3xl mb-4 text-blue-500" />
-                    <h4 className="font-medium text-lg mb-2">Find Your Completed Trips</h4>
-                    <p className="mb-4">
-                      Enter your exact registered driver name to view your trips.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-gray-500 max-w-md mx-auto">
-                    <FiAlertCircle className="mx-auto text-3xl mb-4 text-yellow-500" />
-                    <h4 className="font-medium text-lg mb-2">No Trips Found</h4>
-                    <p className="mb-3">
-                      No completed trips found for: <span className="font-semibold">"{driverSearchQuery}"</span>
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      Make sure you entered your name exactly as registered
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <RequestsTable
-                requests={filteredRequests}
-                actorType={actorType}
-                onRowClick={handleRowClick}
-              />
             )}
-    
-            {showUserModal && selectedRequest && renderDriverModal()}
-          </motion.div>
-        ) : (
-          <motion.div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
-            <div className="flex justify-between items-start mb-6">
-              <h2 className="text-2xl font-semibold text-gray-800">
-                {actorType === 'manager' ? 'Manage Travel Requests' : 
-                 actorType === 'corporator' ? 'Review Travel Requests' : 
-                 'Travel Requests'}
-              </h2>
-              
-              {showSearchBar && (
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                    <FiSearch className="text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search requests..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              )}
-            </div>
-    
-            <RequestsTable
-              requests={filteredRequests}
-              actorType={actorType}
-              onRowClick={handleRowClick}
-              onStatusChange={actorType === 'corporator' ? handleStatusChange : undefined}
-            />
-            
-    <AnimatePresence>
+          </div>
+  
+          <RequestsTable
+            requests={filteredRequests}
+            actorType={actorType}
+            onRowClick={handleRowClick}
+            onStatusChange={actorType === 'corporator' ? handleStatusChange : undefined}
+          />
+          
+          <AnimatePresence>
             {showUserModal && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
                 <motion.div
@@ -1635,304 +1732,304 @@ const validateDriverSection = () => {
                         <FiX className="text-gray-500" />
                       </button>
                     </div>
-
+  
                     <form onSubmit={handleUserSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Starting Place */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
-                      <input
-                        type="text"
-                        name="startingPlace"
-                        value={formData.startingPlace}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.startingPlace ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        placeholder="Enter starting location"
-                        maxLength={100}
-                      />
-                      {errors.startingPlace && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.startingPlace}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Destination Place */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
-                      <input
-                        type="text"
-                        name="destinationPlace"
-                        value={formData.destinationPlace}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.destinationPlace ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        placeholder="Enter destination"
-                        maxLength={100}
-                      />
-                      {errors.destinationPlace && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.destinationPlace}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Travelers */}
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
-                      <div className="space-y-3">
-                        {formData.travelers.map((traveler, index) => (
-                          <div key={index} className="flex items-center gap-3">
-                            <input
-                              type="text"
-                              value={traveler}
-                              onChange={(e) => handleTravelerChange(index, e.target.value)}
-                              disabled={isFormDisabled}
-                              className={`flex-1 px-4 py-3 rounded-lg border ${
-                                errors[`traveler-${index}`] ? 'border-red-500' : 'border-gray-300'
-                              } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                              placeholder={`Traveler ${index + 1} name`}
-                              maxLength={50}
-                            />
-                            {formData.travelers.length > 1 && !isFormDisabled && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Starting Place */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
+                          <input
+                            type="text"
+                            name="startingPlace"
+                            value={formData.startingPlace}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${errors.startingPlace ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            placeholder="Enter starting location"
+                            maxLength={100}
+                          />
+                          {errors.startingPlace && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.startingPlace}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Destination Place */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
+                          <input
+                            type="text"
+                            name="destinationPlace"
+                            value={formData.destinationPlace}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${errors.destinationPlace ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            placeholder="Enter destination"
+                            maxLength={100}
+                          />
+                          {errors.destinationPlace && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.destinationPlace}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Travelers */}
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
+                          <div className="space-y-3">
+                            {formData.travelers.map((traveler, index) => (
+                              <div key={index} className="flex items-center gap-3">
+                                <input
+                                  type="text"
+                                  value={traveler}
+                                  onChange={(e) => handleTravelerChange(index, e.target.value)}
+                                  disabled={isFormDisabled}
+                                  className={`flex-1 px-4 py-3 rounded-lg border ${
+                                    errors[`traveler-${index}`] ? 'border-red-500' : 'border-gray-300'
+                                  } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                                  placeholder={`Traveler ${index + 1} name`}
+                                  maxLength={50}
+                                />
+                                {formData.travelers.length > 1 && !isFormDisabled && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeTraveler(index)}
+                                    className="p-3 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                                  >
+                                    <FiMinus />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {!isFormDisabled && (
                               <button
                                 type="button"
-                                onClick={() => removeTraveler(index)}
-                                className="p-3 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                                onClick={addTraveler}
+                                className="mt-2 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
                               >
-                                <FiMinus />
+                                <FiPlus className="mr-1" /> Add another traveler
                               </button>
                             )}
                           </div>
-                        ))}
-                        {!isFormDisabled && (
-                          <button
-                            type="button"
-                            onClick={addTraveler}
-                            className="mt-2 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                          {formData.travelers.map((_, index) => (
+                            errors[`traveler-${index}`] && (
+                              <p key={`error-${index}`} className="mt-1 text-sm text-red-500 flex items-center">
+                                <FiAlertCircle className="mr-1" /> {errors[`traveler-${index}`]}
+                              </p>
+                            )
+                          ))}
+                        </div>
+  
+                        {/* Travel Reason */}
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Travel *</label>
+                          <textarea
+                            name="travelReason"
+                            value={formData.travelReason}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${errors.travelReason ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            placeholder="Enter reason for travel"
+                            maxLength={500}
+                            rows={3}
+                          />
+                          {errors.travelReason && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.travelReason}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Car Type */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Car Type</label>
+                          <select
+                            name="carType"
+                            value={formData.carType}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${isFormDisabled ? 'bg-gray-50' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
                           >
-                            <FiPlus className="mr-1" /> Add another traveler
-                          </button>
-                        )}
+                            <option value="">Select car type</option>
+                            {carTypes.map(type => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                          </select>
+                        </div>
+  
+                        {/* Travel Distance */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Total Distance (km)</label>
+                          <input
+                            type="number"
+                            name="travelDistance"
+                            value={formData.travelDistance}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${errors.travelDistance ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            placeholder="Enter distance in kilometers"
+                            min="0"
+                            step="0.01"
+                          />
+                          {errors.travelDistance && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.travelDistance}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Starting Date */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Starting Date *</label>
+                          <div className="relative">
+                            <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="date"
+                              name="startingDate"
+                              value={formData.startingDate}
+                              onChange={handleChange}
+                              disabled={isFormDisabled}
+                              min={new Date().toISOString().split('T')[0]}
+                              className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.startingDate ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            />
+                          </div>
+                          {errors.startingDate && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.startingDate}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Return Date */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
+                          <div className="relative">
+                            <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="date"
+                              name="returnDate"
+                              value={formData.returnDate}
+                              onChange={handleChange}
+                              disabled={isFormDisabled}
+                              min={formData.startingDate || new Date().toISOString().split('T')[0]}
+                              className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.returnDate ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            />
+                          </div>
+                          {errors.returnDate && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.returnDate}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Department */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
+                          <select
+                            name="department"
+                            value={formData.department}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${errors.department ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                          >
+                            <option value="">Select department</option>
+                            {departments.map(dept => (
+                              <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                          </select>
+                          {errors.department && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.department}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Job Status */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Job Status *</label>
+                          <select
+                            name="jobStatus"
+                            value={formData.jobStatus}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${errors.jobStatus ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                          >
+                            <option value="">Select status</option>
+                            {jobStatuses.map(status => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </select>
+                          {errors.jobStatus && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.jobStatus}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Claimant Name */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
+                          <input
+                            type="text"
+                            name="claimantName"
+                            value={formData.claimantName}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${errors.claimantName ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            placeholder="Enter claimant's name"
+                            maxLength={50}
+                          />
+                          {errors.claimantName && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.claimantName}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Team Leader Name */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Team Leader Name *</label>
+                          <input
+                            type="text"
+                            name="teamLeaderName"
+                            value={formData.teamLeaderName}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${errors.teamLeaderName ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            placeholder="Enter team leader's name"
+                            maxLength={50}
+                          />
+                          {errors.teamLeaderName && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                              <FiAlertCircle className="mr-1" /> {errors.teamLeaderName}
+                            </p>
+                          )}
+                        </div>
+  
+                        {/* Approvement */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Approval Status</label>
+                          <input
+                            type="text"
+                            name="approvement"
+                            value={formData.approvement}
+                            onChange={handleChange}
+                            disabled={isFormDisabled}
+                            className={`w-full px-4 py-3 rounded-lg border ${isFormDisabled ? 'bg-gray-50' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                            placeholder="Enter approval status"
+                            maxLength={100}
+                          />
+                          {errors.approvement && (
+                            <p className="mt-1 text-sm text-red-500 flex items-center">
+                                <FiAlertCircle className="mr-1" /> {errors.approvement}
+                            </p>
+                            )}
+                        </div>
+  
                       </div>
-                      {formData.travelers.map((_, index) => (
-                        errors[`traveler-${index}`] && (
-                          <p key={`error-${index}`} className="mt-1 text-sm text-red-500 flex items-center">
-                            <FiAlertCircle className="mr-1" /> {errors[`traveler-${index}`]}
-                          </p>
-                        )
-                      ))}
-                    </div>
-
-                    {/* Travel Reason */}
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Travel *</label>
-                      <textarea
-                        name="travelReason"
-                        value={formData.travelReason}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.travelReason ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        placeholder="Enter reason for travel"
-                        maxLength={500}
-                        rows={3}
-                      />
-                      {errors.travelReason && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.travelReason}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Car Type */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Car Type</label>
-                      <select
-                        name="carType"
-                        value={formData.carType}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${isFormDisabled ? 'bg-gray-50' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                      >
-                        <option value="">Select car type</option>
-                        {carTypes.map(type => (
-                          <option key={type} value={type}>{type}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Travel Distance */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Distance (km)</label>
-                      <input
-                        type="number"
-                        name="travelDistance"
-                        value={formData.travelDistance}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.travelDistance ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        placeholder="Enter distance in kilometers"
-                        min="0"
-                        step="0.01"
-                      />
-                      {errors.travelDistance && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.travelDistance}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Starting Date */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Starting Date *</label>
-                      <div className="relative">
-                        <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="date"
-                          name="startingDate"
-                          value={formData.startingDate}
-                          onChange={handleChange}
-                          disabled={isFormDisabled}
-                          min={new Date().toISOString().split('T')[0]}
-                          className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.startingDate ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        />
-                      </div>
-                      {errors.startingDate && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.startingDate}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Return Date */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
-                      <div className="relative">
-                        <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="date"
-                          name="returnDate"
-                          value={formData.returnDate}
-                          onChange={handleChange}
-                          disabled={isFormDisabled}
-                          min={formData.startingDate || new Date().toISOString().split('T')[0]}
-                          className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.returnDate ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        />
-                      </div>
-                      {errors.returnDate && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.returnDate}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Department */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
-                      <select
-                        name="department"
-                        value={formData.department}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.department ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                      >
-                        <option value="">Select department</option>
-                        {departments.map(dept => (
-                          <option key={dept} value={dept}>{dept}</option>
-                        ))}
-                      </select>
-                      {errors.department && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.department}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Job Status */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Job Status *</label>
-                      <select
-                        name="jobStatus"
-                        value={formData.jobStatus}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.jobStatus ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                      >
-                        <option value="">Select status</option>
-                        {jobStatuses.map(status => (
-                          <option key={status} value={status}>{status}</option>
-                        ))}
-                      </select>
-                      {errors.jobStatus && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.jobStatus}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Claimant Name */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
-                      <input
-                        type="text"
-                        name="claimantName"
-                        value={formData.claimantName}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.claimantName ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        placeholder="Enter claimant's name"
-                        maxLength={50}
-                      />
-                      {errors.claimantName && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.claimantName}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Team Leader Name */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Team Leader Name *</label>
-                      <input
-                        type="text"
-                        name="teamLeaderName"
-                        value={formData.teamLeaderName}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${errors.teamLeaderName ? 'border-red-500' : 'border-gray-300'} ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        placeholder="Enter team leader's name"
-                        maxLength={50}
-                      />
-                      {errors.teamLeaderName && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                          <FiAlertCircle className="mr-1" /> {errors.teamLeaderName}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Approvement */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Approval Status</label>
-                      <input
-                        type="text"
-                        name="approvement"
-                        value={formData.approvement}
-                        onChange={handleChange}
-                        disabled={isFormDisabled}
-                        className={`w-full px-4 py-3 rounded-lg border ${isFormDisabled ? 'bg-gray-50' : ''} border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                        placeholder="Enter approval status"
-                        maxLength={100}
-                      />
-                      {errors.approvement && (
-                        <p className="mt-1 text-sm text-red-500 flex items-center">
-                            <FiAlertCircle className="mr-1" /> {errors.approvement}
-                        </p>
-                        )}
-                    </div>
-
-                  </div>
-                      
+                          
                       {/* Go Button for Manager */}
                       {actorType === 'manager' && selectedRequest?.status === 'APPROVED' && (
                         <motion.div className="mt-8">
@@ -1941,14 +2038,15 @@ const validateDriverSection = () => {
                             onClick={handleGoToServiceForm}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="w-full flex justify-center items-center px-6 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-all"
+                            className="inline-flex items-center px-6 py-2 rounded-lg bg-[#3c8dbc] hover:bg-[#367fa9] text-white font-medium transition-all"
                           >
+                            Continue
                             <FiArrowRight className="mr-2" />
-                            Assign car here for the above request
+                            
                           </motion.button>
                         </motion.div>
                       )}
-
+  
                       {/* Approval Buttons for Corporator */}
                       {actorType === 'corporator' && selectedRequest && (
                         <div className="mt-8 flex space-x-4">
@@ -1958,14 +2056,14 @@ const validateDriverSection = () => {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             disabled={isApproving}
-                            className={`flex-1 flex justify-center items-center px-6 py-3 rounded-lg text-white font-medium transition-all ${
+                            className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium transition-all ${
                               isApproving
                                 ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-green-600 hover:bg-green-700'
+                                : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
                             }`}
                           >
                             <FiCheckCircle className="mr-2" />
-                            Approve Request
+                            Approve
                           </motion.button>
                           <motion.button
                             type="button"
@@ -1973,14 +2071,14 @@ const validateDriverSection = () => {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             disabled={isApproving}
-                            className={`flex-1 flex justify-center items-center px-6 py-3 rounded-lg text-white font-medium transition-all ${
+                            className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium transition-all ${
                               isApproving
                                 ? 'bg-gray-400 cursor-not-allowed'
                                 : 'bg-red-600 hover:bg-red-700'
                             }`}
                           >
                             <FiAlertCircle className="mr-2" />
-                            Reject Request
+                            Reject
                           </motion.button>
                         </div>
                       )}
@@ -1990,272 +2088,274 @@ const validateDriverSection = () => {
               </div>
             )}
           </AnimatePresence>
-
+  
           {/* Service Provider Modal */}
           <AnimatePresence>
-      {showServiceModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.2 }}
-            className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-          >
-            <div className="p-6">
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-                  <FiTool className="mr-2" />
-                  Car Assignment Form
-                </h3>
-                <button
-                  onClick={closeModals}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            {showServiceModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
                 >
-                  <FiX className="text-gray-500" />
-                </button>
-              </div>
-
-              {/* API Error */}
-              {apiError && (
-                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
-                  <div className="flex items-center">
-                    <FiAlertCircle className="mr-2" />
-                    <span>{apiError}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Form Start */}
-              <form onSubmit={handleServiceSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Service Provider */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Service Provider *
-                    </label>
-                    <input
-                      type="text"
-                      name="serviceProviderName"
-                      value={formData.serviceProviderName}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 rounded-lg border ${
-                        errors.serviceProviderName ? 'border-red-500' : 'border-gray-300'
-                      } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                      placeholder="Company name"
-                    />
-                    {errors.serviceProviderName && (
-                      <p className="mt-1 text-sm text-red-500">{errors.serviceProviderName}</p>
+                  <div className="p-6">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+                        <FiTool className="mr-2" />
+                        Car Assignment Form
+                      </h3>
+                      <button
+                        onClick={closeModals}
+                        className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <FiX className="text-gray-500" />
+                      </button>
+                    </div>
+  
+                    {/* API Error */}
+                    {apiError && (
+                      <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                        <div className="flex items-center">
+                          <FiAlertCircle className="mr-2" />
+                          <span>{apiError}</span>
+                        </div>
+                      </div>
                     )}
-                  </div>
+  
+{/* Form Start */}
+<form onSubmit={handleServiceSubmit} className="space-y-6">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-{/* Plate Number Search */}
-<div className="relative col-span-2">
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Search Plate Number
-  </label>
-  <div className="relative">
-    <FiSearch className="absolute left-3 top-3 text-gray-400" />
-    <input
-      type="text"
-      value={plateSearchQuery}
-      readOnly={!!formData.vehicleDetails}
-      onChange={(e) => setPlateSearchQuery(e.target.value)}
-      placeholder="Start typing plate number..."
-      className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-        errors.vehicleDetails ? 'border-red-500' : 'border-gray-300'
-      } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-    />
-    
-    {/* Clear selection button */}
-    {formData.vehicleDetails && (
-      <button
-        type="button"
-        onClick={() => {
-          setPlateSearchQuery('');
-          setFormData(prev => ({
-            ...prev,
-            vehicleDetails: '',
-            assignedDriver: '',
-            assignedCarType: ''
-          }));
-        }}
-        className="absolute right-3 top-3 p-1 text-gray-500 hover:text-gray-700"
-      >
-        <FiX className="w-5 h-5" />
-      </button>
-    )}
+   
 
-    {/* Dropdown list */}
-    {plateSearchQuery && !formData.vehicleDetails && (
-      <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
-        {filteredVehicles.length > 0 ? (
-          filteredVehicles.map((vehicle) => (
-            <div
-              key={vehicle.plate}
-              onClick={() => {
-                setFormData(prev => ({
-                  ...prev,
-                  vehicleDetails: vehicle.plate,
-                  assignedDriver: vehicle.driver,
-                  assignedCarType: vehicle.carType
-                }));
-                setPlateSearchQuery(vehicle.plate);
-              }}
-              className="p-3 hover:bg-gray-100 cursor-pointer transition-colors flex justify-between items-center"
-            >
-              <span className="font-mono">{vehicle.plate}</span>
-              <span className="text-sm text-gray-600">{vehicle.driver}</span>
-            </div>
-          ))
-        ) : (
-          <div className="p-3 text-gray-500 text-sm">
-            No vehicles found matching "{plateSearchQuery}"
+    {/* Plate Number Search */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Search Plate Number
+      </label>
+      <div className="relative">
+        <FiSearch className="absolute left-3 top-3 text-gray-400" />
+        <input
+          type="text"
+          value={plateSearchQuery}
+          readOnly={!!formData.vehicleDetails}
+          onChange={(e) => setPlateSearchQuery(e.target.value)}
+          placeholder="Start typing plate number..."
+          className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+            errors.vehicleDetails ? 'border-red-500' : 'border-gray-300'
+          } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        />
+
+        {/* Clear selection button */}
+        {formData.vehicleDetails && (
+          <button
+            type="button"
+            onClick={() => {
+              setPlateSearchQuery('');
+              setFormData(prev => ({
+                ...prev,
+                vehicleDetails: '',
+                assignedDriver: '',
+                assignedCarType: '',
+                vehicleType: '',
+              }));
+            }}
+            className="absolute right-3 top-3 p-1 text-gray-500 hover:text-gray-700"
+          >
+            <FiX className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Dropdown list */}
+        {plateSearchQuery && !formData.vehicleDetails && (
+          <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
+            {filteredVehicles.length > 0 ? (
+              filteredVehicles.map((vehicle) => (
+                <div
+                  key={vehicle.plate}
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      vehicleDetails: vehicle.plate,
+                      assignedDriver: vehicle.driver,
+                      assignedCarType: vehicle.carType
+                    }));
+                    setVehicleType(vehicle.type);
+                    setPlateSearchQuery(vehicle.plate);
+                  }}
+                  className="p-3 hover:bg-gray-100 cursor-pointer transition-colors flex justify-between items-center"
+                >
+                  <span className="font-mono">{vehicle.plate}</span>
+                  <span className="text-sm text-gray-600">{vehicle.driver}</span>
+                </div>
+              ))
+            ) : (
+              <div className="p-3 text-gray-500 text-sm">
+                No vehicles found matching "{plateSearchQuery}"
+              </div>
+            )}
           </div>
         )}
       </div>
-    )}
-  </div>
-  {errors.vehicleDetails && (
-    <p className="mt-1 text-sm text-red-500">{errors.vehicleDetails}</p>
-  )}
-</div>
-
-
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Car Type *
-  </label>
-  <input
-    type="text"
-    name="assignedCarType"
-    value={formData.assignedCarType}
-    readOnly
-    className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed"
-    placeholder="Auto-filled from plate selection"
-  />
-  {errors.assignedCarType && (
-    <p className="mt-1 text-sm text-red-500">{errors.assignedCarType}</p>
-  )}
-</div>
-
-
-                  {/* Driver Name */}
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Driver Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="assignedDriver"
-                      placeholder="Auto-filled from plate selection"
-                      value={formData.assignedDriver}
-                      readOnly
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                    />
-                    {errors.assignedDriver && (
-                      <p className="mt-1 text-sm text-red-500">{errors.assignedDriver}</p>
-                    )}
-                  </div>
-
-                </div> {/* End Grid */}
-
-                {/* Submit Button */}
-                <div className="mt-6">
-                  <motion.button
-                    type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    disabled={isSubmitting}
-                    className={`w-full flex justify-center items-center px-6 py-3 rounded-lg text-white font-medium transition-all ${
-                      isSubmitting
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <motion.span
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
-                        />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <FiCheckCircle className="mr-2" />
-                        Assign
-                      </>
-                    )}
-                  </motion.button>
-                </div>
-
-              </form> {/* End Form */}
-            </div>
-          </motion.div>
-        </motion.div>
+      {errors.vehicleDetails && (
+        <p className="mt-1 text-sm text-red-500">{errors.vehicleDetails}</p>
       )}
-    </AnimatePresence>
+    </div>
 
+    {/* Car Type */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Car Type *
+      </label>
+      <input
+        type="text"
+        name="assignedCarType"
+        value={formData.assignedCarType}
+        readOnly
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed"
+        placeholder="Auto-filled from plate selection"
+      />
+      {errors.assignedCarType && (
+        <p className="mt-1 text-sm text-red-500">{errors.assignedCarType}</p>
+      )}
+    </div>
+
+    {/* Driver Name */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Driver Name *
+      </label>
+      <input
+        type="text"
+        name="assignedDriver"
+        placeholder="Auto-filled from plate selection"
+        value={formData.assignedDriver}
+        readOnly
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+      />
+      {errors.assignedDriver && (
+        <p className="mt-1 text-sm text-red-500">{errors.assignedDriver}</p>
+      )}
+    </div>
+
+     {/* Service Provider */}
+     <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Service Provider *
+      </label>
+      <input
+        type="text"
+        name="serviceProviderName"
+        value={formData.serviceProviderName}
+        onChange={handleChange}
+        className={`w-full px-4 py-2 rounded-lg border ${
+          errors.serviceProviderName ? 'border-red-500' : 'border-gray-300'
+        } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        placeholder="Company name"
+      />
+      {errors.serviceProviderName && (
+        <p className="mt-1 text-sm text-red-500">{errors.serviceProviderName}</p>
+      )}
+    </div>
+
+  </div> {/* End Grid */}
+
+  {/* Submit Button */}
+  <div className="mt-6 flex justify-end">
+    <motion.button
+      type="submit"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      disabled={isSubmitting}
+      className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
+        isSubmitting
+          ? 'bg-gray-400 cursor-not-allowed'
+          : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+      }`}
+    >
+      {isSubmitting ? (
+        <>
+          <motion.span
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
+          />
+          Saving...
+        </>
+      ) : (
+        <>
+          <FiCheckCircle className="mr-2" />
+          Assign
+        </>
+      )}
+    </motion.button>
+  </div>
+</form>
+
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+  
           {/* Fuel Request Modal */}
           <AnimatePresence>
-          
-          
             {showFuelModal && selectedRequest && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              >
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <button
-                      onClick={closeModals}
-                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <FiX className="text-gray-500" />
-                    </button>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                >
+                  <div className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                      <button
+                        onClick={closeModals}
+                        className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <FiX className="text-gray-500" />
+                      </button>
+                    </div>
+                    <FuelRequestForm 
+                      travelRequestId={selectedRequest.id}
+                      defaultValues={{
+                        travelers: selectedRequest.travelers.map(t => t.name), // Extract just the names
+                        startingPlace: selectedRequest.startingPlace,
+                        destinationPlace: selectedRequest.destinationPlace,
+                        vehicleType: formData.assignedCarType,
+                        licensePlate: formData.vehicleDetails,
+                        assignedDriver: formData.assignedDriver,
+                        travelDistance: formData.kmDifference ? Number(formData.kmDifference) : 0,
+                        tripExplanation: formData.travelReason,
+                        claimantName: formData.claimantName,
+                        serviceNumber: `TR-${selectedRequest.id}`,
+                        startingDate: formData.actualStartingDate || formData.startingDate,
+                        endingDate: formData.actualReturnDate || formData.returnDate
+                      }}
+                      onSuccess={() => {
+                        closeModals();
+                        // Refresh table data
+                        TravelApi.getRequests(actorType).then(data => {
+                          setRequests(data);
+                          setFilteredRequests(data);
+                        });
+                      }} 
+                    />
                   </div>
-                  <FuelRequestForm 
-                    travelRequestId={selectedRequest.id}
-                    defaultValues={{
-                      travelers: selectedRequest.travelers.map(t => t.name), // Extract just the names
-                      startingPlace: selectedRequest.startingPlace,
-                      destinationPlace: selectedRequest.destinationPlace,
-                      vehicleType: formData.assignedCarType,
-                      licensePlate: formData.vehicleDetails,
-                      assignedDriver: formData.assignedDriver,
-                      travelDistance: formData.kmDifference ? Number(formData.kmDifference) : 0,
-                      tripExplanation: formData.travelReason,
-                      claimantName: formData.claimantName,
-                      serviceNumber: `TR-${selectedRequest.id}`,
-                      startingDate: formData.actualStartingDate || formData.startingDate,
-                      endingDate: formData.actualReturnDate || formData.returnDate
-                    }}
-                    onSuccess={() => {
-                      closeModals();
-                      // Refresh table data
-                      TravelApi.getRequests(actorType).then(data => {
-                        setRequests(data);
-                        setFilteredRequests(data);
-                      });
-                    }} 
-                  />
-                </div>
-              </motion.div>
-            </div>
-          )}
-                    </AnimatePresence>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
     </>

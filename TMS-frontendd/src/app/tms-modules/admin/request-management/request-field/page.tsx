@@ -9,7 +9,7 @@ import {  FiTool, FiMessageSquare, FiSend, FiX, FiTruck } from 'react-icons/fi';
 import DailyServiceRequestForm from '../components/DailyServiceRequestForm';
 
 export default function ServiceRequestPage() {
-  const [activeTab, setActiveTab] = useState<'field' |'service' | 'daily' | 'comment'>('field');
+  const [activeTab, setActiveTab] = useState<'field' |'daily' | 'service' |  'comment'>('field');
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSuccess = () => {
@@ -33,16 +33,16 @@ export default function ServiceRequestPage() {
             animate={{ x: 0 }}
             className="text-3xl font-bold text-gray-800"
           >
-            TMS Service Portal
+            Service Requests
           </motion.h1>
         </div>
 
         {/* Tab Navigation */}
         <motion.div className="flex mb-8 border-b border-gray-200">
           {[
-            { id: 'field', icon: <FiTool className="mr-2" />, label: 'Field Request' },
-            { id: 'service', icon: <FiTruck className="mr-2" />, label: 'Car Service' },
+            { id: 'field', icon: <FiTool className="mr-2" />, label: 'Field Service Request' },
             { id: 'daily', icon: <FiTruck className="mr-2" />, label: 'Daily Service Request' },
+            { id: 'service', icon: <FiTruck className="mr-2" />, label: 'Car Service' },
             { id: 'comment', icon: <FiMessageSquare className="mr-2" />, label: 'Send Complaint' }
           ].map((tab) => (
             <motion.button
@@ -71,10 +71,10 @@ export default function ServiceRequestPage() {
             transition={{ duration: 0.3 }}
           >
 
-            {activeTab === 'field' && <TravelRequestForm actorType="manager" onSuccess={handleSuccess} />
+            {activeTab === 'field' && <TravelRequestForm actorType="user" onSuccess={handleSuccess} />
           }
             {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
-            {activeTab === 'daily' && <DailyServiceRequestForm actorType="manager" onSuccess={handleSuccess} />
+            {activeTab === 'daily' && <DailyServiceRequestForm actorType="user" onSuccess={handleSuccess} />
           }
             {activeTab === 'comment' && <CommentForm onSuccess={handleSuccess} />}
           </motion.div>

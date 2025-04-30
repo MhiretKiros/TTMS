@@ -185,7 +185,7 @@ async fuelRequest(data: {
   assignedCarType: string;
   authorizerName: string;
   accountNumber: string;
-  status: 'FINISHED';
+  status: 'COMPLETED';
 }): Promise<TravelRequest> {
   try {
     if (!data.id) throw new Error('Request ID is required');
@@ -221,8 +221,7 @@ async fuelRequest(data: {
       : 'Failed to complete request');
   }
 },
-
-async fuelReturn(data: {
+  async fuelReturn(data: {
   id?: number;
   assemblerName: string;
   tripExplanation: string;

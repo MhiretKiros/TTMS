@@ -11,6 +11,7 @@ import {
   FiUser, FiUsers, FiTool, FiPlus, FiMinus, FiTruck, FiPackage,
   FiSearch, FiArrowRight, FiX
 } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface FuelReturnFormProps {
   travelRequestId?: number;
@@ -300,15 +301,33 @@ const showSuccessAlert = (title: string, message: string) => {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={`w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 ${
-            isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
-          }`}
-        >
-          {isSubmitting ? 'Submitting...' : 'Submit Fuel Return'}
-        </button>
+        <motion.button
+                          type="submit"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          disabled={isSubmitting}
+                          className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
+                            isSubmitting
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+                          }`}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <motion.span
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
+                              />
+                              Submiting...
+                            </>
+                          ) : (
+                            <>
+                              <FiCheckCircle className="mr-2" />
+                              Submit
+                            </>
+                          )}
+                        </motion.button>
       </form>
     </div>
   );

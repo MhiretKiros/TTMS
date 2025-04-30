@@ -28,8 +28,7 @@ const sidebarItems = [
     link: '/tms-modules/admin/request-management',
     subItems: [
       { title: 'Fule Requests', link: '/tms-modules/admin/request-management', icon: '🔧' },
-      { title: 'Service Requests', link: '/tms-modules/admin/request-management/request-service', icon: '🔧' },
-      { title: 'Field Requests', link: '/tms-modules/admin/request-management/request-field', icon: '📍' },
+      { title: 'Service Requests', link: '/tms-modules/admin/request-management/request-field', icon: '🔧' },
     ],
   },
   {
