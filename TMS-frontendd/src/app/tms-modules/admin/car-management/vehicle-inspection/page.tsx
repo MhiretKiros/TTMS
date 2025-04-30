@@ -33,6 +33,9 @@ export interface Car {
   // Personal car specific
   ownerName?: string;
   ownerPhone?: string;
+  // Add potential inspection details if available from backend
+  inspectionDate?: string;
+  inspectionNotes?: string;
 }
 
 export default function CarInspectionPage() {
@@ -47,9 +50,7 @@ export default function CarInspectionPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // --- fetchData, fetchCars, handleSearch, handleInspect, useEffects remain the same ---
-
-  // Enhanced data fetcher with error handling
+  // --- fetchData remains the same ---
   const fetchData = async (endpoint: string) => {
     try {
       const response = await fetch(endpoint);
@@ -79,7 +80,7 @@ export default function CarInspectionPage() {
     }
   };
 
-  // Fetch all cars based on active tab
+  // --- fetchCars remains the same ---
   const fetchCars = useCallback(async () => {
     try {
       setLoading(true);
@@ -95,11 +96,16 @@ export default function CarInspectionPage() {
           console.error("fetchData did not return an array!", carList);
           throw new Error("Received invalid data format from API.");
       }
-      setCars(carList);
+      // Ensure boolean conversion for inspected status if needed
+      const processedCarList = carList.map(car => ({
+        ...car,
+        inspected: Boolean(car.inspected) // Explicitly cast/convert if API returns 0/1 or string
+      }));
+      setCars(processedCarList);
       if (searchTerm.trim()) {
-        handleSearch(carList, searchTerm);
+        handleSearch(processedCarList, searchTerm);
       } else {
-        setFilteredCars(carList);
+        setFilteredCars(processedCarList);
       }
     } catch (error) {
       console.error(`Error in fetchCars for ${activeTab}:`, error);
@@ -109,9 +115,9 @@ export default function CarInspectionPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, searchTerm]);
+  }, [activeTab, searchTerm]); // Removed handleSearch from dependencies as it uses state directly
 
-  // Handle search
+  // --- handleSearch remains the same ---
   const handleSearch = (dataSource: Car[] = cars, currentSearchTerm: string = searchTerm) => {
     if (!currentSearchTerm.trim()) {
       setFilteredCars(dataSource); return;
@@ -130,27 +136,58 @@ export default function CarInspectionPage() {
     setFilteredCars(filtered);
   };
 
-  // Handle inspect button click
+  // Handle inspect button click (navigates to inspection page)
   const handleInspect = (car: Car) => {
     router.push(`vehicle-inspection/car-inspect?plateNumber=${car.plateNumber}&type=${activeTab}`);
   };
 
-  // Fetch cars when tab changes or on initial load
+  // NEW: Handle showing inspection results when an inspected row is clicked
+  const handleShowInspectionResult = (car: Car) => {
+    if (!car.inspected) return; // Only proceed if the car is actually inspected
+
+    // Prepare details for the modal
+    let detailsHtml = `<p><strong>Status:</strong> ${car.inspectionResult || 'Pending'}</p>`;
+    if (car.inspectionDate) {
+      detailsHtml += `<p><strong>Date:</strong> ${new Date(car.inspectionDate).toLocaleDateString()}</p>`;
+    }
+    if (car.inspectionNotes) {
+      detailsHtml += `<p><strong>Notes:</strong> ${car.inspectionNotes}</p>`; // Make sure to sanitize if notes contain HTML
+    }
+
+    Swal.fire({
+      title: `Inspection Result: ${car.plateNumber}`,
+      html: detailsHtml,
+      icon: car.inspectionResult === 'Approved' ? 'success' :
+            car.inspectionResult === 'Rejected' ? 'error' :
+            car.inspectionResult === 'ConditionallyApproved' ? 'warning' :
+            'info', // For 'Pending' or unknown status
+      confirmButtonText: 'Close',
+      customClass: {
+        htmlContainer: 'text-left' // Align details left
+      }
+    });
+  };
+
+  // --- useEffects remain the same ---
   useEffect(() => {
     fetchCars();
-  }, [fetchCars]);
+  }, [fetchCars]); // fetchCars is memoized with useCallback
 
-  // Handle direct link with plate number
   useEffect(() => {
     if (plateNumber && cars.length > 0) {
       const car = cars.find(c => c.plateNumber === plateNumber);
-      if (car) { handleInspect(car); }
-      else { console.warn(`Car with plate ${plateNumber} not found in the ${activeTab} list.`); }
+      if (car && !car.inspected) { // Only auto-navigate if not already inspected
+         handleInspect(car);
+      } else if (car && car.inspected) {
+         console.warn(`Car with plate ${plateNumber} is already inspected. Showing list.`);
+      } else {
+         console.warn(`Car with plate ${plateNumber} not found in the ${activeTab} list.`);
+      }
     }
-  }, [plateNumber, cars, activeTab]);
+  }, [plateNumber, cars, activeTab, router]); // Added router to dependency array
 
 
-  // Get the appropriate display field based on car type
+  // --- getDisplayField remains the same ---
   const getDisplayField = (car: Car) => {
     switch(activeTab) {
       case 'organization': return { label: 'Driver', value: car.driverName || 'N/A' };
@@ -159,12 +196,11 @@ export default function CarInspectionPage() {
     }
   };
 
-  // Determine table header based on active tab
   const tableHeaderLabel = getDisplayField({} as Car).label;
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header Section */}
+      {/* Header Section (No changes) */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -174,7 +210,6 @@ export default function CarInspectionPage() {
         <h1 className="text-3xl font-bold text-gradient bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
           Vehicle Inspection Dashboard
         </h1>
-        {/* Search and Refresh */}
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -192,30 +227,24 @@ export default function CarInspectionPage() {
                   // Apply search immediately as user types
                   handleSearch(cars, e.target.value);
               }}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              // Removed onKeyDown for Enter as search is immediate
             />
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handleSearch()}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-all"
-          >
-            Search
-          </motion.button>
+          {/* Removed explicit Search button as search is now immediate */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="p-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
             onClick={fetchCars}
             disabled={loading}
+            title="Refresh List" // Added title for accessibility
           >
             <FiRefreshCw className={`text-gray-600 ${loading ? 'animate-spin' : ''}`} />
           </motion.button>
         </div>
       </motion.div>
 
-      {/* Tabs */}
+      {/* Tabs (No changes) */}
       <div className="flex border-b border-gray-200">
          <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
@@ -249,7 +278,7 @@ export default function CarInspectionPage() {
         </button>
       </div>
 
-      {/* Chart Section - Added */}
+      {/* Chart Section (No changes) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -258,19 +287,15 @@ export default function CarInspectionPage() {
       >
         <h2 className="text-lg font-semibold text-gray-700 mb-2">Inspection Status Overview</h2>
         {loading ? (
-           <div className="flex justify-center items-center h-[300px]"> {/* Match chart height */}
+           <div className="flex justify-center items-center h-[300px]">
              <p className="text-gray-500">Loading chart data...</p>
-             {/* Optional: Add a spinner here too */}
-             {/* <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div> */}
            </div>
         ) : (
-           // Pass the currently filtered cars to the chart
            <InspectionStatusChart cars={filteredCars} />
         )}
       </motion.div>
-      {/* End of Chart Section */}
 
-      {/* Car List Table Section */}
+      {/* Car List Table Section - MODIFIED */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -298,7 +323,7 @@ export default function CarInspectionPage() {
                     {tableHeaderLabel}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inspected</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inspection Status</th> {/* Changed Header */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
@@ -307,12 +332,16 @@ export default function CarInspectionPage() {
                   filteredCars.map((car) => {
                     const displayField = getDisplayField(car);
                     return (
-                      <motion.tr
+                      // MODIFIED: Added onClick and conditional class to TR
+                      <tr
                         key={`${activeTab}-${car.id}`}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
-                        className="hover:bg-gray-50"
+                        className={`hover:bg-gray-50 transition-colors duration-150 ${car.inspected ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (car.inspected) {
+                            handleShowInspectionResult(car); // Show result if inspected
+                          }
+                          // No action if not inspected (button handles inspection)
+                        }}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{car.plateNumber}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.model}</td>
@@ -328,12 +357,13 @@ export default function CarInspectionPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          {/* Inspection Status Badge */}
                           {car.inspected ? (
                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               car.inspectionResult === 'Approved' ? 'bg-green-100 text-green-800' :
                               car.inspectionResult === 'Rejected' ? 'bg-red-100 text-red-800' :
-                              car.inspectionResult === 'ConditionallyApproved' ? 'bg-yellow-100 text-yellow-800' : // Added ConditionallyApproved color
-                              'bg-purple-100 text-purple-800' // Default for Pending/Other
+                              car.inspectionResult === 'ConditionallyApproved' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-purple-100 text-purple-800' // Pending or other
                             }`}>
                               {car.inspectionResult || 'Pending'}
                             </span>
@@ -344,14 +374,24 @@ export default function CarInspectionPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleInspect(car)}
-                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Inspect
-                          </button>
+                          {/* MODIFIED: Conditionally render Inspect button */}
+                          {!car.inspected ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent row click handler when clicking button
+                                handleInspect(car);
+                              }}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Inspect
+                            </button>
+                          ) : (
+                            // Optionally show text or leave empty when inspected
+                            <span className="text-xs text-gray-400 italic">Inspected</span>
+                            // Or simply: null
+                          )}
                         </td>
-                      </motion.tr>
+                      </tr>
                     );
                   })
                 ) : (

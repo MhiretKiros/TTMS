@@ -9,7 +9,6 @@ interface InspectionStatusChartProps {
   cars: Car[];
 }
 
-// Define colors for different statuses
 const COLORS = {
   Approved: '#10B981', // Emerald 500
   Rejected: '#EF4444', // Red 500
@@ -38,7 +37,6 @@ const processChartData = (cars: Car[]) => {
     } else if (car.inspectionResult === 'ConditionallyApproved') { // Check if this status exists
       counts.ConditionallyApproved++;
     } else {
-      // If inspected but no specific result, consider it Pending
       counts.Pending++;
     }
   });
@@ -80,6 +78,3 @@ const InspectionStatusChart: React.FC<InspectionStatusChartProps> = ({ cars }) =
 };
 
 export default InspectionStatusChart;
-
-// Add this interface to page.tsx if it's not already exported
-// export interface Car { ... }
