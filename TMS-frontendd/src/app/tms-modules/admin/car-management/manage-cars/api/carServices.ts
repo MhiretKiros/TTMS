@@ -8,10 +8,9 @@ export interface ApiResponse<T> {
   message: string;
   data: T;
 }
-
 export const fetchCars = async (): Promise<ApiResponse<Car[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/all`);
+    const response = await fetch(`${API_BASE_URL}/auth/car/all`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -106,31 +105,67 @@ export const deleteCar = async (id: number): Promise<ApiResponse<null>> => {
     const response = await fetch(`${API_BASE_URL}/delete/${id}`, {
       method: 'DELETE'
     });
-    const data = await response.json();
 
     if (!response.ok) {
+      // Attempt to get a more specific error message from the backend
+      let errorMessage = `Failed to delete car. HTTP status: ${response.status}`;
+      try {
+        const errorBodyText = await response.text(); // Get body as text first
+        if (errorBodyText) {
+            try {
+                const jsonData = JSON.parse(errorBodyText); // Try to parse if it's JSON
+                errorMessage = jsonData.message || errorBodyText; // Use JSON message or full text
+            } catch (jsonParseError) {
+                errorMessage = errorBodyText; // Use text if not JSON
+            }
+        } else if (response.statusText) {
+            errorMessage = `Failed to delete car. HTTP status: ${response.status} ${response.statusText}`;
+        }
+      } catch (e) {
+        // Fallback if reading body text fails
+        console.error('Error reading error response body during deleteCar:', e);
+        errorMessage = `Failed to delete car. HTTP status: ${response.status} ${response.statusText || 'Server error'}`;
+      }
+      console.error('Server error response during deleteCar:', errorMessage);
       return {
         success: false,
-        message: data.message || 'Failed to delete car',
+        message: errorMessage,
         data: null
       };
     }
 
+    // Handle successful responses (e.g., 200 OK or 204 No Content)
+    let successMessage = 'Car deleted successfully';
+    // For DELETE, a 204 No Content is common and means success.
+    // A 200 OK might also be returned, possibly with a success message in the body.
+    if (response.status === 200 && response.headers.get("content-type")?.includes("application/json")) {
+        try {
+            const successData = await response.json();
+            if (successData && successData.message) {
+                successMessage = successData.message;
+            }
+        } catch (e) {
+            console.warn('deleteCar: Response status 200 with JSON content-type, but failed to parse body:', e);
+            // Keep default success message
+        }
+    }
+    // If 204 No Content, or 200 without a JSON message, the default successMessage is used.
+
     return {
       success: true,
-      message: data.message || 'Car deleted successfully',
+      message: successMessage,
       data: null
     };
   } catch (error) {
-    console.error('Error deleting car:', error);
+    console.error('Network or unexpected error in deleteCar:', error);
+    const message = error instanceof Error ? error.message : 'An unexpected error occurred while deleting the car.';
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Failed to delete car',
+      message: message,
       data: null
     };
   }
 };
-
 export const fetchCarById = async (id: number): Promise<{
   codStatus: number;
   message: string;

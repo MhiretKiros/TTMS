@@ -158,13 +158,13 @@ export default function CarInspectionResultPage() {
         const token = localStorage.getItem('authToken') || localStorage.getItem('token');
         
         try {
-            const response = await fetch(`${API_BASE_URL}/inspections/get/${inspectionId}`, {
+            const response = await fetch(`${API_BASE_URL}/org-inspections/get/${inspectionId}`, {
                 method: 'GET',
                 headers: {
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                     'Content-Type': 'application/json',
                 },
-            });                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+            });
 
             if (!response.ok) {
                 let errorMessage = `Request failed with status ${response.status}`;
@@ -186,6 +186,18 @@ export default function CarInspectionResultPage() {
 
                 throw new Error(errorMessage);
             }
+
+            // --- >>> Add Check Before Parsing JSON <<< ---
+            const contentType = response.headers.get("content-type");
+            if (response.status === 204 || !contentType || !contentType.includes("application/json")) {
+              console.log("Received non-JSON or empty response from org-inspections (Status:", response.status, ")");
+              // Handle appropriately - maybe the inspection wasn't found or data is incomplete
+              setError(`Org inspection details not found or response was empty (Status: ${response.status}).`);
+              setInspectionResult(null); // Set state to indicate not found/empty
+              setIsLoading(false); // Ensure loading stops
+              return; // Exit early
+            }
+            // --- >>> End of Check <<< ---
 
             const data: InspectionResultData = await response.json();
             setInspectionResult(data);

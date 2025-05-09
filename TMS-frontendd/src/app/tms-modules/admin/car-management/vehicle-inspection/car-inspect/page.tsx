@@ -638,7 +638,8 @@ export default function CarInspectPage() {
     // Log which status is being sent for clarity
     console.log(`Attempting to update status for car ${plate} to Service Status: ${serviceStatus} (Inspection ID: ${inspectionId}, Result: ${inspectionStatus})`);
 
-    // --- TEMPORARILY COMMENTED OUT - Assuming backend doesn't require auth yet ---
+
+    // --- >>> TEMPORARILY COMMENTED OUT Authentication Handling (INSECURE - FOR DEV ONLY) <<< ---
     // const token = localStorage.getItem('token');
     // if (!token || token.trim() === '') {
     //   console.error('Cannot update car status: Authentication token missing.');
@@ -646,7 +647,7 @@ export default function CarInspectPage() {
     //   // toast.warn('Warning: Could not update car status due to missing authentication.');
     //   return; // Exit the function
     // }
-    // --- END OF TEMPORARY COMMENT ---
+    // --- END OF TEMPORARY COMMENT OUT ---
 
     try {
       // *** Ensure this API endpoint expects the 'serviceStatus' in the 'status' field ***
@@ -655,9 +656,9 @@ export default function CarInspectPage() {
         method: 'POST', // Or 'PUT'
         headers: {
           'Content-Type': 'application/json',
-          // --- TEMPORARILY COMMENTED OUT - Assuming backend doesn't require auth yet ---
+          // --- >>> TEMPORARILY COMMENTED OUT Authorization Header (INSECURE - FOR DEV ONLY) <<< ---
           // 'Authorization': `Bearer ${token}`,
-          // --- END OF TEMPORARY COMMENT ---
+          // --- END OF TEMPORARY COMMENT OUT ---
         },
         body: JSON.stringify({
           plateNumber: plate,
@@ -685,7 +686,7 @@ export default function CarInspectPage() {
       // toast.error('An error occurred while updating the car status.');
     }
     // Dependencies might need adjustment if you added/removed parameters
-  }, []); // API_BASE_URL is constant, no other external deps if token logic is self-contained
+  }, [API_BASE_URL]); // Added API_BASE_URL dependency
 
 
   // --- API Submission (Modified Call) ---
@@ -693,26 +694,33 @@ export default function CarInspectPage() {
     setIsLoading(true);
     console.log("Submitting Inspection Payload:", JSON.stringify(payload, null, 2));
 
-    // --- TEMPORARILY COMMENTED OUT - Assuming backend doesn't require auth yet ---
+    // --- >>> TEMPORARILY COMMENTED OUT Authentication Handling (INSECURE - FOR DEV ONLY) <<< ---
     // const token = localStorage.getItem('token');
-    // if (!token || token.trim() === '') {
+    // // Check for token existence and basic JWT format (at least two dots)
+    // if (!token || token.trim() === '' || token.split('.').length < 3) {
     //   console.error('No valid authentication token found.');
     //   alert('Authentication error. Please log in again.'); // Keep alert for critical auth errors
     //   setIsLoading(false);
-    //   // router.push('/login'); // Don't redirect if no login page exists
+    //   // Consider redirecting to login if applicable:
+    //   // router.push('/login');
+    //   // You might want to clear the invalid token here: localStorage.removeItem('token');
     //   return null;
     // }
-    // --- END OF TEMPORARY COMMENT ---
+    // --- END OF TEMPORARY COMMENT OUT ---
 
     try {
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        // --- TEMPORARILY COMMENTED OUT - Assuming backend doesn't require auth yet ---
+        // --- >>> TEMPORARILY COMMENTED OUT Authorization Header (INSECURE - FOR DEV ONLY) <<< ---
         // 'Authorization': `Bearer ${token}`,
-        // --- END OF TEMPORARY COMMENT ---
+        // --- END OF TEMPORARY COMMENT OUT ---
       };
 
-      const response = await fetch(`${API_BASE_URL}/inspections/create`, {
+      const submissionEndpoint = carTypeParam === 'organization'
+        ? `${API_BASE_URL}/org-inspections/create` // Use the new endpoint for organization cars
+        : `${API_BASE_URL}/inspections/create`; // Use the original endpoint otherwise
+
+      const response = await fetch(submissionEndpoint, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payload)
@@ -750,17 +758,20 @@ export default function CarInspectPage() {
         // 2. Update the car's status - NOW WE WAIT for this to finish
         console.log("Waiting for car status update...");
         // --- MODIFIED CALL: Pass payload.serviceStatus ---
-        await updateCarStatusAfterInspection(
+        // --- >>> Conditionally skip status update for organization cars <<< ---
+        if (carTypeParam !== 'organization') {
+          await updateCarStatusAfterInspection(
             payload.plateNumber,
             result.id,
             payload.serviceStatus, // Pass the service status
             payload.inspectionStatus // Pass inspection status too (if needed by backend)
-        );
-        console.log("Car status update attempt finished.");
+          );
+          console.log("Car status update attempt finished.");
+        } else {
+          console.log("Skipping separate car status update for organization car (handled by backend).");
+        }
 
         // 3. Redirect to the results page AFTER status update attempt
-        router.push(`/tms-modules/admin/car-management/vehicle-inspection/result?inspectionId=${result.id}`);
-        return result; // Return the successful inspection result
 
       } else {
         console.warn("Submission successful, but missing ID or PlateNumber for status update:", result, payload.plateNumber);
@@ -768,6 +779,13 @@ export default function CarInspectPage() {
         router.push('/tms-modules/admin/car-management/vehicle-inspection');
         return null;
       }
+
+      // --- >>> Redirect AFTER potential status update or skip - Choose correct results page <<< ---
+      const resultPagePath = carTypeParam === 'organization'
+        ? `/tms-modules/admin/car-management/vehicle-inspection/org-result?inspectionId=${result.id}`
+        : `/tms-modules/admin/car-management/vehicle-inspection/result?inspectionId=${result.id}`;
+      router.push(resultPagePath);
+      return result; // Return the successful inspection result
 
     } catch (error: any) {
       console.error('Submission error:', error);
@@ -777,7 +795,7 @@ export default function CarInspectPage() {
       setIsLoading(false);
     }
     // Added updateCarStatusAfterInspection to dependencies
-  }, [router, updateCarStatusAfterInspection]); // Ensure updateCarStatusAfterInspection is in dependency array
+  }, [router, updateCarStatusAfterInspection, carTypeParam, API_BASE_URL]); // Added carTypeParam and API_BASE_URL
 
 
   // --- Final Submission Logic ---
@@ -1110,6 +1128,7 @@ export default function CarInspectPage() {
               className="h-10 w-10 border-t-2 border-b-2 border-blue-500 rounded-full" />
           </motion.div>
         )}
+      
       </div>
     </div>
   );

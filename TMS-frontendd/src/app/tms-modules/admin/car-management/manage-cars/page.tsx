@@ -82,6 +82,8 @@ export default function ManageCars() {
     try {
       setIsOrganizationLoading(true);
       const { success, data, message } = await fetchOrganizationCars();
+      // <<< Add this log to see what the service function returns >>>
+      console.log('Data received from fetchOrganizationCars service:', { success, data, message });
       
       if (success) {
         setOrganizationCars(data);
@@ -571,7 +573,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('personal')}
         >
-          Rented Automobiles
+        Personal Vehicles {/* Corrected Label */}
         </button>
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
@@ -581,7 +583,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('organization')}
         >
-          Rented Vehicles
+        Organization Vehicles {/* Corrected Label */}
         </button>
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
@@ -591,7 +593,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('rented')}
         >
-          Organization Vehicles
+        Rented Vehicles {/* Corrected Label */}
         </button>
       </motion.div>
 
@@ -619,8 +621,8 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-800">Rented Automobile Fleet</h2>
-                <motion.button
+              <h2 className="text-xl font-semibold text-gray-800">Personal Vehicle Fleet</h2> {/* Corrected Title */}
+              <motion.button
                   whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
@@ -629,8 +631,8 @@ export default function ManageCars() {
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-all"
                 >
-                  <FiPlus /> Add New Automobile
-                </motion.button>
+              <FiPlus /> Add New Vehicle
+              </motion.button>
               </div>
 
               {isPersonalLoading ? (
@@ -689,8 +691,8 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-800">Rented Vehicle Fleet</h2>
-                <motion.button
+              <h2 className="text-xl font-semibold text-gray-800">Organization Vehicle Fleet</h2> {/* Corrected Title */}
+              <motion.button
                   whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
@@ -759,8 +761,8 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-800">Organization Vehicle Fleet</h2>
-                <motion.button
+              <h2 className="text-xl font-semibold text-gray-800">Rented Vehicle Fleet</h2> {/* Corrected Title */}
+              <motion.button
                   whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {

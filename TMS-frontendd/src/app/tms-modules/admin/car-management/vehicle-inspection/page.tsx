@@ -93,7 +93,7 @@ export default function CarInspectionPage() {
 
       if (Array.isArray(data)) return data;
       if (data && typeof data === 'object') {
-        if (Array.isArray(data.organizationCarList)) return data.organizationCarList;
+        if (Array.isArray(data.organizationCarList)) return data.organizationCarList; // <-- Make sure this key matches your Java DTO
         if (Array.isArray(data.rentCarList)) return data.rentCarList; // Verify this key
         if (Array.isArray(data.carList)) return data.carList;
         if (Array.isArray(data.data)) return data.data;
@@ -347,12 +347,18 @@ export default function CarInspectionPage() {
                         key={`${activeTab}-${car.id}`}
                         className={`hover:bg-gray-50 transition-colors duration-150 ${car.inspected && car.latestInspectionId ? 'cursor-pointer' : ''}`} // Only make cursor pointer if inspected AND has ID
                         onClick={() => {
+                          // <<< Add this console log to check the car data >>>
+                          console.log("Clicked car data:", JSON.stringify(car, null, 2));
+                          // <<< End of added console log >>>
                           
                           if (car.inspected) {
                             
                             if (car.latestInspectionId) { // Use car.latestInspectionId
-                              // Navigate to the result page with the ID
-                              router.push(`/tms-modules/admin/car-management/vehicle-inspection/result?inspectionId=${car.latestInspectionId}`);
+                              // --- >>> Determine correct result page based on activeTab <<< ---
+                              const resultPagePath = activeTab === 'organization'
+                                ? `/tms-modules/admin/car-management/vehicle-inspection/org-result?inspectionId=${car.latestInspectionId}`
+                                : `/tms-modules/admin/car-management/vehicle-inspection/result?inspectionId=${car.latestInspectionId}`;
+                              router.push(resultPagePath);
                             } else {
                               // Handle case where car is inspected but ID is missing (show alert)
                               Swal.fire('Info', `Inspection details are not available for ${car.plateNumber}. Missing inspection ID.`, 'info');
