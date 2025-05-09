@@ -71,7 +71,7 @@ export default function ServiceRequestPage() {
             transition={{ duration: 0.3 }}
           >
 
-            {activeTab === 'field' && <TravelRequestForm actorType="user" onSuccess={handleSuccess} />
+            {activeTab === 'field' && <TravelRequestForm actorType="manager" onSuccess={handleSuccess} />
           }
             {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
             {activeTab === 'daily' && <DailyServiceRequestForm actorType="user" onSuccess={handleSuccess} />

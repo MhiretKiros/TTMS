@@ -754,43 +754,44 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-              <motion.button
-                type="button"
-                onClick={onClose}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </motion.button>
-              <motion.button
-                type="submit"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                disabled={isSubmitting}
-                className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                  isSubmitting 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center">
-                    <motion.span
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                    />
-                    {car ? 'Updating...' : 'Registering...'}
-                  </span>
-                ) : car ? (
-                  'Update Vehicle'
-                ) : (
-                  'Register Vehicle'
-                )}
-              </motion.button>
-            </div>
+            <motion.button
+              type="button"
+              onClick={onClose}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-4 py-2 border border-[#3c8dbc] text-[#3c8dbc] rounded-lg hover:bg-[#ecf4f8] transition-colors"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </motion.button>
+            <motion.button
+              type="submit"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              disabled={isSubmitting}
+              className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                isSubmitting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-[#3c8dbc] hover:bg-[#2a6a90]'
+              }`}
+            >
+              {isSubmitting ? (
+                <span className="flex items-center justify-center">
+                  <motion.span
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                  />
+                  {car ? 'Updating...' : 'Registering...'}
+                </span>
+              ) : car ? (
+                'Update Vehicle'
+              ) : (
+                'Register Vehicle'
+              )}
+            </motion.button>
+          </div>
+
           </form>
         </div>
       </motion.div>

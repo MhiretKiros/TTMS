@@ -15,6 +15,7 @@ type AssignmentHistory = {
   shortNoticePercentage: string;
   mobilityIssue: string;
   gender: string;
+  allPlateNumbers:string;
   totalPercentage: number;
   assignedDate: string;
   car?: { plateNumber: string };

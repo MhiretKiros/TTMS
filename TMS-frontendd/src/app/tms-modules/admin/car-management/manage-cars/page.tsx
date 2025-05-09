@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiSearch, FiFilter, FiRefreshCw } from 'react-icons/fi';
+import { FiPlusCircle,FiPlus, FiSearch, FiFilter, FiRefreshCw } from 'react-icons/fi';
 import CarTable from './components/CarTable';
 import OrganizationCarTable from './components/OrganizationCarTable';
 import RentCarTable from './components/RentCarTable';
@@ -82,8 +82,6 @@ export default function ManageCars() {
     try {
       setIsOrganizationLoading(true);
       const { success, data, message } = await fetchOrganizationCars();
-      // <<< Add this log to see what the service function returns >>>
-      console.log('Data received from fetchOrganizationCars service:', { success, data, message });
       
       if (success) {
         setOrganizationCars(data);
@@ -573,7 +571,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('personal')}
         >
-        Personal Vehicles {/* Corrected Label */}
+          Rented Automobiles
         </button>
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
@@ -583,7 +581,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('organization')}
         >
-        Organization Vehicles {/* Corrected Label */}
+          Rented Vehicles
         </button>
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
@@ -593,7 +591,7 @@ export default function ManageCars() {
           }`}
           onClick={() => setActiveTab('rented')}
         >
-        Rented Vehicles {/* Corrected Label */}
+          Organization Vehicles
         </button>
       </motion.div>
 
@@ -621,18 +619,20 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-800">Personal Vehicle Fleet</h2> {/* Corrected Title */}
-              <motion.button
-                  whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setSelectedPersonalCar(null);
-                    setIsPersonalFormOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-all"
-                >
-              <FiPlus /> Add New Vehicle
-              </motion.button>
+                <h2 className="text-xl font-semibold text-gray-800">Rented Automobile Fleet</h2>
+                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => {
+                                    setSelectedPersonalCar(null);
+                                    setIsPersonalFormOpen(true);
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white"
+                                >
+                                  <FiPlusCircle
+                                    className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
+                                  />
+                                </motion.button>
               </div>
 
               {isPersonalLoading ? (
@@ -691,17 +691,19 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-800">Organization Vehicle Fleet</h2> {/* Corrected Title */}
-              <motion.button
-                  whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setSelectedOrganizationCar(null);
-                    setIsOrganizationFormOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-all"
+                <h2 className="text-xl font-semibold text-gray-800">Rented Vehicle Fleet</h2>
+                <motion.button
+                 whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                setSelectedOrganizationCar(null);
+                setIsOrganizationFormOpen(true);
+                 }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white"
                 >
-                  <FiPlus /> Add New Vehicle
+                 <FiPlusCircle
+                  className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
+                />
                 </motion.button>
               </div>
 
@@ -761,17 +763,19 @@ export default function ManageCars() {
               className="bg-white rounded-xl shadow-lg"
             >
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-800">Rented Vehicle Fleet</h2> {/* Corrected Title */}
+                <h2 className="text-xl font-semibold text-gray-800">Organization Vehicle Fleet</h2>
               <motion.button
-                  whileHover={{ scale: 1.05, background: "linear-gradient(to right, #4f46e5, #7c3aed)" }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setSelectedRentCar(null);
-                    setIsRentFormOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-all"
+                 whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setSelectedRentCar(null);
+                  setIsRentFormOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white"
                 >
-                  <FiPlus /> Add New Vehicle
+                 <FiPlusCircle
+                  className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
+                />
                 </motion.button>
               </div>
 

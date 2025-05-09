@@ -716,6 +716,7 @@ export default function CarInspectPage() {
         // --- END OF TEMPORARY COMMENT OUT ---
       };
 
+      // --- >>> Determine API endpoint based on car type <<< ---
       const submissionEndpoint = carTypeParam === 'organization'
         ? `${API_BASE_URL}/org-inspections/create` // Use the new endpoint for organization cars
         : `${API_BASE_URL}/inspections/create`; // Use the original endpoint otherwise

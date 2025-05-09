@@ -53,6 +53,24 @@ export const getAssignment = async (id: number): Promise<ApiResponse<AssignmentH
   }
 };
 
+export const updateAssignmentStatus = async (id: number): Promise<ApiResponse<AssignmentHistory>> => {
+  try {
+    const response = await fetch(`${BASE_URL}/${id}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch assignment');
+    }
+    const data = await response.json();
+    return { success: true, data: data.assignmentHistory };
+  } catch (error) {
+    console.error('Error fetching assignment:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to fetch assignment'
+    };
+  }
+};
+
 export const createAssignment = async (request: AssignmentRequest): Promise<ApiResponse<AssignmentHistory>> => {
   try {
     const response = await fetch('/api/auth/car/assign', {
@@ -123,5 +141,8 @@ export const deleteAssignment = async (id: number): Promise<ApiResponse<void>> =
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to delete assignment'
     };
+
   }
+
+  
 };

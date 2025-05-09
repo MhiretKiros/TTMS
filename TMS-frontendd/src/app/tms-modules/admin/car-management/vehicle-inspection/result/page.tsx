@@ -164,7 +164,7 @@ export default function CarInspectionResultPage() {
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                     'Content-Type': 'application/json',
                 },
-            });                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+            });
 
             if (!response.ok) {
                 let errorMessage = `Request failed with status ${response.status}`;
