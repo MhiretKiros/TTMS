@@ -270,9 +270,9 @@ export default function CarInspectionPage() {
           }`}
           onClick={() => setActiveTab('organization')}
         >
-          Organization Vehicles
+          Rented Vehicles
         </button>
-        <button
+        {/* <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
             activeTab === 'rented'
               ? 'border-b-2 border-blue-500 text-blue-600'
@@ -280,8 +280,8 @@ export default function CarInspectionPage() {
           }`}
           onClick={() => setActiveTab('rented')}
         >
-          Rented Vehicles
-        </button>
+          Organization Vehicles
+        </button> */}
       </div>
 
       {/* Chart Section (No changes) */}

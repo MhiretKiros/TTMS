@@ -652,7 +652,7 @@ export default function CarInspectPage() {
     try {
       // *** Ensure this API endpoint expects the 'serviceStatus' in the 'status' field ***
       // *** The backend should handle setting 'inspected = true' and updating the car's operational status ***
-      const response = await fetch(`${API_BASE_URL}/cars/update-inspection-status`, {
+      const response = await fetch(`${API_BASE_URL}/inspections/update/{id}`, {
         method: 'POST', // Or 'PUT'
         headers: {
           'Content-Type': 'application/json',
@@ -744,8 +744,17 @@ export default function CarInspectPage() {
           } else if (response.status >= 500) {
              errorMessage = `Server error (${response.status}). Please try again later.`;
           }
-        } catch (jsonError) {
-          errorMessage = `HTTP error! Status: ${response.status} - ${response.statusText}`;
+        } catch (jsonError: any) {
+          // If parsing the error response as JSON fails, try to get the raw text.
+          console.error("Failed to parse error response as JSON:", jsonError);
+          try {
+            const rawErrorText = await response.text();
+            console.error("Raw error response text from server:", rawErrorText); // Log the full raw text
+            errorMessage = `HTTP error! Status: ${response.status} - ${response.statusText}. Server sent non-JSON error: ${rawErrorText.substring(0, 200)}...`; // Include a snippet in the error
+          } catch (textError) {
+            console.error("Failed to get raw error text from server:", textError);
+            errorMessage = `HTTP error! Status: ${response.status} - ${response.statusText}. Additionally, the error response was not parseable as JSON or text.`;
+          }
         }
         throw new Error(errorMessage);
       }
