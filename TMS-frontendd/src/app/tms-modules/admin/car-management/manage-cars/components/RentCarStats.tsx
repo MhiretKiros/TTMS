@@ -11,7 +11,7 @@ interface RentCarStatsProps {
 const RentCarStats = ({ cars, onFilterClick, activeFilter }: RentCarStatsProps) => {
   // Calculate statistics
   const totalCars = cars.length;
-  const activeCars = cars.filter(car => car.status === 'Active').length;
+  const activeCars = cars.filter(car => car.status === 'NOT_INSPECTED').length;
   const maintenanceCars = cars.filter(car => car.status === 'Maintenance').length;
   const commercialCars = cars.filter(car => car.vehiclesType === 'Commercial').length;
 

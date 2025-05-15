@@ -11,7 +11,7 @@ export interface Car {
     kmPerLiter: string;
     totalKm: string;
     fuelType: 'Petrol' | 'Diesel' | 'Electric' | 'Hybrid';
-    status: 'Active' | 'Maintenance' | 'Inactive';
+    status: 'NOT_INSPECTED' | 'Approved' | 'Maintenance' | 'Inactive';
     registeredDate: string;
     parkingLocation: string;
   }

@@ -69,7 +69,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     door: '',
     cylinder: '',
     fuelType: 'Petrol',
-    status: 'Active',
+    status: 'NOT_INSPECTED',
     otherDescription: '',
     radio: '',
     antena: '',
@@ -403,7 +403,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={isSubmitting}
                     >
-                      <option value="Active">Active</option>
+                      <option value="NOT_INSPECTED">NOTINSPECTED</option>
                       <option value="Approved">Approved</option>
                       <option value="Inactive">Inactive</option>
                       <option value="Maintenance">Maintenance</option>

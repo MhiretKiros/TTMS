@@ -49,7 +49,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     driverAttributes: '',
     driverAddress: '',
     loadCapacity: '',
-    status: 'Active' // <-- ADDED: Initialize status
+    status: 'NOT_INSPECTED' // <-- ADDED: Initialize status
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,7 +59,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
       // Ensure status is included when setting form data from existing car
       setFormData({
         ...car,
-        status: car.status || 'Active' // Default to 'Active' if existing car has no status
+        status: car.status || 'NOT_INSPECTED' // Default to 'Active' if existing car has no status
       });
     } else {
       // Reset to default when creating a new car (if modal is reused)
@@ -80,7 +80,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
         driverAttributes: '',
         driverAddress: '',
         loadCapacity: '',
-        status: 'Active' // Reset status for new car
+        status: 'NOT_INSPECTED' // Reset status for new car
       });
     }
   }, [car]); // Dependency array remains [car]
@@ -253,7 +253,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                      disabled={isSubmitting}
                    >
-                     <option value="Active">Active</option>
+                     <option value="NOT_INSPECTED">NOT INSPECTED</option>
                      <option value="Maintenance">Maintenance</option>
                      <option value="Inactive">Inactive</option>
                    </select>

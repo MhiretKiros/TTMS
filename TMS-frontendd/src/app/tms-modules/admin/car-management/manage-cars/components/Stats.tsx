@@ -13,7 +13,7 @@ interface StatsProps {
 const Stats = ({ cars, onFilterClick, activeFilter }: StatsProps) => {
   // Calculate statistics
   const totalCars = cars.length;
-  const activeCars = cars.filter(car => car.status === 'Active').length;
+  const activeCars = cars.filter(car => car.status === 'NOT_INSPECTED').length;
   const maintenanceCars = cars.filter(car => car.status === 'Maintenance').length;
   const warningCars = cars.filter(car => parseFloat(car.kmPerLiter) < 10).length;
 

@@ -48,7 +48,7 @@ const CarSpecs = ({ car, className = '' }: CarSpecsProps) => {
       label: 'Status',
       value: car.status,
       icon: '🟢',
-      statusColor: car.status === 'Active' ? 'text-green-500' : 
+      statusColor: car.status === 'NOT_INSPECTED' ? 'text-green-500' : 
                   car.status === 'Maintenance' ? 'text-yellow-500' : 
                   'text-red-500'
     }

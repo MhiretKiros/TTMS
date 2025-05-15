@@ -13,7 +13,7 @@ const OrganizationCarStats = ({ cars, onFilterClick, activeFilter }: Organizatio
   const minibuses = cars.filter(car => car.carType === 'Minibus').length;
   const trucks = cars.filter(car => car.carType === 'Truck').length;
   const highCapacity = cars.filter(car => parseFloat(car.loadCapacity) > 1000).length;
-  const activeCars = cars.filter(car => car.status === 'Active').length;
+  const activeCars = cars.filter(car => car.status === 'NOT_INSPECTED').length;
 
   const stats = [
     {
@@ -28,7 +28,7 @@ const OrganizationCarStats = ({ cars, onFilterClick, activeFilter }: Organizatio
       title: 'Active',
       value: activeCars,
       icon: <FiActivity className="h-6 w-6" />,
-      filterKey: 'Active',
+      filterKey: 'NOT_INSPECTED',
       color: 'text-green-600',
       bgColor: 'bg-green-100'
     },
