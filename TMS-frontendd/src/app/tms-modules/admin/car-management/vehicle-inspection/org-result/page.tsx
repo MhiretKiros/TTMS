@@ -2,20 +2,21 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
-import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiLoader, FiCalendar, FiUser, FiClipboard, FiPercent } from 'react-icons/fi';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiLoader, FiCalendar, FiUser, FiClipboard, FiPercent, FiPrinter } from 'react-icons/fi';
+import { useReactToPrint } from 'react-to-print';
 
 // --- Enums ---
 enum InspectionStatus {
-    Approved = 'Approved',
-    Rejected = 'Rejected',
-    ConditionallyApproved = 'ConditionallyApproved',
+    Approved = 'APPROVED',
+    Rejected = 'REJECTED',
+    ConditionallyApproved = 'CONDITIONALLY_APPROVED',
 }
 
 enum ServiceStatus {
-    Ready = 'Ready',
-    ReadyWithWarning = 'ReadyWithWarning',
-    NotReady = 'NotReady',
+    Ready = 'READY',
+    ReadyWithWarning = 'READY_WITH_WARNING',
+    NotReady = 'NOT_READY',
 }
 
 enum SeverityLevel {
@@ -144,6 +145,25 @@ export default function CarInspectionResultPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const inspectionId = searchParams.get('inspectionId');
+    const componentRef = useRef<HTMLDivElement>(null);
+
+    const pageStyle = `
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    `;
+
+    const handlePrint = useReactToPrint({
+        contentRef: componentRef,
+        documentTitle: `InspectionReport-${inspectionResult?.plateNumber || 'UnknownPlate'}`,
+        pageStyle: pageStyle,
+    });
 
     const fetchInspectionDetails = useCallback(async () => {
         if (!inspectionId) {
@@ -187,17 +207,14 @@ export default function CarInspectionResultPage() {
                 throw new Error(errorMessage);
             }
 
-            // --- >>> Add Check Before Parsing JSON <<< ---
             const contentType = response.headers.get("content-type");
             if (response.status === 204 || !contentType || !contentType.includes("application/json")) {
               console.log("Received non-JSON or empty response from org-inspections (Status:", response.status, ")");
-              // Handle appropriately - maybe the inspection wasn't found or data is incomplete
               setError(`Org inspection details not found or response was empty (Status: ${response.status}).`);
-              setInspectionResult(null); // Set state to indicate not found/empty
-              setIsLoading(false); // Ensure loading stops
-              return; // Exit early
+              setInspectionResult(null);
+              setIsLoading(false);
+              return;
             }
-            // --- >>> End of Check <<< ---
 
             const data: InspectionResultData = await response.json();
             setInspectionResult(data);
@@ -216,7 +233,9 @@ export default function CarInspectionResultPage() {
     const getSectionPassStatus = useCallback((section: 'mechanical' | 'body' | 'interior'): boolean => {
         if (!inspectionResult) return false;
         if (section === 'mechanical') {
-            return inspectionResult.inspectionStatus !== InspectionStatus.Rejected;
+            const mechanicalData = inspectionResult.mechanical;
+            if (!mechanicalData) return false;
+            return Object.values(mechanicalData).every(check => check === true);
         }
         if (section === 'body' || section === 'interior') {
             return inspectionResult.inspectionStatus === InspectionStatus.Approved ||
@@ -381,127 +400,140 @@ export default function CarInspectionResultPage() {
     return (
         <div className="min-h-screen bg-gray-100 py-8">
             <div className="container max-w-5xl mx-auto px-4">
-                <div className="bg-white rounded-lg shadow-xl overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-5">
-                        <div className="flex flex-col sm:flex-row justify-between items-start">
-                            <div>
-                                <h1 className="text-2xl font-bold text-white">Vehicle Inspection Report</h1>
-                                <div className="mt-2 flex items-center">
-                                    <span className="text-purple-100">Plate Number:</span>
-                                    <span className="ml-2 text-white font-semibold text-lg font-mono">{inspectionResult.plateNumber}</span>
-                                </div>
-                            </div>
-                            <div className="text-purple-100 text-sm mt-2 sm:mt-0 flex items-center gap-1">
-                                <FiCalendar className="h-4 w-4" />
-                                <span>Inspected on: {new Date(inspectionResult.inspectionDate).toLocaleDateString()}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="p-6">
-                        {serviceQualification && (
-                            <div className={`mb-6 p-4 rounded-lg border-l-4 ${
-                                serviceQualification.color === 'green' ? 'border-green-500 bg-green-50' :
-                                serviceQualification.color === 'yellow' ? 'border-yellow-500 bg-yellow-50' :
-                                'border-red-500 bg-red-50'
-                            }`}>
-                                <div className="flex items-start">
-                                    <div className="flex-shrink-0 text-2xl mr-3">{serviceQualification.icon}</div>
-                                    <div>
-                                        <h3 className={`text-lg font-semibold ${
-                                            serviceQualification.color === 'green' ? 'text-green-800' :
-                                            serviceQualification.color === 'yellow' ? 'text-yellow-800' :
-                                            'text-red-800'
-                                        }`}>
-                                            {serviceQualification.message}
-                                        </h3>
-                                        {inspectionResult.inspectionStatus === InspectionStatus.Rejected && inspectionResult.rejectionReason && (
-                                            <p className="mt-1 text-sm text-red-700">
-                                                <span className="font-medium">Reason:</span> {inspectionResult.rejectionReason}
-                                            </p>
-                                        )}
-                                        {inspectionResult.warningMessage && (
-                                            <div className="mt-2 text-sm">
-                                                <p className="text-yellow-700">
-                                                    <span className="font-medium">Warning:</span> {inspectionResult.warningMessage}
-                                                </p>
-                                                {inspectionResult.warningDeadline && (
-                                                    <p className="text-yellow-700">
-                                                        <span className="font-medium">Deadline:</span> {new Date(inspectionResult.warningDeadline).toLocaleDateString()}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        )}
+                {/* Print Button */}
+                <div className="flex justify-end mb-4">
+                    <button
+                        onClick={handlePrint}
+                        className="no-print px-3 py-1.5 bg-white text-blue-600 rounded-md shadow hover:bg-gray-100 transition-colors text-sm flex items-center gap-2"
+                    >
+                        <FiPrinter className="h-4 w-4" />
+                        Print to PDF
+                    </button>
+                </div>
+                {/* Printable Content */}
+                <div ref={componentRef}>
+                    <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-5">
+                            <div className="flex flex-col sm:flex-row justify-between items-start">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-white">Vehicle Inspection Report</h1>
+                                    <div className="mt-2 flex items-center">
+                                        <span className="text-purple-100">Plate Number:</span>
+                                        <span className="ml-2 text-white font-semibold text-lg font-mono">{inspectionResult.plateNumber}</span>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <h3 className="font-semibold text-lg mb-3 text-gray-800 flex items-center gap-2"><FiClipboard /> Inspection Overview</h3>
-                                <DetailItem icon={<FiCalendar />} label="Inspection Date" value={new Date(inspectionResult.inspectionDate).toLocaleDateString()} />
-                                <DetailItem icon={<FiUser />} label="Inspector Name" value={inspectionResult.inspectorName} />
-                                <DetailItem
-                                    icon={inspectionResult.inspectionStatus === InspectionStatus.Approved ? <FiCheckCircle /> : inspectionResult.inspectionStatus === InspectionStatus.ConditionallyApproved ? <FiAlertTriangle /> : <FiXCircle />}
-                                    label="Overall Status"
-                                    value={inspectionResult.inspectionStatus}
-                                    highlight={inspectionResult.inspectionStatus === InspectionStatus.Approved ? 'green' : inspectionResult.inspectionStatus === InspectionStatus.ConditionallyApproved ? 'yellow' : 'red'}
-                                />
-                                <DetailItem
-                                    icon={inspectionResult.serviceStatus === ServiceStatus.Ready ? <FiCheckCircle /> : inspectionResult.serviceStatus === ServiceStatus.ReadyWithWarning ? <FiAlertTriangle /> : <FiXCircle />}
-                                    label="Service Status"
-                                    value={inspectionResult.serviceStatus}
-                                    highlight={inspectionResult.serviceStatus === ServiceStatus.Ready ? 'green' : inspectionResult.serviceStatus === ServiceStatus.ReadyWithWarning ? 'yellow' : 'red'}
-                                />
-                            </div>
-
-                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <h3 className="font-semibold text-lg mb-3 text-gray-800 flex items-center gap-2"><FiPercent /> Scores & Pass Status</h3>
-                                <DetailItem
-                                    icon={getSectionPassStatus('mechanical') ? <FiCheckCircle /> : <FiXCircle />}
-                                    label="Mechanical"
-                                    value={getSectionPassStatus('mechanical') ? 'Passed' : 'Failed'}
-                                    highlight={getSectionPassStatus('mechanical') ? 'green' : 'red'}
-                                />
-                                <DetailItem
-                                    icon={<FiPercent />}
-                                    label="Body Score"
-                                    value={`${inspectionResult.bodyScore}%`}
-                                    highlight={inspectionResult.bodyScore >= 80 ? 'green' : inspectionResult.bodyScore >= 60 ? 'yellow' : 'red'}
-                                />
-                                <DetailItem
-                                    icon={<FiPercent />}
-                                    label="Interior Score"
-                                    value={`${inspectionResult.interiorScore}%`}
-                                    highlight={inspectionResult.interiorScore >= 90 ? 'green' : inspectionResult.interiorScore >= 75 ? 'yellow' : 'red'}
-                                />
-                            </div>
-                        </div>
-
-                        {inspectionResult.notes && inspectionResult.notes.trim() && (
-                            <div className="mb-8 bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
-                                <div className="flex items-center mb-2">
-                                    <FiInfo className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0"/>
-                                    <h3 className="font-semibold text-lg text-blue-800">Inspector Notes</h3>
+                                <div className="text-purple-100 text-sm mt-2 sm:mt-0 flex items-center gap-1">
+                                    <FiCalendar className="h-4 w-4" />
+                                    <span>Inspected on: {new Date(inspectionResult.inspectionDate).toLocaleDateString()}</span>
                                 </div>
-                                <p className="text-gray-700 whitespace-pre-line text-sm">{inspectionResult.notes}</p>
                             </div>
-                        )}
-
-                        <div className="space-y-6">
-                            <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">Detailed Inspection Results</h2>
-                            <RenderInspectionSection data={inspectionResult.mechanical} title="Mechanical Inspection" sectionType="mechanical" />
-                            <RenderInspectionSection data={inspectionResult.body} title="Body Condition Inspection" sectionType="body" />
-                            <RenderInspectionSection data={inspectionResult.interior} title="Interior & Electrical Inspection" sectionType="interior" />
                         </div>
-                    </div>
 
-                    <div className="bg-gray-100 px-6 py-4 text-center text-sm text-gray-600 border-t border-gray-200">
-                        <p>Report generated on {new Date().toLocaleDateString()}</p>
-                        <button onClick={() => router.push('/tms-modules/admin/car-management/vehicle-inspection')} className="mt-2 text-blue-600 hover:underline text-xs">
-                            Back to Inspections List
-                        </button>
+                        <div className="p-6">
+                            {serviceQualification && (
+                                <div className={`mb-6 p-4 rounded-lg border-l-4 ${
+                                    serviceQualification.color === 'green' ? 'border-green-500 bg-green-50' :
+                                    serviceQualification.color === 'yellow' ? 'border-yellow-500 bg-yellow-50' :
+                                    'border-red-500 bg-red-50'
+                                }`}>
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0 text-2xl mr-3">{serviceQualification.icon}</div>
+                                        <div>
+                                            <h3 className={`text-lg font-semibold ${
+                                                serviceQualification.color === 'green' ? 'text-green-800' :
+                                                serviceQualification.color === 'yellow' ? 'text-yellow-800' :
+                                                'text-red-800'
+                                            }`}>
+                                                {serviceQualification.message}
+                                            </h3>
+                                            {inspectionResult.inspectionStatus === InspectionStatus.Rejected && inspectionResult.rejectionReason && (
+                                                <p className="mt-1 text-sm text-red-700">
+                                                    <span className="font-medium">Reason:</span> {inspectionResult.rejectionReason}
+                                                </p>
+                                            )}
+                                            {inspectionResult.warningMessage && (
+                                                <div className="mt-2 text-sm">
+                                                    <p className="text-yellow-700">
+                                                        <span className="font-medium">Warning:</span> {inspectionResult.warningMessage}
+                                                    </p>
+                                                    {inspectionResult.warningDeadline && (
+                                                        <p className="text-yellow-700">
+                                                            <span className="font-medium">Deadline:</span> {new Date(inspectionResult.warningDeadline).toLocaleDateString()}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                    <h3 className="font-semibold text-lg mb-3 text-gray-800 flex items-center gap-2"><FiClipboard /> Inspection Overview</h3>
+                                    <DetailItem icon={<FiCalendar />} label="Inspection Date" value={new Date(inspectionResult.inspectionDate).toLocaleDateString()} />
+                                    <DetailItem icon={<FiUser />} label="Inspector Name" value={inspectionResult.inspectorName} />
+                                    <DetailItem
+                                        icon={inspectionResult.inspectionStatus === InspectionStatus.Approved ? <FiCheckCircle /> : inspectionResult.inspectionStatus === InspectionStatus.ConditionallyApproved ? <FiAlertTriangle /> : <FiXCircle />}
+                                        label="Overall Status"
+                                        value={inspectionResult.inspectionStatus}
+                                        highlight={inspectionResult.inspectionStatus === InspectionStatus.Approved ? 'green' : inspectionResult.inspectionStatus === InspectionStatus.ConditionallyApproved ? 'yellow' : 'red'}
+                                    />
+                                    <DetailItem
+                                        icon={inspectionResult.serviceStatus === ServiceStatus.Ready ? <FiCheckCircle /> : inspectionResult.serviceStatus === ServiceStatus.ReadyWithWarning ? <FiAlertTriangle /> : <FiXCircle />}
+                                        label="Service Status"
+                                        value={inspectionResult.serviceStatus}
+                                        highlight={inspectionResult.serviceStatus === ServiceStatus.Ready ? 'green' : inspectionResult.serviceStatus === ServiceStatus.ReadyWithWarning ? 'yellow' : 'red'}
+                                    />
+                                </div>
+
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                    <h3 className="font-semibold text-lg mb-3 text-gray-800 flex items-center gap-2"><FiPercent /> Scores & Pass Status</h3>
+                                    <DetailItem
+                                        icon={getSectionPassStatus('mechanical') ? <FiCheckCircle /> : <FiXCircle />}
+                                        label="Mechanical"
+                                        value={getSectionPassStatus('mechanical') ? 'Passed' : 'Failed'}
+                                        highlight={getSectionPassStatus('mechanical') ? 'green' : 'red'}
+                                    />
+                                    <DetailItem
+                                        icon={<FiPercent />}
+                                        label="Body Score"
+                                        value={`${inspectionResult.bodyScore}%`}
+                                        highlight={inspectionResult.bodyScore >= 80 ? 'green' : inspectionResult.bodyScore >= 60 ? 'yellow' : 'red'}
+                                    />
+                                    <DetailItem
+                                        icon={<FiPercent />}
+                                        label="Interior Score"
+                                        value={`${inspectionResult.interiorScore}%`}
+                                        highlight={inspectionResult.interiorScore >= 90 ? 'green' : inspectionResult.interiorScore >= 75 ? 'yellow' : 'red'}
+                                    />
+                                </div>
+                            </div>
+
+                            {inspectionResult.notes && inspectionResult.notes.trim() && (
+                                <div className="mb-8 bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                                    <div className="flex items-center mb-2">
+                                        <FiInfo className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0"/>
+                                        <h3 className="font-semibold text-lg text-blue-800">Inspector Notes</h3>
+                                    </div>
+                                    <p className="text-gray-700 whitespace-pre-line text-sm">{inspectionResult.notes}</p>
+                                </div>
+                            )}
+
+                            <div className="space-y-6">
+                                <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">Detailed Inspection Results</h2>
+                                <RenderInspectionSection data={inspectionResult.mechanical} title="Mechanical Inspection" sectionType="mechanical" />
+                                <RenderInspectionSection data={inspectionResult.body} title="Body Condition Inspection" sectionType="body" />
+                                <RenderInspectionSection data={inspectionResult.interior} title="Interior & Electrical Inspection" sectionType="interior" />
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-100 px-6 py-4 text-center text-sm text-gray-600 border-t border-gray-200">
+                            <p>Report generated on {new Date().toLocaleDateString()}</p>
+                            <button onClick={() => router.push('/tms-modules/admin/car-management/vehicle-inspection')} className="mt-2 text-blue-600 hover:underline text-xs">
+                                Back to Inspections List
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -13,9 +13,15 @@ interface StatsProps {
 const Stats = ({ cars, onFilterClick, activeFilter }: StatsProps) => {
   // Calculate statistics
   const totalCars = cars.length;
-  const activeCars = cars.filter(car => car.status === 'NOT_INSPECTED').length;
-  const maintenanceCars = cars.filter(car => car.status === 'Maintenance').length;
-  const warningCars = cars.filter(car => parseFloat(car.kmPerLiter) < 10).length;
+  // Correctly count cars that are ready for service
+  const readyCarsCount = cars.filter(car => car.status === 'InspectedAndReady').length;
+  // Count cars in maintenance
+  const maintenanceCarsCount = cars.filter(car => car.status === 'Maintenance').length;
+  // Count cars that are inactive
+  const inactiveCarsCount = cars.filter(car => car.status === 'Pending').length;
+  // Count cars with low efficiency (kmPerLiter < 10)
+  // Ensure kmPerLiter is treated as a number for comparison
+  const lowEfficiencyCarsCount = cars.filter(car => car.kmPerLiter < 10).length;
 
   const stats = [
     {
@@ -27,24 +33,24 @@ const Stats = ({ cars, onFilterClick, activeFilter }: StatsProps) => {
       bgColor: 'bg-blue-100'
     },
     {
-      title: 'Approved Cars',
-      value: activeCars,
+      title: 'Ready Cars', // Changed title
+      value: readyCarsCount, // Updated value calculation
       icon: <FiCheckCircle className="h-6 w-6" />,
-      filterKey: 'Active',
+      filterKey: 'InspectedAndReady',
       color: 'text-green-600',
       bgColor: 'bg-green-100'
     },
     {
-      title: 'Warning Cars',
-      value: warningCars,
+      title: 'Rejected Cars', // Changed title
+      value: inactiveCarsCount, // Value calculation for low efficiency
       icon: <FiAlertTriangle className="h-6 w-6" />,
-      filterKey: 'Warning',
+      filterKey: 'Pending',
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-100'
     },
     {
       title: 'In Maintenance',
-      value: maintenanceCars,
+      value: maintenanceCarsCount, // Value calculation for maintenance
       icon: <FiClock className="h-6 w-6" />,
       filterKey: 'Maintenance',
       color: 'text-red-600',

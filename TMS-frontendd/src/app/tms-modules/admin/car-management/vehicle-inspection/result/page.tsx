@@ -1,11 +1,12 @@
 // src/app/tms-modules/admin/car-management/vehicle-inspection/result/page.tsx
 'use client';
 
+import { useRef } from 'react'; // Added useRef
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
-import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiLoader, FiCalendar, FiUser, FiClipboard, FiPercent } from 'react-icons/fi';
+import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiLoader, FiCalendar, FiUser, FiClipboard, FiPercent, FiPrinter } from 'react-icons/fi'; // Added FiPrinter
+import { useReactToPrint } from 'react-to-print'; // Added useReactToPrint
 
-// --- Enums ---
 enum InspectionStatus {
     Approved = 'Approved',
     Rejected = 'Rejected',
@@ -25,7 +26,6 @@ enum SeverityLevel {
     NONE = 'NONE',
 }
 
-// --- Types ---
 type ItemCondition = {
     problem: boolean;
     severity: SeverityLevel;
@@ -118,12 +118,13 @@ function DetailItem({ label, value, highlight, icon }: {
     value: string | number | null | undefined;
     highlight?: 'green' | 'yellow' | 'red';
     icon?: React.ReactNode;
-}) {
+})
+{
     const highlightClass = highlight === 'green' ? 'text-green-600' :
         highlight === 'yellow' ? 'text-yellow-600' :
         highlight === 'red' ? 'text-red-600' : 'text-gray-700';
 
-    return (
+     return (
         <div className="flex justify-between items-center py-1.5 border-b border-gray-200 last:border-0">
             <span className="text-sm text-gray-600 flex items-center gap-2">
                 {icon && <span className="text-gray-400">{icon}</span>}
@@ -136,7 +137,6 @@ function DetailItem({ label, value, highlight, icon }: {
     );
 }
 
-// --- Main Result Page Component ---
 export default function CarInspectionResultPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -144,6 +144,26 @@ export default function CarInspectionResultPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const inspectionId = searchParams.get('inspectionId');
+    const componentRef = useRef<HTMLDivElement>(null);
+
+    const pageStyle = `
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    `;
+
+    const handlePrint = useReactToPrint({
+        content: () => componentRef.current,
+        documentTitle: `InspectionReport-${inspectionResult?.plateNumber || 'UnknownPlate'}`,
+        pageStyle: pageStyle,
+        contentRef: componentRef, // Add this line to fix the error
+    });
 
     const fetchInspectionDetails = useCallback(async () => {
         if (!inspectionId) {
@@ -368,17 +388,27 @@ export default function CarInspectionResultPage() {
 
     return (
         <div className="min-h-screen bg-gray-100 py-8">
-            <div className="container max-w-5xl mx-auto px-4">
-                <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+            <div className="container max-w-5xl mx-auto px-4" >
+<div className="flex justify-end mb-4">
+                    <button
+                        onClick={handlePrint}
+                        className="no-print px-3 py-1.5 bg-white text-blue-600 rounded-md shadow hover:bg-gray-100 transition-colors text-sm flex items-center gap-2"
+                    >
+                        <FiPrinter className="h-4 w-4" />
+                        Print to PDF
+                    </button>
+                </div>
+                <div className="bg-white rounded-lg shadow-xl overflow-hidden" ref={componentRef}>
                     <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-5">
                         <div className="flex flex-col sm:flex-row justify-between items-start">
                             <div>
                                 <h1 className="text-2xl font-bold text-white">Vehicle Inspection Report</h1>
                                 <div className="mt-2 flex items-center">
                                     <span className="text-purple-100">Plate Number:</span>
-                                    <span className="ml-2 text-white font-semibold text-lg font-mono">{inspectionResult.plateNumber}</span>
+                                    <span className="ml-2 text-white font-semibold text-lg font-mono">{inspectionResult?.plateNumber}</span>
                                 </div>
                             </div>
+                            
                             <div className="text-purple-100 text-sm mt-2 sm:mt-0 flex items-center gap-1">
                                 <FiCalendar className="h-4 w-4" />
                                 <span>Inspected on: {new Date(inspectionResult.inspectionDate).toLocaleDateString()}</span>
@@ -487,7 +517,7 @@ export default function CarInspectionResultPage() {
 
                     <div className="bg-gray-100 px-6 py-4 text-center text-sm text-gray-600 border-t border-gray-200">
                         <p>Report generated on {new Date().toLocaleDateString()}</p>
-                        <button onClick={() => router.push('/tms-modules/admin/car-management/vehicle-inspection')} className="mt-2 text-blue-600 hover:underline text-xs">
+                        <button onClick={() => router.push('/tms-modules/admin/car-management/vehicle-inspection')} className="no-print mt-2 text-blue-600 hover:underline text-xs">
                             Back to Inspections List
                         </button>
                     </div>

@@ -21,7 +21,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     kmPerLiter: '',
     totalKm: '',
     fuelType: 'Petrol',
-    status: 'Active',
+    status: 'NOT_INSPECTED',
     registeredDate: new Date().toISOString().split('T')[0],
     parkingLocation: ''
   });
@@ -321,8 +321,8 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
 
               {/* Status */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
+                {/* <label className="block text-sm font-medium text-gray-700 mb-1">Status</label> */}
+                {/* <select
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
@@ -333,7 +333,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                   <option value="Approved">Approved</option>
                   <option value="Maintenance">Maintenance</option>
                   <option value="Inactive">Inactive</option>
-                </select>
+                </select> */}
               </div>
             </div>
 

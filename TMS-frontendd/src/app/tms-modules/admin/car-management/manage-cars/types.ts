@@ -1,17 +1,16 @@
-// src/app/true-modules/admin/car-management/types.ts
 export interface Car {
-    id: number; // Changed from string to number to match your backend
+    id: number; 
     plateNumber: string;
     ownerName: string;
     ownerPhone: string;
     model: string;
     carType: 'Minibus' | 'Bus' | 'Sedan' | 'SUV' | 'Truck';
     manufactureYear: string;
-    motorCapacity: string;
-    kmPerLiter: string;
-    totalKm: string;
+    motorCapacity: number;
+    kmPerLiter: number;
+    totalKm: number;
     fuelType: 'Petrol' | 'Diesel' | 'Electric' | 'Hybrid';
-    status: 'NOT_INSPECTED' | 'Approved' | 'Maintenance' | 'Inactive';
+    status: 'NOT_INSPECTED' | 'InspectedAndReady' | 'Maintenance' | 'Inactive' | 'APPROVED' | 'Pending'|'Rejected';
     registeredDate: string;
     parkingLocation: string;
   }
@@ -22,8 +21,4 @@ export interface Car {
     message?: string;
   }
   
-  export interface CarReqRes {
-    success: boolean;
-    message?: string;
-    data: Car | Car[] | null;
-  }
+  export type CarReqRes = ApiResponse<Car | Car[] | null>;

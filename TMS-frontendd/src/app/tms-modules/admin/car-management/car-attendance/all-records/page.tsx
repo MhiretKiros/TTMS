@@ -5,17 +5,17 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation'; // Import useRouter
 import { FiSearch, FiX, FiArrowLeft } from 'react-icons/fi'; // Added FiArrowLeft for back button
 import { fetchAllAttendanceRecordsAPI, FrontendAttendanceEntry } from '../components/carAttendanceApi';
-// You might want a loading spinner component
-// import { FiLoader } from 'react-icons/fi'; 
 
-export default function AllAttendancePage() {
+type AttendanceEntryWithRemarks = FrontendAttendanceEntry & { remarks?: string };
+
+export default function AllAttendanceRecordsPage() {
+  const [allRecords, setAllRecords] = useState<AttendanceEntryWithRemarks[]>([]); // Store all fetched records
+  const [filteredRecords, setFilteredRecords] = useState<AttendanceEntryWithRemarks[]>([]); // Records to display
+  const [isLoading, setIsLoading] = useState<boolean>(false); // Loading state
   const router = useRouter(); // Initialize router
-  const [allRecords, setAllRecords] = useState<FrontendAttendanceEntry[]>([]); // Store all fetched records
-  const [filteredRecords, setFilteredRecords] = useState<FrontendAttendanceEntry[]>([]); // Records to display
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedRecordModal, setSelectedRecordModal] = useState<AttendanceEntryWithRemarks | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedRecordModal, setSelectedRecordModal] = useState<FrontendAttendanceEntry | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -23,8 +23,12 @@ export default function AllAttendancePage() {
         setIsLoading(true);
         setError(null);
         const records = await fetchAllAttendanceRecordsAPI();
-        setAllRecords(records);
-        setFilteredRecords(records); // Initially, display all records
+        const mappedRecords = records.map((rec: any) => ({
+          ...rec,
+          kmAtFueling: rec.kmAtFueling ?? rec.km_at_fueling, // map snake_case to camelCase
+        }));
+        setAllRecords(mappedRecords);
+        setFilteredRecords(mappedRecords); // Initially, display all records
       } catch (err: any) {
         setError(err.message || 'Failed to load attendance records.');
         console.error(err);
@@ -49,7 +53,6 @@ export default function AllAttendancePage() {
     }
   };
 
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -70,7 +73,7 @@ export default function AllAttendancePage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <button
           onClick={() => router.back()}
           className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center self-start sm:self-center"
@@ -100,48 +103,51 @@ export default function AllAttendancePage() {
       {filteredRecords.length === 0 ? (
         <p className="text-center text-gray-500">No attendance records found.</p>
       ) : (
-
         <div className="overflow-x-auto shadow-lg rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100">
+          <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg">
+            <thead className="bg-indigo-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plate Number</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Car Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Morning KM</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Evening KM</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Daily KM Diff</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fuel Added (L)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overnight KM Diff</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KM at Fueling</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KM/L</th>
-                {/* Driver Name could be added here or kept for modal for brevity */}
-              </tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Plate Number</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Car Type</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Driver Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Morning KM</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Evening KM</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Daily KM Diff</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Overnight KM Diff</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Fuel Added (L)</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">KM at Fueling</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">KM/L</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Remarks</th>
+               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredRecords.map((record) => (
-                <tr 
-                  key={record.id} 
-                  className="hover:bg-gray-100 cursor-pointer"
+            <tbody>
+              {filteredRecords.map((record, idx) => (
+                <tr
+                  key={record.id}
+                  className={`cursor-pointer transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-indigo-100`}
                   onClick={() => setSelectedRecordModal(record)}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{record.plateNumber}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{record.carType}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(record.date + 'T00:00:00').toLocaleDateString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.morningKm ?? 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.nightKm ?? 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.kmDifference ?? 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.fuelLitersAdded ?? 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.overnightKmDifference ?? 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.kmAtFueling ?? 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.kmPerLiter === 0 && record.driverName === 'N/A' ? 'N/A' : record.kmPerLiter}</td>
-                </tr>
+                  <td className="px-4 py-3">{record.plateNumber}</td>
+                  <td className="px-4 py-3">{record.carType}</td>
+                  <td className="px-4 py-3">{record.driverName}</td>
+                  <td className="px-4 py-3">{new Date(record.date + 'T00:00:00').toLocaleDateString()}</td>
+                  <td className="px-4 py-3">{record.morningKm ?? 'N/A'}</td>
+                  <td className="px-4 py-3">{record.nightKm ?? 'N/A'}</td>
+                  <td className="px-4 py-3">{record.kmDifference ?? 'N/A'}</td>
+                  <td className="px-4 py-3">{record.overnightKmDifference ?? 'N/A'}</td>
+                  <td className="px-4 py-3">{record.fuelLitersAdded ?? 'N/A'}</td>
+                  <td className="px-4 py-3">{record.kmAtFueling ?? 'N/A'}</td>
+                  <td className="px-4 py-3">{record.kmPerLiter === 0 && record.driverName === 'N/A' ? 'N/A' : record.kmPerLiter}</td>
+                  <td className="px-4 py-3">{record.remarks ?? 'N/A'}</td>
+                  </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
 
+      {/* Modal for record details */}
       {selectedRecordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -152,18 +158,14 @@ export default function AllAttendancePage() {
               </button>
             </div>
             <div className="space-y-3 text-sm">
-              <p><strong>ID:</strong> {selectedRecordModal.id}</p>
-              <p><strong>Plate Number:</strong> {selectedRecordModal.plateNumber}</p>
-              <p><strong>Car Type:</strong> <span className="capitalize">{selectedRecordModal.carType}</span></p>
-              <p><strong>Driver Name:</strong> {selectedRecordModal.driverName}</p>
-              <p><strong>KM per Liter:</strong> {selectedRecordModal.kmPerLiter === 0 && selectedRecordModal.driverName === 'N/A' ? 'N/A' : `${selectedRecordModal.kmPerLiter} km/l`}</p>
-              <p><strong>Date:</strong> {new Date(selectedRecordModal.date + 'T00:00:00').toLocaleDateString()}</p>
-              <p><strong>Morning KM:</strong> {selectedRecordModal.morningKm ?? 'N/A'}</p>
-              <p><strong>Evening KM (Night KM):</strong> {selectedRecordModal.nightKm ?? 'N/A'}</p>
-              <p><strong>Daily KM Difference:</strong> {selectedRecordModal.kmDifference ?? 'N/A'}</p>
-              <p><strong>Overnight KM Difference:</strong> {selectedRecordModal.overnightKmDifference ?? 'N/A'}</p>
-              <p><strong>Fuel Liters Added:</strong> {selectedRecordModal.fuelLitersAdded ?? 'N/A'}</p>
-              <p><strong>KM at Fueling:</strong> {selectedRecordModal.kmAtFueling ?? 'N/A'}</p>
+              {Object.entries(selectedRecordModal).map(([key, value]) => (
+                <p key={key}>
+                  <strong>{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</strong>{" "}
+                  {typeof value === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('at'))
+                    ? new Date(value).toLocaleString()
+                    : value ?? 'N/A'}
+                </p>
+              ))}
             </div>
             <button
               onClick={() => setSelectedRecordModal(null)}

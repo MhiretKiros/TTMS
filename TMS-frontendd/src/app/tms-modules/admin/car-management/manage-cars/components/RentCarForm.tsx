@@ -47,60 +47,73 @@ interface RentCar {
   km: string;
 }
 
+// Define initial state outside the component for stability and reusability
+const initialRentCarFormData: RentCar = {
+  frameNo: '',
+  companyName: '',
+  vehiclesUsed: '',
+  bodyType: '',
+  model: '',
+  motorNumber: '',
+  proYear: new Date().getFullYear().toString(),
+  cc: '',
+  department: '',
+  vehiclesType: '',
+  plateNumber: '',
+  color: '',
+  door: '',
+  cylinder: '',
+  fuelType: 'Petrol',
+  status: 'NOT_INSPECTED', // Default status
+  otherDescription: '',
+  radio: '',
+  antena: '',
+  krik: '',
+  krikManesha: '',
+  tyerStatus: '',
+  gomaMaficha: '',
+  mefcha: '',
+  reserveTayer: '',
+  gomaGet: '',
+  pinsa: '',
+  kacavite: '',
+  fireProtection: '',
+  source: '',
+  vehiclesDonorName: '',
+  dateOfIn: new Date().toISOString().split('T')[0],
+  dateOfOut: '',
+  vehiclesPhoto: '',
+  vehiclesUserName: '',
+  position: '',
+  libre: '',
+  transmission: '',
+  dataAntollerNatue: '',
+  km: ''
+};
+
 const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
   car: RentCar | null;
   onClose: () => void;
   onSubmit: (carData: RentCar) => Promise<void>;
   isSubmitting: boolean;
 }) => {
-  const [formData, setFormData] = useState<RentCar>({
-    frameNo: '',
-    companyName: '',
-    vehiclesUsed: '',
-    bodyType: '',
-    model: '',
-    motorNumber: '',
-    proYear: new Date().getFullYear().toString(),
-    cc: '',
-    department: '',
-    vehiclesType: '',
-    plateNumber: '',
-    color: '',
-    door: '',
-    cylinder: '',
-    fuelType: 'Petrol',
-    status: 'NOT_INSPECTED',
-    otherDescription: '',
-    radio: '',
-    antena: '',
-    krik: '',
-    krikManesha: '',
-    tyerStatus: '',
-    gomaMaficha: '',
-    mefcha: '',
-    reserveTayer: '',
-    gomaGet: '',
-    pinsa: '',
-    kacavite: '',
-    fireProtection: '',
-    source: '',
-    vehiclesDonorName: '',
-    dateOfIn: new Date().toISOString().split('T')[0],
-    dateOfOut: '',
-    vehiclesPhoto: '',
-    vehiclesUserName: '',
-    position: '',
-    libre: '',
-    transmission: '',
-    dataAntollerNatue: '',
-    km: ''
-  });
+  const [formData, setFormData] = useState<RentCar>(initialRentCarFormData);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (car) {
-      setFormData(car);
+      // When editing, set form data from car prop.
+      // Ensure status from car is used, or fallback if car.status is missing/falsy.
+      setFormData({
+        ...initialRentCarFormData, // Spread initial state first to ensure all fields are present
+        ...car,                   // Then spread car to override with its values
+        status: car.status || initialRentCarFormData.status, // Explicitly handle status, fallback to default
+      });
+    } else {
+      // When creating a new car (car is null), or if form is cleared.
+      // Reset to the initial default state.
+      setFormData(initialRentCarFormData);
     }
   }, [car]);
 
@@ -118,6 +131,8 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     if (!formData.companyName) newErrors.companyName = 'Company name is required';
     if (!formData.plateNumber) newErrors.plateNumber = 'Plate number is required';
     if (!formData.model) newErrors.model = 'Model is required';
+    // Add validation for status, ensuring it's not empty.
+    if (!formData.status) newErrors.status = 'Status is required';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -128,13 +143,15 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     if (!validateForm()) return;
 
     try {
-      const carData = car 
-        ? { ...formData, id: car.id } 
-        : { ...formData, id: 0 };
+      // For new cars, send formData as is. It includes 'status' from initialization.
+      // For existing cars (update), ensure 'id' is included from the 'car' prop.
+      const carDataToSubmit = (car && car.id)
+        ? { ...formData, id: car.id } // Update existing car
+        : { ...formData };            // Create new car
       
-      await onSubmit(carData);
+      await onSubmit(carDataToSubmit as RentCar);
     } catch (error) {
-      // Error is handled in parent component
+      console.error("Error during form submission in RentCarForm:", error);
     }
   };
 
@@ -377,7 +394,24 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       disabled={isSubmitting}
                     />
                   </div>
-
+<div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vehicles Status *</label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={isSubmitting}
+                    >
+                      <option value="NOT_INSPECTED">Not Inspected</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Inactive">Inactive</option>
+                      <option value="Maintenance">Maintenance</option>
+                    </select>
+                    {errors.status && (
+                      <p className="mt-1 text-sm text-red-600">{errors.status}</p>
+                    )}
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Type</label>
                     <select
@@ -394,21 +428,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Vehicles Status</label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={isSubmitting}
-                    >
-                      <option value="NOT_INSPECTED">NOTINSPECTED</option>
-                      <option value="Approved">Approved</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Maintenance">Maintenance</option>
-                    </select>
-                  </div>
+                  
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Other Description</label>

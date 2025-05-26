@@ -1,6 +1,6 @@
 "use client";
 import { motion } from 'framer-motion';
-import { FiActivity, FiTruck, FiUser, FiPackage } from 'react-icons/fi';
+import { FiActivity, FiTruck, FiUsers, FiCheckCircle, FiXCircle, FiClock } from 'react-icons/fi';
 
 interface OrganizationCarStatsProps {
   cars: any[];
@@ -10,10 +10,11 @@ interface OrganizationCarStatsProps {
 
 const OrganizationCarStats = ({ cars, onFilterClick, activeFilter }: OrganizationCarStatsProps) => {
   const totalCars = cars.length;
-  const minibuses = cars.filter(car => car.carType === 'Minibus').length;
-  const trucks = cars.filter(car => car.carType === 'Truck').length;
-  const highCapacity = cars.filter(car => parseFloat(car.loadCapacity) > 1000).length;
-  const activeCars = cars.filter(car => car.status === 'NOT_INSPECTED').length;
+  const readyVehiclesCount = cars.filter(car => car.status === 'InspectedAndReady').length;
+  const rejectedVehiclesCount = cars.filter(car => car.status === 'Rejected').length;
+  const maintenanceVehiclesCount = cars.filter(car => car.status === 'Maintenance').length;
+  const minibusesCount = cars.filter(car => car.carType === 'Minibus').length;
+  const trucksCount = cars.filter(car => car.carType === 'Truck').length;
 
   const stats = [
     {
@@ -25,42 +26,50 @@ const OrganizationCarStats = ({ cars, onFilterClick, activeFilter }: Organizatio
       bgColor: 'bg-blue-100'
     },
     {
-      title: 'Active',
-      value: activeCars,
-      icon: <FiActivity className="h-6 w-6" />,
-      filterKey: 'NOT_INSPECTED',
+      title: 'Ready Vehicles',
+      value: readyVehiclesCount,
+      icon: <FiCheckCircle className="h-6 w-6" />,
+      filterKey: 'InspectedAndReady',
       color: 'text-green-600',
       bgColor: 'bg-green-100'
     },
     {
+      title: 'Rejected Vehicles',
+      value: rejectedVehiclesCount,
+      icon: <FiXCircle className="h-6 w-6" />,
+      filterKey: 'Rejected',
+      color: 'text-red-600',
+      bgColor: 'bg-red-100'
+    },
+    {
+      title: 'In Maintenance',
+      value: maintenanceVehiclesCount,
+      icon: <FiClock className="h-6 w-6" />,
+      filterKey: 'Maintenance',
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-100'
+    },
+    {
       title: 'Minibuses',
-      value: minibuses,
-      icon: <FiUser className="h-6 w-6" />,
+      value: minibusesCount,
+      icon: <FiUsers className="h-6 w-6" />, // Changed icon for Minibuses
       filterKey: 'Minibus',
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
     },
     {
       title: 'Trucks',
-      value: trucks,
+      value: trucksCount,
       icon: <FiTruck className="h-6 w-6" />,
       filterKey: 'Truck',
       color: 'text-orange-600',
       bgColor: 'bg-orange-100'
     },
-    {
-      title: 'High Capacity',
-      value: highCapacity,
-      icon: <FiPackage className="h-6 w-6" />,
-      filterKey: 'HighCapacity',
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-100'
-    },
   ];
 
   return (
     <motion.div
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6"
+      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6" // Adjusted grid for 6 items
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ staggerChildren: 0.1 }}

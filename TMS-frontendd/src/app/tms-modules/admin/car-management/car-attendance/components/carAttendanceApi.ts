@@ -5,7 +5,8 @@ const API_ATTENDANCE_BASE_URL = 'http://localhost:8080/api/car-attendance'; // F
 const API_VEHICLES_BASE_URL = 'http://localhost:8080/api/vehicles'; // For vehicle specific endpoints
 
 // --- Frontend-specific Interfaces (mostly for mock functions or component state) ---
-export interface CarDetails { // Used by mock fetchCarDetailsAPI and component state
+export interface CarDetails {
+  currentKm: string; // Used by mock fetchCarDetailsAPI and component state
   driverName: string;
   kmPerLiter: number;
   plateNumber: string;

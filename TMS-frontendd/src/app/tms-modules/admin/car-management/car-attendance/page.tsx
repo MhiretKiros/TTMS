@@ -1,8 +1,7 @@
-// c:/Users/biruk/Desktop/TMS/TMS-frontendd/src/app/tms-modules/admin/car-management/car-attendance/page.tsx
 'use client'
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation'; // Import useRouter
-import { FiSearch, FiLoader, FiSave, FiList } from 'react-icons/fi'; // Added FiList
+import { useRouter } from 'next/navigation';
+import { FiSearch, FiLoader, FiSave, FiList, FiDroplet } from 'react-icons/fi'; // Added FiDroplet
 import {
   fetchPlateSuggestionsAPI,
   fetchCarDetailsAPI,
@@ -25,8 +24,6 @@ import {
 // Rename FrontendAttendanceEntry to AttendanceEntry for brevity in the component
 type AttendanceEntry = FrontendAttendanceEntry;
 
-
-// Debounce function (moved outside for stability)
 const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: Parameters<F>): Promise<ReturnType<F>> =>
@@ -36,6 +33,11 @@ const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) =
     });
 };
 
+function isMorningAttendance() {
+  const now = new Date();
+  const hour = now.getHours();
+  return hour >= 7 && hour < 15;
+}
 
 export default function CarAttendancePage() {
   const [carType, setCarType] = useState<'organization' | 'personal' | ''>('');
@@ -52,29 +54,18 @@ export default function CarAttendancePage() {
   const [overnightKmDifference, setOvernightKmDifference] = useState<number | null>(null);
   const [previousEveningKm, setPreviousEveningKm] = useState<number | null>(null);
 
-  // Consolidated State for fuel filling
-  const [fuelFilled, setFuelFilled] = useState(false);
-  const [fuelLiters, setFuelLiters] = useState('');
-  const [kmAtFueling, setKmAtFueling] = useState(''); // UI only for now, not sent to backend yet
   const [formMessage, setFormMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State for the two-step attendance process
-  // True if a morning arrival has been recorded and we're ready for evening departure KM
   const [isEveningDepartureMode, setIsEveningDepartureMode] = useState(false);
   // Stores the details of the morning arrival record if found
   const [isDayComplete, setIsDayComplete] = useState(false); // New state: true if both morning and evening KM recorded for today
   const [morningArrivalRecordDetails, setMorningArrivalRecordDetails] = useState<AttendanceEntry | null>(null);
 
-  const router = useRouter(); // Initialize router
-
-  // Debounced fetch for plate suggestions
-  // `fetchPlateSuggestionsAPI` is stable as it's defined outside the component.
+  const router = useRouter(); 
   const debouncedFetchSuggestions = useCallback(debounce(fetchPlateSuggestionsAPI, 300), []);
 
-  // Effect to fetch suggestions as plateNumberInput changes
   useEffect(() => {
-    // Clear selected car details and attendance status when input changes significantly
     setSelectedCarDetails(null);
     setMorningArrivalRecordDetails(null);
     setIsDayComplete(false); // Reset day complete status
@@ -84,9 +75,6 @@ export default function CarAttendancePage() {
     setKmDifference(null);
     setOvernightKmDifference(null);
     setPreviousEveningKm(null);
-    setFuelFilled(false); // Reset consolidated fuel state
-    setFuelLiters('');
-    setKmAtFueling('');
     setFormMessage(null);
 
      if (plateNumberInput.trim().length > 1) {
@@ -121,8 +109,6 @@ export default function CarAttendancePage() {
     // Other states (selectedCarDetails, morningKm, etc.) are reset by the main useEffect
     // if plateNumberInput was changed prior to calling this function (e.g., by suggestion click).
     setFormMessage(null); 
-
-
     try {
       const details = await fetchCarDetailsAPI(plate);
       if (details) {
@@ -257,24 +243,13 @@ export default function CarAttendancePage() {
            setIsSubmitting(false); return;
         }
 
-        let currentFuelLiters: number | null = null;
-        let currentKmAtFueling: number | null = null;
-
-        if (fuelFilled && fuelLiters.trim() !== '') {
-          currentFuelLiters = parseFloat(fuelLiters);
-          if (kmAtFueling.trim() !== '') {
-            currentKmAtFueling = parseFloat(kmAtFueling);
-          }
-        }
-
         const departureRequest: EveningDepartureRequest = {
           eveningKm: eveningDepartureKmVal,
-          fuelLitersAdded: currentFuelLiters,
-          kmAtFueling: currentKmAtFueling,
+          // Fuel fields are optional and not sent from here
         };
         // morningArrivalRecordDetails.id is now a number
         const recordedDeparture = await recordEveningDepartureAPI(morningArrivalRecordDetails.id, departureRequest, selectedCarDetails);
-        const displayedKmDifference = recordedDeparture.dailyKmDifference ?? finalKmDifference;
+        const displayedKmDifference = recordedDeparture.kmDifference ?? finalKmDifference;
         setFormMessage({ type: 'success', text: `Evening Departure for ${selectedCarDetails.plateNumber} recorded. KM used today: ${displayedKmDifference} KM.` });
 
       } else {
@@ -289,36 +264,15 @@ export default function CarAttendancePage() {
           setIsSubmitting(false); return;
         }
 
-        let currentFuelLiters: number | null = null;
-        let currentKmAtFueling: number | null = null;
-
-        if (fuelFilled && fuelLiters.trim() !== '') {
-          currentFuelLiters = parseFloat(fuelLiters);
-          if (kmAtFueling.trim() !== '') {
-            currentKmAtFueling = parseFloat(kmAtFueling);
-          }
-        }
-
         const arrivalRequest: MorningArrivalRequest = {
             plateNumber: selectedCarDetails.plateNumber,
             vehicleType: mapCarTypeToVehicleType(selectedCarDetails.carType),
             morningKm: morningArrivalKmVal,
             overnightKmDifference: overnightKmDifference, // Send the calculated overnight difference
-            fuelLitersAdded: currentFuelLiters,
-            kmAtFueling: currentKmAtFueling,
+            // Fuel fields are optional and not sent from here
         };
-        const recordedArrival = await recordMorningArrivalAPI(arrivalRequest, selectedCarDetails);
 
-        let successMessage = `Morning Arrival for ${selectedCarDetails.plateNumber} recorded at ${morningArrivalKmVal} KM.`;
-        // Use overnightKmDifference from response if available, otherwise from local calculation
-        const overnightDiffToDisplay = recordedArrival.overnightKmDifference ?? overnightKmDifference;
-        if (overnightDiffToDisplay !== null) {
-          successMessage += ` Overnight KM: ${overnightDiffToDisplay}`;
-        }
-        if (currentFuelLiters !== null) {
-          successMessage += ` Fuel added: ${currentFuelLiters}L.`;
-        }
-        setFormMessage({ type: 'success', text: successMessage });
+        await handleAttendanceSubmit(arrivalRequest);
       }
 
       // Reset form after successful submission
@@ -332,6 +286,34 @@ export default function CarAttendancePage() {
     }
   };
 
+  const handleAttendanceSubmit = async (payload: any) => {
+    try {
+      payload.isMorning = isMorningAttendance();
+
+      // Show confirm dialog if not morning
+      if (!payload.isMorning) {
+        const confirmed = window.confirm(
+          "Warning: You are not within the morning attendance time (7:00 - 15:00).\nDo you want to proceed with registering the attendance?"
+        );
+        if (!confirmed) {
+          // User cancelled, do not proceed
+          return;
+        }
+      }
+
+      await recordMorningArrivalAPI(payload);
+      // ...success logic...
+    } catch (err: any) {
+      let errorMsg = "Failed to record attendance.";
+      if (err?.response?.status === 500) {
+        errorMsg = `The car with plate number ${payload.plateNumber} is already checked for today.`;
+      } else if (err?.message) {
+        errorMsg = err.message;
+      }
+      alert(errorMsg);
+    }
+  };
+
   // Function to reset all form-related states
   const resetFormState = () => {
     setCarType(''); // Reset car type filter
@@ -339,17 +321,18 @@ export default function CarAttendancePage() {
     // The main useEffect watching plateNumberInput and carType will handle resetting:
     // - selectedCarDetails, morningArrivalRecordDetails, isEveningDepartureMode
     // - morningKm, nightKm, kmDifference, overnightKmDifference, previousEveningKm
-    // - plateSuggestions (if plateNumberInput becomes empty)
-    // - Consolidated Fuel related states
-    setFuelFilled(false);
-    setFuelLiters('');
-    setKmAtFueling('');
-    // - formMessage
+    // - plateSuggestions (if plateNumberInput becomes empty)    
+    // - formMessage is reset in handleSubmit or when plateNumberInput changes
   };
 
   // Function to navigate to the all records page
   const handleShowAllRecords = () => {
     router.push('/tms-modules/admin/car-management/car-attendance/all-records');
+  };
+
+  // Function to navigate to the fuel entry page
+  const handleAddFuelEntry = () => {
+    router.push('/tms-modules/admin/car-management/car-attendance/fuel-entry');
   };
 
   // Helper to display date, ensuring it's treated as local
@@ -365,18 +348,26 @@ export default function CarAttendancePage() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white shadow-xl rounded-lg">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-gray-700">Record Car Attendance</h1>
-        <button
-          onClick={handleShowAllRecords}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 flex items-center"
-        >
-          <FiList className="mr-2" /> Show All Records
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={handleAddFuelEntry}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 flex items-center"
+          >
+            <FiDroplet className="mr-2" /> Add Fuel
+          </button>
+          <button
+            onClick={handleShowAllRecords}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 flex items-center"
+          >
+            <FiList className="mr-2" /> All Records
+          </button>
+        </div>
       </div>
 
       {formMessage && (
-        <div className={`p-3 mb-4 rounded-md text-sm ${formMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+        <div className={`mb-4 p-3 rounded ${formMessage.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
           {formMessage.text}
         </div>
       )}
@@ -499,35 +490,6 @@ export default function CarAttendancePage() {
             />
           </div>
         </div>
-
-        {/* Consolidated Fuel Filling Section - Show if a car is selected */}
-        {selectedCarDetails && (
-          <div className="mt-4 p-4 border border-dashed border-gray-300 rounded-md">
-            <h3 className="text-md font-semibold text-gray-700 mb-2">Fuel Details (If Applicable)</h3>
-            <div className="flex items-center mb-2">
-              <input
-                type="checkbox"
-                id="fuelFilled"
-                checked={fuelFilled}
-                onChange={(e) => setFuelFilled(e.target.checked)}
-                disabled={isSubmitting || isDayComplete}
-                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-              />
-              <label
-                htmlFor="fuelFilled"
-                className="ml-2 block text-sm text-gray-900"
-              >
-                Fuel was added?
-              </label>
-            </div>
-            {fuelFilled && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label htmlFor="fuelLiters" className="block text-sm font-medium text-gray-700">Liters Added</label><input type="number" id="fuelLiters" value={fuelLiters} onChange={(e) => setFuelLiters(e.target.value)} placeholder="e.g., 30" className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${isDayComplete ? 'bg-gray-100 cursor-not-allowed' : ''}`} min="0" step="0.01" disabled={isDayComplete} /></div>
-                <div><label htmlFor="kmAtFueling" className="block text-sm font-medium text-gray-700">KM at Fueling</label><input type="number" id="kmAtFueling" value={kmAtFueling} onChange={(e) => setKmAtFueling(e.target.value)} placeholder="Odometer at fueling" className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${isDayComplete ? 'bg-gray-100 cursor-not-allowed' : ''}`} min="0" disabled={isDayComplete} /></div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Show KM difference only if calculated and in Evening Departure mode */}
         {isEveningDepartureMode && kmDifference !== null && (

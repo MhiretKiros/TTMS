@@ -243,7 +243,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
 
                  {/* ADDED Status Field Here */}
                  <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                   {/* <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
                    <select
                      name="status"
                      value={formData.status}
@@ -256,7 +256,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                      <option value="NOT_INSPECTED">NOT INSPECTED</option>
                      <option value="Maintenance">Maintenance</option>
                      <option value="Inactive">Inactive</option>
-                   </select>
+                   </select> */}
                    {errors.status && (
                      <p className="mt-1 text-sm text-red-600">{errors.status}</p>
                    )}

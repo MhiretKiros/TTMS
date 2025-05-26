@@ -1,6 +1,6 @@
 "use client";
 import { motion } from 'framer-motion';
-import { FiActivity, FiCheckCircle, FiAlertTriangle, FiClock } from 'react-icons/fi';
+import { FiActivity, FiCheckCircle, FiTool, FiBriefcase, FiClock } from 'react-icons/fi'; // Changed FiAlertTriangle to FiBriefcase for Commercial
 
 interface RentCarStatsProps {
   cars: any[];
@@ -11,8 +11,8 @@ interface RentCarStatsProps {
 const RentCarStats = ({ cars, onFilterClick, activeFilter }: RentCarStatsProps) => {
   // Calculate statistics
   const totalCars = cars.length;
-  const activeCars = cars.filter(car => car.status === 'NOT_INSPECTED').length;
-  const maintenanceCars = cars.filter(car => car.status === 'Maintenance').length;
+  const approvedCarsCount = cars.filter(car => car.status === 'Approved').length; // Cars that are approved
+  const maintenanceCarsCount = cars.filter(car => car.status === 'Maintenance').length;
   const commercialCars = cars.filter(car => car.vehiclesType === 'Commercial').length;
 
   const stats = [
@@ -25,25 +25,25 @@ const RentCarStats = ({ cars, onFilterClick, activeFilter }: RentCarStatsProps) 
       bgColor: 'bg-blue-100'
     },
     {
-      title: 'Active',
-      value: activeCars,
+      title: 'Approved Vehicles', // Changed title
+      value: approvedCarsCount,   // Counts 'Approved' status
       icon: <FiCheckCircle className="h-6 w-6" />,
-      filterKey: 'Active',
+      filterKey: 'Approved',      // Filter key matches status
       color: 'text-green-600',
       bgColor: 'bg-green-100'
     },
     {
       title: 'In Maintenance',
-      value: maintenanceCars,
+      value: maintenanceCarsCount,
       icon: <FiClock className="h-6 w-6" />,
       filterKey: 'Maintenance',
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-100'
     },
     {
-      title: 'Commercial',
+      title: 'Commercial Vehicles',
       value: commercialCars,
-      icon: <FiAlertTriangle className="h-6 w-6" />,
+      icon: <FiBriefcase className="h-6 w-6" />, // Using FiBriefcase for commercial
       filterKey: 'Commercial',
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'

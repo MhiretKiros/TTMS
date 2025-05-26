@@ -271,8 +271,8 @@ export default function ViewCarPage() {
                 <motion.span 
                   whileHover={{ scale: 1.1 }}
                   className={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
-                    ${car.status === 'Active' ? 'bg-green-100 text-green-800 hover:bg-green-200' : 
-                      car.status === 'Maintenance' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 
+                    ${car.status === 'NOT_INSPECTED' ? 'bg-green-100 text-green-800 hover:bg-green-200' : 
+                      car.status === 'InspectedAndReady' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 
                       'bg-red-100 text-red-800 hover:bg-red-200'} transition-colors`}
                 >
                   {car.status}

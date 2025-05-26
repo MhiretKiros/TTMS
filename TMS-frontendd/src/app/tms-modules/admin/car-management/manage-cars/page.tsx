@@ -145,14 +145,18 @@ export default function ManageCars() {
     setFilteredPersonalCars(filtered);
   };
 
-  const applyOrganizationFilters = (carsToFilter: any[], searchQuery: string, typeFilter: string | null) => {
+  const applyOrganizationFilters = (carsToFilter: any[], searchQuery: string, filterKey: string | null) => {
     let filtered = [...carsToFilter];
     
-    if (typeFilter) {
-      if (typeFilter === 'HighCapacity') {
+    if (filterKey) {
+      if (filterKey === 'HighCapacity') {
         filtered = filtered.filter(car => parseFloat(car.loadCapacity) > 1000);
+      } else if (['Minibus', 'Truck'].includes(filterKey)) { // Car types
+        filtered = filtered.filter(car => car.carType === filterKey);
+      } else if (['InspectedAndReady', 'Maintenance', 'Rejected', 'NOT_INSPECTED'].includes(filterKey)) { // Statuses
+        filtered = filtered.filter(car => car.status === filterKey);
       } else {
-        filtered = filtered.filter(car => car.carType === typeFilter);
+        // Potentially handle other specific filterKeys or log unknown keys
       }
     }
     
@@ -167,11 +171,18 @@ export default function ManageCars() {
     setFilteredOrganizationCars(filtered);
   };
 
-  const applyRentFilters = (carsToFilter: any[], searchQuery: string, statusFilter: string | null) => {
+  const applyRentFilters = (carsToFilter: any[], searchQuery: string, filterKey: string | null) => {
     let filtered = [...carsToFilter];
     
-    if (statusFilter) {
-      filtered = filtered.filter(car => car.vehiclesStatus === statusFilter || car.vehiclesType === statusFilter);
+    if (filterKey) {
+      // Handle status-based filters (ensure 'status' field exists on car objects)
+      if (['Approved', 'Maintenance', 'NOT_INSPECTED', 'Inactive'].includes(filterKey)) {
+        filtered = filtered.filter(car => car.status === filterKey);
+      } 
+      // Handle type-based filters (ensure 'vehiclesType' field exists on car objects)
+      else if (filterKey === 'Commercial') { 
+        filtered = filtered.filter(car => car.vehiclesType === filterKey);
+      }
     }
     
     if (searchQuery.trim()) {
