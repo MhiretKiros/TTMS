@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
 import DarkModeToggle from "./DarkModeToggle";
+import { useNotification } from '../contexts/NotificationContext'; // Adjusted path
 import { FiSearch, FiBell, FiRefreshCw, FiSettings, FiHelpCircle, FiLogOut, FiUser } from 'react-icons/fi';
 
 interface User {
@@ -16,9 +17,9 @@ interface HeaderProps {
 
 export default function Header({ onToggleSidebar, user }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [notificationCount] = useState(3);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const { unassignedInspectedBusesCount, newRegisteredCarsCount, isLoadingNotifications, refreshNotifications } = useNotification();
 
   const currentUser = user || {
     name: "Guest",
@@ -71,7 +72,10 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
       <div className="flex items-center space-x-4">
         <button 
           className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            refreshNotifications();
+            window.location.reload();
+          }}
           aria-label="Refresh"
         >
           <FiRefreshCw className="h-5 w-5" />
@@ -83,9 +87,9 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
             aria-label="Notifications"
           >
             <FiBell className="h-5 w-5" />
-            {notificationCount > 0 && (
-              <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                {notificationCount}
+            {!isLoadingNotifications && (unassignedInspectedBusesCount > 0 || newRegisteredCarsCount > 0) && (
+              <span className="absolute top-0 right-0 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center transform -translate-y-1/2 translate-x-1/2" aria-live="polite" aria-atomic="true">
+                {unassignedInspectedBusesCount + newRegisteredCarsCount}
               </span>
             )}
           </button>

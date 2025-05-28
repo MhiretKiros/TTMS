@@ -136,6 +136,37 @@ function MapSearchBar({ onSelect }: { onSelect: (latlng: [number, number]) => vo
   );
 }
 
+// New component for map view updates
+function MapViewUpdater({
+  routeCoords,
+  busPosition,
+  destination,
+  selectedBus
+}: {
+  routeCoords: LatLngTuple[];
+  busPosition: LatLngTuple | null;
+  destination: LatLngTuple | null;
+  selectedBus: any | null;
+}) {
+  const map = useMap(); 
+
+  useEffect(() => {
+    if (!map) return;
+
+    if (routeCoords.length > 0 && busPosition && destination) {
+      const bounds: LatLngTuple[] = [busPosition, destination, ...routeCoords];
+      map.fitBounds(bounds, { padding: [50, 50] });
+    } else if (destination) {
+      map.setView(destination, 15);
+    } else if (busPosition) {
+      map.setView(busPosition, 14);
+    }
+    // If nothing is set, map remains at its last state or initial center/zoom
+  }, [routeCoords, busPosition, destination, selectedBus, map]);
+
+  return null;
+}
+
 export default function LeafletMap() {
   const [buses, setBuses] = useState<any[]>([]);
   const [selectedBus, setSelectedBus] = useState<any | null>(null);
@@ -177,22 +208,29 @@ export default function LeafletMap() {
       .finally(() => setIsLoadingAssignedRoutes(false));
   }, []);
 
-  // Get bus position from organizationCar or use Wello Sefer
-  const busPosition: [number, number] =
+  const busPosition: LatLngTuple | null =
     selectedBus?.organizationCar?.lat && selectedBus?.organizationCar?.lng
       ? [Number(selectedBus.organizationCar.lat), Number(selectedBus.organizationCar.lng)]
-      : welloSefer;
+      : selectedBus
+        ? welloSefer // Default to Wello Sefer if bus is selected but has no specific coords
+        : null; // No bus selected, no specific bus position
+
+  const mapInitialCenter = welloSefer; // Always have a defined initial center
 
   // Fetch real route when bus or destination changes
   useEffect(() => {
-    if (selectedBus && destination) {
+    if (selectedBus && destination && busPosition) { // Ensure busPosition is also available
       fetchRoute(busPosition, destination)
         .then(setRouteCoords)
-        .catch(() => setRouteCoords([]));
+        .catch((err) => {
+          console.error("Error fetching route:", err);
+          setRouteCoords([]);
+          // alert("Could not fetch the route. Please check the locations or try again.");
+        });
     } else {
-      setRouteCoords([]);
+      setRouteCoords([]); // Clear route if no bus/destination or if busPosition is missing
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBus, destination]);
 
   const handleAssignRoute = async () => {
@@ -203,16 +241,7 @@ export default function LeafletMap() {
         return;
       }
 
-      const alreadyAssigned = existingAssignedRoutes.find(
-        (route) => route.plateNumber === plateNumber
-      );
-
-      if (alreadyAssigned) {
-        alert(
-          `Car ${plateNumber} is already assigned to a route.\nDestination: ${alreadyAssigned.destinationName || `Lat ${alreadyAssigned.destinationLat.toFixed(5)}, Lng ${alreadyAssigned.destinationLng.toFixed(5)}`}.`
-        );
-        return; // Prevent new assignment
-      }
+      // Allow re-assignment: The check for alreadyAssigned to prevent assignment is removed.
 
       try {
         const response = await fetch('http://localhost:8080/auth/organization-car/assign-route', {
@@ -230,25 +259,26 @@ export default function LeafletMap() {
           throw new Error(errorData.message || `Failed to assign route. Status: ${response.status}`);
         }
 
+        const newAssignmentDataFromResponse = await response.json().catch(() => null); // Get response data if any
         const destinationName = await fetchLocationName(destination[0], destination[1]);
 
         alert(
-          `Route assigned to ${plateNumber}!\nDestination: ${destinationName}`
+          `Route successfully assigned/updated for ${plateNumber}!\nNew Destination: ${destinationName}`
         );
 
         // Update local state to reflect the new assignment immediately
-        setExistingAssignedRoutes(prevRoutes => [
-          ...prevRoutes,
-          {
-            // Assuming your backend doesn't return the full new object with ID immediately,
-            // otherwise, use data from `await response.json()`
+        setExistingAssignedRoutes(prevRoutes => {
+          const updatedRouteEntry: ExistingAssignedRoute = {
             plateNumber: plateNumber,
             destinationLat: destination[0],
             destinationLng: destination[1],
             destinationName: destinationName,
-            // id: newAssignmentData?.id // if backend returns an id
-          },
-        ]);
+            id: newAssignmentDataFromResponse?.id || getBusAssignmentDetails(plateNumber)?.id // Use new ID from response, or old ID if updating
+          };
+          return prevRoutes
+            .filter(route => route.plateNumber !== plateNumber) // Remove old entry for this plate
+            .concat(updatedRouteEntry); // Add the new/updated entry
+        });
         setDestination(null); // Clear destination for next assignment
         setRouteCoords([]);   // Clear drawn route
       } catch (error) {
@@ -308,12 +338,21 @@ export default function LeafletMap() {
                             ? 'bg-blue-500 text-white'
                             : assignment
                               ? 'bg-green-50 hover:bg-green-100'
-                              : 'bg-gray-50 hover:bg-gray-100'
+                                : 'bg-gray-50 hover:bg-gray-100 '
                         }`}
                         onClick={() => {
                           setSelectedBus(bus);
-                          setDestination(null); // Clear previous destination when selecting a new bus
-                          setRouteCoords([]);   // Clear previous route line
+                          const currentAssignment = getBusAssignmentDetails(plate);
+                          if (currentAssignment) {
+                            // Bus is already assigned, display its route
+                            const assignedDest: LatLngTuple = [currentAssignment.destinationLat, currentAssignment.destinationLng];
+                            setDestination(assignedDest);
+                            // The useEffect for [selectedBus, destination] will fetch and display the route.
+                          } else {
+                            // Bus is not assigned, clear destination for new assignment
+                            setDestination(null);
+                            setRouteCoords([]);
+                          }
                         }}
                       >
                         <span className="font-medium">{plate}</span>
@@ -331,31 +370,52 @@ export default function LeafletMap() {
         </div>
         <div className="md:w-2/3 relative">
           <MapContainer
-            center={busPosition}
-            zoom={14}
+            center={mapInitialCenter} // Use a consistent initial center
+            zoom={13} // Default zoom
             style={{ width: '100%', height: '400px' }}
-            key={selectedBus?.organizationCar?.plateNumber || 'map'} // Force re-render if bus changes to reset view potentially
+            // Removed key to let MapViewUpdater handle view changes smoothly
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            {selectedBus && (
+
+            <MapViewUpdater
+              routeCoords={routeCoords}
+              busPosition={busPosition}
+              destination={destination}
+              selectedBus={selectedBus}
+            />
+
+            {busPosition && selectedBus && ( // Render bus marker if bus is selected and has a position
               <Marker position={busPosition}>
                 <Popup>Bus: {selectedBus.organizationCar.plateNumber}<br/>Current Location</Popup>
               </Marker>
             )}
             {destination && (
               <Marker position={destination}>
-                <Popup>Selected Destination</Popup>
+                <Popup>
+                  {
+                    (() => {
+                      const assignment = getBusAssignmentDetails(selectedBus?.organizationCar?.plateNumber);
+                      if (assignment && destination && assignment.destinationLat === destination[0] && assignment.destinationLng === destination[1]) {
+                        return `Assigned Destination: ${assignment.destinationName || `Lat ${assignment.destinationLat.toFixed(4)}, Lng ${assignment.destinationLng.toFixed(4)}`}`;
+                      }
+                      return "Selected Destination for New Assignment";
+                    })()
+                  }
+                </Popup>
               </Marker>
             )}
             {routeCoords.length > 0 && <Polyline positions={routeCoords} color="blue" />}
-            {selectedBus && !isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber) && (
+            {/* Allow setting destination even if bus is already assigned, for re-assignment purposes */}
+            {selectedBus && (
               <DestinationSetter onSet={setDestination} />
             )}
             <MapSearchBar onSelect={(latlng) => {
-              if (selectedBus && !isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber)) {
+              if (selectedBus) { // Allow setting destination if a bus is selected
                 setDestination(latlng);
-              } else if (selectedBus) {
-                alert(`Bus ${selectedBus.organizationCar.plateNumber} is already assigned. Cannot set new destination.`);
+              // Removed the specific alert that prevented setting a new destination for an assigned bus.
+              // The user can now select a new destination for re-assignment.
+              // } else if (selectedBus && isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber)) {
+                // alert(`Bus ${selectedBus.organizationCar.plateNumber} is already assigned. You are selecting a new destination to re-assign.`);
               } else {
                 alert("Please select a bus first.");
               }
@@ -364,8 +424,8 @@ export default function LeafletMap() {
           <div className="mt-4 flex flex-col gap-3">
             {selectedBus && isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber) && (
               <p className="text-orange-600 font-semibold p-2 bg-orange-100 rounded">
-                Car {selectedBus.organizationCar.plateNumber} is already assigned.
-                You cannot assign a new route until the current one is completed or unassigned.
+                Car {selectedBus.organizationCar.plateNumber} is currently assigned to: {getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationName || 'N/A'}.
+                {destination && (getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationLat !== destination[0] || getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationLng !== destination[1]) && " Select a new destination on the map to re-assign."}
               </p>
             )}
             <button
@@ -374,7 +434,7 @@ export default function LeafletMap() {
                 !selectedBus ||
                 !destination ||
                 isLoadingAssignedRoutes ||
-                isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber)
+                (isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber) && getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationLat === destination[0] && getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationLng === destination[1]) // Disable if assigned and destination hasn't changed
               }
               onClick={handleAssignRoute}
             >
@@ -393,6 +453,20 @@ export default function LeafletMap() {
               Click on the map or use search to set a destination for {selectedBus.organizationCar.plateNumber}.
             </p>
           )}
+          {selectedBus && destination && (() => {
+            const currentAssignment = getBusAssignmentDetails(selectedBus.organizationCar.plateNumber);
+            if (currentAssignment) {
+              // Bus is assigned
+              if (currentAssignment.destinationLat === destination[0] && currentAssignment.destinationLng === destination[1]) {
+                // Destination shown is the current assignment
+                return <p className="mt-2 text-sm text-green-700">Displaying current route for {selectedBus.organizationCar.plateNumber} to {currentAssignment.destinationName || 'its assigned destination'}.</p>;
+              } else {
+                // Destination shown is a new potential assignment
+                return <p className="mt-2 text-sm text-blue-700">Previewing new route for {selectedBus.organizationCar.plateNumber} to the selected destination. Click "Assign Route" to confirm re-assignment.</p>;
+              }
+            }
+            return null; // Not assigned, or message handled by the block above
+          })()}
         </div>
       </div>
     </div>
