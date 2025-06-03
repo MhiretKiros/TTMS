@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { FiChevronDown } from 'react-icons/fi';
+import { FiActivity, FiBriefcase, FiCheckCircle, FiChevronDown, FiUser } from 'react-icons/fi';
 
 interface Car {
   id: number | string;
@@ -25,7 +25,6 @@ interface AssignmentRequest {
   carIds?: string[];
   allCarModels?: string;
   status: string;
-  // Add other properties from your request object as needed
 }
 
 interface FormData {
@@ -103,9 +102,9 @@ const AutoCarConfirmation = ({
         </button>
         <button
           onClick={onConfirm}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-4 py-2 bg-[#3c8dbc] text-white rounded hover:bg-[#367fa9]"
         >
-          Confirm Assignment
+          Confirm
         </button>
       </div>
     </div>
@@ -176,15 +175,22 @@ export default function AssignCarManagerForm() {
       }
 
       if (rentCarsResponse.data.codStatus === 200) {
-        const rentCars = rentCarsResponse.data.rentCarList
-          .filter((car: any) => car.status.toLowerCase() === 'approved')
-          .map((car: any) => ({
-            ...car,
-            carType: car.carType?.toLowerCase() || '',
-            isRentCar: true
-          }));
-        allAvailableCars.push(...rentCars);
-      }
+          const rentCars = rentCarsResponse.data.rentCarList
+            .filter((car: any) => car.status.toLowerCase() === 'approved')
+            .map((car: any) => ({
+              id: car.id,
+              plateNumber: car.plateNumber,
+              model: car.model,
+              carType: car.vehiclesType?.toLowerCase() || '',
+              manufactureYear: parseInt(car.proYear) || 0,
+              motorCapacity: car.cc ? `${car.cc}cc` : '0cc',
+              status: car.status,
+              fuelType: car.fuelType,
+              parkingLocation: '', // Add if available
+              isRentCar: true
+            }));
+          allAvailableCars.push(...rentCars);
+        }
 
       setAvailableCars(allAvailableCars);
 
@@ -199,197 +205,6 @@ export default function AssignCarManagerForm() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-
-  
-  const processPendingRequests = useCallback(async () => {
-    try {
-      for (const request of pendingRequests as AssignmentRequest[]) {
-        try {
-          // Split model string into assigned/unassigned parts
-          const modelParts = request.model.split('/');
-          
-          // Process assigned models (before /)
-          const assignedModels = modelParts[0]?.split(',')
-            .map((m: string) => m.trim().toLowerCase())
-            .filter((m: string) => m) || [];
-          
-          // Process unassigned models (after /)
-          const unassignedModels = modelParts[1]?.split(',')
-            .map((m: string) => m.trim().toLowerCase())
-            .filter((m: string) => m) || [];
-  
-          // Skip if no unassigned models
-          if (unassignedModels.length === 0) continue;
-  
-          // Find eligible cars from available cars
-          const eligibleCars = availableCars.filter((car: Car) => {
-            if (car.status.toLowerCase() !== 'approved') return false;
-            const carModel = car.model.toLowerCase().trim();
-            return unassignedModels.some((model: string) => 
-              carModel === model.toLowerCase().trim()
-            );
-          });
-  
-          // Skip if no eligible cars found
-          if (eligibleCars.length === 0) continue;
-  
-          // Match cars to unassigned models
-          const carsToAssign: Car[] = [];
-          const newlyAssignedModels: string[] = [];
-          
-          for (const model of unassignedModels) {
-            const normalizedModel = model.toLowerCase().trim();
-            const carForModel = eligibleCars.find((car: Car) => 
-              car.model.toLowerCase().trim() === normalizedModel && 
-              !carsToAssign.some((c: Car) => c.plateNumber === car.plateNumber)
-            );
-            
-            if (carForModel) {
-              carsToAssign.push(carForModel);
-              newlyAssignedModels.push(model);
-            }
-          }
-  
-          // Skip if no cars matched
-          if (carsToAssign.length === 0) continue;
-  
-          // Set state for auto-assignment confirmation
-          setAutoAssignCars(carsToAssign);
-          setCurrentRequest(request);
-          setShowAutoConfirm(true);
-          return;
-  
-        } catch (error) {
-          console.error(`Error processing request ${request.requestLetterNo}:`, error);
-        }
-      }
-    } catch (error) {
-      console.error('Auto-assign process failed:', error);
-    }
-  }, [availableCars, pendingRequests]);
-  
-  const confirmAutoAssignment = async () => {
-    // Validate current request and cars to assign
-    if (!currentRequest || autoAssignCars.length === 0) {
-      setShowAutoConfirm(false);
-      return;
-    }
-    else{
-      alert('Please make sure that you have selected the correct cars to assign.');
-    }
-    setIsAssigning(true);
-    
-    try {
-      // Split model string into assigned/unassigned parts
-      const modelParts = currentRequest.model.split('/');
-      
-      // Process assigned models (before /)
-      const assignedModels = modelParts[0]?.split(',')
-        .map((m: string) => m.trim().toLowerCase())
-        .filter((m: string) => m) || [];
-      
-      // Process unassigned models (after /)
-      const unassignedModels = modelParts[1]?.split(',')
-        .map((m: string) => m.trim().toLowerCase())
-        .filter((m: string) => m) || [];
-  
-      // Get newly assigned models from selected cars
-      const newlyAssignedModels = autoAssignCars.map((c: Car) => c.model.toLowerCase().trim());
-      const remainingUnassigned = unassignedModels.filter((m: string) => !newlyAssignedModels.includes(m));
-  
-      // Update status of all assigned cars
-      await Promise.all(
-        autoAssignCars.map((car: Car) => {
-          const endpoint = car.isRentCar
-            ? `http://localhost:8080/auth/rent-car/status/${car.plateNumber}`
-            : `http://localhost:8080/auth/car/status/${car.plateNumber}`;
-          
-          return axios.put(endpoint, {
-            status: 'Assigned',
-            assignmentDate: new Date().toISOString().split('T')[0]
-          });
-        })
-      );
-  
-      // Prepare updated model string
-      const updatedAssigned = [...assignedModels, ...newlyAssignedModels];
-      const isFullyAssigned = remainingUnassigned.length === 0;
-      
-      // Prepare update data for the request
-      const updateData = {
-        ...currentRequest,
-        model: isFullyAssigned
-          ? updatedAssigned.join(',')
-          : `${updatedAssigned.join(',')}/${remainingUnassigned.join(',')}`,
-        status: isFullyAssigned ? 'Assigned' : 'Pending',
-        plateNumbers: [
-          ...(currentRequest.plateNumbers?.split(', ') || []),
-          ...autoAssignCars.map((c: Car) => c.plateNumber)
-        ].join(', '),
-        carIds: [
-          ...(currentRequest.carIds || []),
-          ...autoAssignCars.map((c: Car) => c.id)
-        ],
-        allCarModels: [
-          ...(currentRequest.allCarModels?.split(', ') || []),
-          ...autoAssignCars.map((c: Car) => c.model)
-        ].join(', '),
-        numberOfCar: isFullyAssigned
-          ? `${updatedAssigned.length}/${updatedAssigned.length}`
-          : `${updatedAssigned.length}/${assignedModels.length + unassignedModels.length}`
-      };
-  
-      // Update the assignment record
-      const updateResponse = await axios.put(
-        `http://localhost:8080/auth/car/assign/${currentRequest._id}`,
-        updateData
-      );
-  
-      // Handle successful update
-      if (updateResponse.data.codStatus === 200) {
-        if (isFullyAssigned) {
-          setAssignmentResult({
-            success: true,
-            message: `Request ${currentRequest.requestLetterNo} fully assigned!`,
-            assignedCars: autoAssignCars,
-            status: 'Assigned',
-            details: `Assigned ${autoAssignCars.length} vehicles`
-          });
-          setShowSuccessModal(true);
-        }
-  
-        // Refresh data
-        await fetchData();
-      }
-  
-    } catch (error) {
-      console.error('Assignment failed:', error);
-      setAssignmentResult({
-        success: false,
-        message: 'Failed to complete assignment'
-      });
-      setShowSuccessModal(true);
-    } finally {
-      // Clean up
-      setIsAssigning(false);
-      setShowAutoConfirm(false);
-      setAutoAssignCars([]);
-      setCurrentRequest(null);
-    }
-  };
-
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      if (pendingRequests.length > 0) {
-        await processPendingRequests();
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [pendingRequests, processPendingRequests]);
-
-  
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -422,34 +237,37 @@ export default function AssignCarManagerForm() {
     });
   };
 
-  const filterAndSortCars = useCallback((cars: Car[], selectedModels: string[], isHighPriorityReq: boolean) => {
-    const filtered = cars.filter(car => {
-      const carType = car.carType?.toLowerCase() || '';
-      const isAutomobile = carType.includes('auto') || carType.includes('autho');
-      
-      if (!isAutomobile) return false;
-      
-      if (selectedModels.length > 0 && !selectedModels.includes(car.model)) {
-        return false;
-      }
+ const filterAndSortCars = useCallback((cars: Car[], selectedModels: string[], isHighPriorityReq: boolean) => {
+  const filtered = cars.filter(car => {
+    // Check if it's an automobile (either regular car or rent car)
+    const isAutomobile = 
+      car.carType?.toLowerCase().includes('auto') || 
+      car.carType?.toLowerCase().includes('autho') ||
+      (car.isRentCar && car.carType?.toLowerCase().includes('automobile'));
+    
+    if (!isAutomobile) return false;
+    
+    if (selectedModels.length > 0 && !selectedModels.includes(car.model.toLowerCase())) {
+      return false;
+    }
 
-      const cc = parseMotorCapacity(car.motorCapacity);
-      const year = car.manufactureYear;
+    const cc = parseMotorCapacity(car.motorCapacity);
+    const year = car.manufactureYear;
 
-      return isHighPriorityReq ? true : (cc >= 1200 || year >= 2010);
-    });
+    return isHighPriorityReq ? true : (cc >= 1200 || year >= 2010);
+  });
 
-    return filtered.sort((a, b) => {
-      const aCC = parseMotorCapacity(a.motorCapacity);
-      const bCC = parseMotorCapacity(b.motorCapacity);
-      const ccCompare = bCC - aCC;
+  return filtered.sort((a, b) => {
+    const aCC = parseMotorCapacity(a.motorCapacity);
+    const bCC = parseMotorCapacity(b.motorCapacity);
+    const ccCompare = bCC - aCC;
 
-      if (ccCompare === 0) {
-        return b.manufactureYear - a.manufactureYear;
-      }
-      return ccCompare;
-    });
-  }, []);
+    if (ccCompare === 0) {
+      return b.manufactureYear - a.manufactureYear;
+    }
+    return ccCompare;
+  });
+}, []);
 
   const handleAssign = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -651,7 +469,7 @@ export default function AssignCarManagerForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    📄 Request Letter Number
+                    Request Letter Number
                   </label>
                   <input
                     type="text"
@@ -668,7 +486,7 @@ export default function AssignCarManagerForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    👤 Requester Name
+                    Requester Name
                   </label>
                   <input
                     type="text"
@@ -685,7 +503,7 @@ export default function AssignCarManagerForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    🏢 Department
+                    Department
                   </label>
                   <select
                     name="department"
@@ -705,7 +523,7 @@ export default function AssignCarManagerForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    🏷️ Rental Type
+                    Rental Type
                   </label>
                   <select
                     name="rentalType"
@@ -726,7 +544,7 @@ export default function AssignCarManagerForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    📅 Request Date
+                    Request Date
                   </label>
                   <input
                     type="date"
@@ -742,7 +560,7 @@ export default function AssignCarManagerForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    📱 Phone Number
+                    Phone Number
                   </label>
                   <input
                     type="tel"
@@ -761,7 +579,7 @@ export default function AssignCarManagerForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    🌍 Travel/Work Percentage
+                    Travel/Work Percentage
                   </label>
                   <select
                     name="travelWorkPercentage"
@@ -779,7 +597,7 @@ export default function AssignCarManagerForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    🚨 Short Notice Availability
+                    Short Notice Availability
                   </label>
                   <select
                     name="shortNoticePercentage"
@@ -802,7 +620,7 @@ export default function AssignCarManagerForm() {
             <motion.div whileHover={{ scale: 1.05 }}>
               <div className="form-group">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  ♿ Mobility Issue
+                  Mobility Issue
                 </label>
                 <select
                   name="mobilityIssue"
@@ -820,7 +638,7 @@ export default function AssignCarManagerForm() {
             <motion.div whileHover={{ scale: 1.05 }}>
               <div className="form-group">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  👫 Gender
+                  Gender
                 </label>
                 <select
                   name="gender"
@@ -887,29 +705,6 @@ export default function AssignCarManagerForm() {
           </div>
   
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="p-6 bg-blue-50 rounded-xl border border-blue-200"
-          >
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <span className="text-lg font-medium text-blue-800">
-                🎯 Calculated Priority Score
-              </span>
-              <div className={`px-6 py-3 rounded-full ${
-                isHighPriority 
-                  ? 'bg-gradient-to-r from-red-100 to-yellow-100 border border-red-200'
-                  : 'bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200'
-              }`}>
-                <span className={`text-2xl font-bold ${
-                  isHighPriority ? 'text-red-800' : 'text-blue-800'
-                }`}>
-                  {totalPercentage}% {isHighPriority && '(High Priority)'}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-  
-          <motion.div 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="flex justify-end"
@@ -917,19 +712,19 @@ export default function AssignCarManagerForm() {
             <button
               type="submit"
               disabled={isAssigning}
-              className={`px-8 py-4 rounded-xl font-bold text-white transition-all ${
+              className={`px-8 py-2 rounded-xl font-bold text-white transition-all ${
                 isAssigning 
                   ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
               }`}
             >
               {isAssigning ? (
                 <div className="flex items-center space-x-2">
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Processing...</span>
+                  <span>Processing</span>
                 </div>
               ) : (
-                '🚀 Assign Vehicles'
+                'Assign'
               )}
             </button>
           </motion.div>
@@ -939,7 +734,7 @@ export default function AssignCarManagerForm() {
         {showAutoConfirm && (
           <AutoCarConfirmation
             cars={autoAssignCars}
-            onConfirm={confirmAutoAssignment}
+            onConfirm={confirmAssignment}
             onCancel={() => setShowAutoConfirm(false)}
           />
         )}
@@ -961,8 +756,8 @@ export default function AssignCarManagerForm() {
               >
                 {/* Fixed Header */}
                 <div className="sticky top-0 bg-white px-8 pt-8 pb-4 border-b border-gray-200 z-10">
-                  <h3 className="text-2xl font-bold text-blue-800">
-                    🚨 Confirm Vehicle Assignment
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    Confirm Vehicle Assignment
                   </h3>
                 </div>
   
@@ -972,36 +767,44 @@ export default function AssignCarManagerForm() {
                     <h4 className="text-lg font-semibold text-gray-800 mb-3">Request Details</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <span className="text-2xl">👤</span>
+                        <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                          <FiUser className="text-[#3c8dbc]" />
+                        </div>
                         <div>
-                          <p className="text-sm text-blue-600">Requester</p>
+                          <p className="text-sm text-gray-600">Requester</p>
                           <p className="font-medium text-gray-800">
                             {formData.requesterName}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <span className="text-2xl">📋</span>
+                        <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                          <FiBriefcase className="text-[#3c8dbc]" />
+                        </div>
                         <div>
-                          <p className="text-sm text-blue-600">Position</p>
+                          <p className="text-sm text-gray-600">Position</p>
                           <p className="font-medium text-gray-800">
                             Directorate (Level 1)
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <span className="text-2xl">📊</span>
+                        <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                          <FiActivity className="text-[#3c8dbc]" />
+                        </div>
                         <div>
-                          <p className="text-sm text-blue-600">Priority Score</p>
+                          <p className="text-sm text-gray-600">Priority Score</p>
                           <p className="font-medium text-gray-800">
                             {totalPercentage}% {isHighPriority && '(High Priority)'}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <span className="text-2xl">🔢</span>
+                        <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                          <FiCheckCircle className="text-[#3c8dbc]" />
+                        </div>
                         <div>
-                          <p className="text-sm text-blue-600">Vehicles Requested</p>
+                          <p className="text-sm text-gray-600">Vehicles Requested</p>
                           <p className="font-medium text-gray-800">
                             {formData.selectedModels.length > 0 
                               ? `${proposedCars.length} of ${formData.selectedModels.length}`
@@ -1017,36 +820,44 @@ export default function AssignCarManagerForm() {
                     {proposedCars.map((car, index) => (
                       <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <span className="text-2xl">🚗</span>
+                          <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                            <FiCheckCircle className="text-[#3c8dbc]" />
+                          </div>
                           <div>
-                            <p className="text-sm text-blue-600">Plate Number</p>
+                            <p className="text-sm text-gray-600">Plate Number</p>
                             <p className="font-medium text-gray-800">
                               {car.plateNumber || 'Not available'}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <span className="text-2xl">📝</span>
+                          <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                            <FiCheckCircle className="text-[#3c8dbc]" />
+                          </div>
                           <div>
-                            <p className="text-sm text-blue-600">Model</p>
+                            <p className="text-sm text-gray-600">Model</p>
                             <p className="font-medium text-gray-800">
                               {car.model || 'Not available'}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <span className="text-2xl">🏷️</span>
+                          <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                            <FiCheckCircle className="text-[#3c8dbc]" />
+                          </div>
                           <div>
-                            <p className="text-sm text-blue-600">Type</p>
+                            <p className="text-sm text-gray-600">Type</p>
                             <p className="font-medium text-gray-800">
                               {car.carType || 'Not available'}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <span className="text-2xl">⚙️</span>
+                          <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                            <FiCheckCircle className="text-[#3c8dbc]" />
+                          </div>
                           <div>
-                            <p className="text-sm text-blue-600">Motor Capacity</p>
+                            <p className="text-sm text-gray-600">Motor Capacity</p>
                             <p className="font-medium text-gray-800">
                               {parseMotorCapacity(car.motorCapacity)}cc
                             </p>
@@ -1076,9 +887,9 @@ export default function AssignCarManagerForm() {
                       whileTap={{ scale: 0.95 }}
                       onClick={confirmAssignment}
                       disabled={isAssigning}
-                      className="px-6 py-2 bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500 text-white rounded-lg transition-all disabled:opacity-50"
+                      className="px-6 py-2 bg-[#3c8dbc] hover:bg-[#367fa9] text-white rounded-lg transition-all disabled:opacity-50"
                     >
-                      {isAssigning ? 'Confirming...' : 'Confirm Assignment'}
+                      {isAssigning ? 'Processing...' : 'Confirm'}
                     </motion.button>
                   </div>
                 </div>
@@ -1104,7 +915,7 @@ export default function AssignCarManagerForm() {
                 <h3 className={`text-2xl font-bold mb-6 ${
                   assignmentResult.success ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {assignmentResult.success ? '✅ Assignment Successful' : '❌ Assignment Failed'}
+                  {assignmentResult.success ? 'Assignment Successful' : 'Assignment Failed'}
                 </h3>
   
                 <div className="flex-1 overflow-y-auto max-h-[70vh] pr-4">
@@ -1121,7 +932,9 @@ export default function AssignCarManagerForm() {
                           <h4 className="text-lg font-semibold text-gray-800">Assignment Details</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                              <span className="text-2xl">📄</span>
+                              <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                                <FiCheckCircle className="text-[#3c8dbc]" />
+                              </div>
                               <div>
                                 <p className="text-sm text-gray-600">Request Letter No</p>
                                 <p className="font-medium text-gray-800">
@@ -1130,7 +943,9 @@ export default function AssignCarManagerForm() {
                               </div>
                             </div>
                             <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                              <span className="text-2xl">👤</span>
+                              <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                                <FiUser className="text-[#3c8dbc]" />
+                              </div>
                               <div>
                                 <p className="text-sm text-gray-600">Requester</p>
                                 <p className="font-medium text-gray-800">
@@ -1141,7 +956,9 @@ export default function AssignCarManagerForm() {
                             {assignmentResult.assignedCars && (
                               <>
                                 <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                                  <span className="text-2xl">🚗</span>
+                                  <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                                    <FiCheckCircle className="text-[#3c8dbc]" />
+                                  </div>
                                   <div>
                                     <p className="text-sm text-gray-600">Assigned Vehicles</p>
                                     <p className="font-medium text-gray-800">
@@ -1150,7 +967,9 @@ export default function AssignCarManagerForm() {
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                                  <span className="text-2xl">📅</span>
+                                  <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                                    <FiCheckCircle className="text-[#3c8dbc]" />
+                                  </div>
                                   <div>
                                     <p className="text-sm text-gray-600">Assignment Date</p>
                                     <p className="font-medium text-gray-800">
@@ -1161,7 +980,9 @@ export default function AssignCarManagerForm() {
                               </>
                             )}
                             <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                              <span className="text-2xl">🔢</span>
+                              <div className="w-8 h-8 bg-[#3c8dbc] bg-opacity-20 rounded-full flex items-center justify-center">
+                                <FiCheckCircle className="text-[#3c8dbc]" />
+                              </div>
                               <div>
                                 <p className="text-sm text-gray-600">Assignment Status</p>
                                 <p className="font-medium text-gray-800">
@@ -1187,7 +1008,7 @@ export default function AssignCarManagerForm() {
                       setAssignmentResult(null);
                     }}
                     className={`px-6 py-2 ${
-                      assignmentResult.success ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                      assignmentResult.success ? 'bg-[#3c8dbc] hover:bg-[#367fa9]' : 'bg-red-600 hover:bg-red-700'
                     } text-white rounded-lg transition-colors`}
                   >
                     Close
@@ -1200,4 +1021,4 @@ export default function AssignCarManagerForm() {
       </motion.div>
     </div>
   );
-}
+};

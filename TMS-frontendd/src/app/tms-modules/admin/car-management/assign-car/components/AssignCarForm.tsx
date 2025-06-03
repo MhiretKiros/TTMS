@@ -287,8 +287,6 @@ export default function RentalRequestForm() {
     }
   };
 
-
-
   // Enhanced automatic assignment with proper modal handling
   const checkForAutoAssignments = useCallback(async () => {
     // Skip if any modal is already open
@@ -709,8 +707,6 @@ export default function RentalRequestForm() {
     return () => clearInterval(interval);
   }, [fetchAllData, showAutoConfirmation, showSuccessModal, checkForAutoAssignments]);
 
-  // Render UI (same as before)
-
   return (
     <div className="min-h-screen bg-white">
       <motion.div
@@ -729,7 +725,7 @@ export default function RentalRequestForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    📄 Request Letter Number
+                    Request Letter Number
                   </label>
                   <input
                     type="text"
@@ -746,7 +742,7 @@ export default function RentalRequestForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    👤 Requester Name
+                    Requester Name
                   </label>
                   <input
                     type="text"
@@ -763,7 +759,7 @@ export default function RentalRequestForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    📊 Position Level
+                    Position Level
                   </label>
                   <select
                     name="position"
@@ -783,7 +779,7 @@ export default function RentalRequestForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    🏷️ Rental Type
+                    Rental Type
                   </label>
                   <select
                     name="rentalType"
@@ -804,7 +800,7 @@ export default function RentalRequestForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    📅 Request Date
+                    Request Date
                   </label>
                   <input
                     type="date"
@@ -820,7 +816,7 @@ export default function RentalRequestForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    📱 Phone Number
+                    Phone Number
                   </label>
                   <input
                     type="tel"
@@ -839,7 +835,7 @@ export default function RentalRequestForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    🏢 Department
+                    Department
                   </label>
                   <select
                     name="department"
@@ -864,7 +860,7 @@ export default function RentalRequestForm() {
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    🌍 Travel/Work Percentage
+                    Travel/Work Percentage
                   </label>
                   <select
                     name="travelWorkPercentage"
@@ -886,7 +882,7 @@ export default function RentalRequestForm() {
             <motion.div whileHover={{ scale: 1.05 }}>
               <div className="form-group">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  🚨 Short Notice Availability
+                  Short Notice Availability
                 </label>
                 <select
                   name="shortNoticePercentage"
@@ -904,7 +900,7 @@ export default function RentalRequestForm() {
             <motion.div whileHover={{ scale: 1.05 }}>
               <div className="form-group">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  ♿ Mobility Issue
+                  Mobility Issue
                 </label>
                 <select
                   name="mobilityIssue"
@@ -921,7 +917,7 @@ export default function RentalRequestForm() {
             <motion.div whileHover={{ scale: 1.05 }}>
               <div className="form-group">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  👫 Gender
+                  Gender
                 </label>
                 <select
                   name="gender"
@@ -935,28 +931,7 @@ export default function RentalRequestForm() {
               </div>
             </motion.div>
           </div>
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="p-6 bg-blue-50 rounded-xl border border-blue-200"
-          >
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <span className="text-lg font-medium text-blue-800">
-                🎯 Calculated Priority Score
-              </span>
-              <div className={`px-6 py-3 rounded-full ${
-                isHighPriority 
-                  ? 'bg-gradient-to-r from-red-100 to-yellow-100 border border-red-200'
-                  : 'bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200'
-              }`}>
-                <span className={`text-2xl font-bold ${
-                  isHighPriority ? 'text-red-800' : 'text-blue-800'
-                }`}>
-                  {totalPercentage}% {isHighPriority && '(High Priority)'}
-                </span>
-              </div>
-            </div>
-          </motion.div>
+
           <motion.div 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -965,11 +940,12 @@ export default function RentalRequestForm() {
             <button
               type="submit"
               disabled={isAssigning}
-              className={`px-8 py-4 rounded-xl font-bold text-white transition-all ${
+              className={`px-8 py-2 rounded-xl font-bold text-white transition-all ${
                 isAssigning 
                   ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
               }`}
+              style={{ backgroundColor: '#3c8dbc' }}
             >
               {isAssigning ? (
                 <div className="flex items-center space-x-2">
@@ -977,7 +953,7 @@ export default function RentalRequestForm() {
                   <span>Processing...</span>
                 </div>
               ) : (
-                '🚀 Assign'
+                'Assign'
               )}
             </button>
           </motion.div>
@@ -998,7 +974,7 @@ export default function RentalRequestForm() {
                 className="bg-white rounded-2xl p-8 max-w-2xl w-full border border-gray-200 shadow-xl"
               >
                 <h3 className="text-2xl font-bold text-blue-800 mb-6">
-                  🚨 Confirm Vehicle Assignment
+                  Confirm Vehicle Assignment
                 </h3>
                 
                 <div className="mb-6">
@@ -1006,7 +982,6 @@ export default function RentalRequestForm() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                     <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <span className="text-2xl">👤</span>
                       <div>
                         <p className="text-sm text-blue-600">Requester</p>
                         <p className="font-medium text-gray-800">
@@ -1015,7 +990,6 @@ export default function RentalRequestForm() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <span className="text-2xl">📋</span>
                       <div>
                         <p className="text-sm text-blue-600">Position</p>
                         <p className="font-medium text-gray-800">
@@ -1028,7 +1002,6 @@ export default function RentalRequestForm() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">🚗</span>
                     <div>
                       <p className="text-sm text-blue-600">Plate Number</p>
                       <p className="font-medium text-gray-800">
@@ -1038,7 +1011,6 @@ export default function RentalRequestForm() {
                   </div>
 
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">📝</span>
                     <div>
                       <p className="text-sm text-blue-600">Model</p>
                       <p className="font-medium text-gray-800">
@@ -1048,7 +1020,6 @@ export default function RentalRequestForm() {
                   </div>
 
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">🏷️</span>
                     <div>
                       <p className="text-sm text-blue-600">Type</p>
                       <p className="font-medium text-gray-800">
@@ -1058,7 +1029,6 @@ export default function RentalRequestForm() {
                   </div>
 
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">📅</span>
                     <div>
                       <p className="text-sm text-blue-600">Year</p>
                       <p className="font-medium text-gray-800">
@@ -1068,7 +1038,6 @@ export default function RentalRequestForm() {
                   </div>
 
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">⛽</span>
                     <div>
                       <p className="text-sm text-blue-600">Fuel Type</p>
                       <p className="font-medium text-gray-800">
@@ -1078,7 +1047,6 @@ export default function RentalRequestForm() {
                   </div>
 
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">⚙️</span>
                     <div>
                       <p className="text-sm text-blue-600">Motor Capacity</p>
                       <p className="font-medium text-gray-800">
@@ -1105,7 +1073,8 @@ export default function RentalRequestForm() {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => confirmAssignment(formData.rentalType)}
                     disabled={isAssigning}
-                    className="px-6 py-2 bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500 text-white rounded-lg transition-all disabled:opacity-50"
+                    className="px-6 py-2 text-white rounded-lg transition-all disabled:opacity-50"
+                    style={{ backgroundColor: '#3c8dbc' }}
                   >
                     {isAssigning ? 'Confirming...' : 'Confirm Assignment'}
                   </motion.button>
@@ -1130,14 +1099,13 @@ export default function RentalRequestForm() {
                 className="bg-white rounded-2xl p-8 max-w-2xl w-full border border-gray-200 shadow-xl"
               >
                 <h3 className="text-2xl font-bold text-blue-800 mb-6">
-                  🚨 Automatic Assignment Available
+                  Automatic Assignment Available
                 </h3>
                 
                 <div className="mb-6">
                   <h4 className="text-lg font-semibold text-gray-800 mb-3">Pending Request</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <span className="text-2xl">📄</span>
                       <div>
                         <p className="text-sm text-blue-600">Request Letter No</p>
                         <p className="font-medium text-gray-800">
@@ -1146,7 +1114,6 @@ export default function RentalRequestForm() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <span className="text-2xl">👤</span>
                       <div>
                         <p className="text-sm text-blue-600">Requester</p>
                         <p className="font-medium text-gray-800">
@@ -1155,7 +1122,6 @@ export default function RentalRequestForm() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <span className="text-2xl">📋</span>
                       <div>
                         <p className="text-sm text-blue-600">Position</p>
                         <p className="font-medium text-gray-800">
@@ -1164,7 +1130,6 @@ export default function RentalRequestForm() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <span className="text-2xl">🎯</span>
                       <div>
                         <p className="text-sm text-blue-600">Priority Score</p>
                         <p className="font-medium text-gray-800">
@@ -1179,7 +1144,6 @@ export default function RentalRequestForm() {
                 <h4 className="text-lg font-semibold text-gray-800 mb-3">Available Vehicle</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">🚗</span>
                     <div>
                       <p className="text-sm text-blue-600">Plate Number</p>
                       <p className="font-medium text-gray-800">
@@ -1188,7 +1152,6 @@ export default function RentalRequestForm() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">📝</span>
                     <div>
                       <p className="text-sm text-blue-600">Model</p>
                       <p className="font-medium text-gray-800">
@@ -1197,7 +1160,6 @@ export default function RentalRequestForm() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">🏷️</span>
                     <div>
                       <p className="text-sm text-blue-600">Type</p>
                       <p className="font-medium text-gray-800">
@@ -1206,7 +1168,6 @@ export default function RentalRequestForm() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-2xl">📅</span>
                     <div>
                       <p className="text-sm text-blue-600">Year</p>
                       <p className="font-medium text-gray-800">
@@ -1230,7 +1191,8 @@ export default function RentalRequestForm() {
                     whileTap={{ scale: 0.95 }}
                     onClick={confirmAutoAssignment}
                     disabled={isAssigning}
-                    className="px-6 py-2 bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500 text-white rounded-lg transition-all disabled:opacity-50"
+                    className="px-6 py-2 text-white rounded-lg transition-all disabled:opacity-50"
+                    style={{ backgroundColor: '#3c8dbc' }}
                   >
                     {isAssigning ? 'Confirming...' : 'Confirm Assignment'}
                   </motion.button>
@@ -1257,7 +1219,7 @@ export default function RentalRequestForm() {
                 <h3 className={`text-2xl font-bold mb-6 ${
                   assignmentResult.success ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {assignmentResult.success ? '✅ Assignment Successful' : '❌ Assignment Failed'}
+                  {assignmentResult.success ? 'Assignment Successful' : 'Assignment Failed'}
                 </h3>
 
                 <div className="flex-1 overflow-y-auto max-h-[70vh] pr-4">
@@ -1276,7 +1238,6 @@ export default function RentalRequestForm() {
                             {assignmentResult.assignedRequest && (
                               <>
                                 <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                                  <span className="text-2xl">📄</span>
                                   <div>
                                     <p className="text-sm text-gray-600">Request Letter No</p>
                                     <p className="font-medium text-gray-800">
@@ -1285,7 +1246,6 @@ export default function RentalRequestForm() {
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                                  <span className="text-2xl">👤</span>
                                   <div>
                                     <p className="text-sm text-gray-600">Requester</p>
                                     <p className="font-medium text-gray-800">
@@ -1296,7 +1256,6 @@ export default function RentalRequestForm() {
                               </>
                             )}
                             <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                              <span className="text-2xl">🚗</span>
                               <div>
                                 <p className="text-sm text-gray-600">Assigned Vehicle</p>
                                 <p className="font-medium text-gray-800">
@@ -1305,7 +1264,6 @@ export default function RentalRequestForm() {
                               </div>
                             </div>
                             <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                              <span className="text-2xl">📅</span>
                               <div>
                                 <p className="text-sm text-gray-600">Assignment Date</p>
                                 <p className="font-medium text-gray-800">
@@ -1342,4 +1300,4 @@ export default function RentalRequestForm() {
       </motion.div>
     </div>
   );
-}
+};

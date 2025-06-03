@@ -7,13 +7,14 @@ import { FiArrowRight, FiSearch, FiRefreshCw } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import '@sweetalert2/theme-material-ui/material-ui.css';
 import axios from 'axios';
+import VehicleAcceptanceForm from './VehicleAcceptanceForm';
 
 // --- Types, State, Reducer ---
 export interface Car {
   id: string;
   model: string;
   licensePlate: string;
-  status: 'available' | 'assigned' | 'maintenance';
+  status: 'available' | 'assigned' | 'maintenance' | 'in_transfer';
   carType?: string;
   assignedDepartment?: string;
   assignedUserId?: string;
@@ -31,12 +32,13 @@ export interface PendingRequest {
   department: string;
   requestDate: string;
   requestedCarType?: string;
-  status: 'pending';
+  status: 'pending' | 'in_transfer' | 'waiting';
   totalPercentage?: number;
   priority?: number;
   plateNumbers?: string;
   allCarModels?: string;
   carIds?: string[];
+  requestLetterNo?: string;
 }
 
 interface AssignmentState {
@@ -45,6 +47,8 @@ interface AssignmentState {
   selectedCars: string[];
   selectedRequest: string | null;
   message: string | null;
+  showAcceptanceForm: boolean;
+  selectedApprovedAssignment: any | null;
 }
 
 export type AssignmentAction =
@@ -54,7 +58,11 @@ export type AssignmentAction =
   | { type: 'SELECT_REQUEST'; payload: string }
   | { type: 'ASSIGN_CAR_SUCCESS'; payload: { carIds: string[]; requestId: string } }
   | { type: 'RESET_SELECTION' }
-  | { type: 'CLEAR_MESSAGE' };
+  | { type: 'CLEAR_MESSAGE' }
+  | { type: 'SHOW_ACCEPTANCE_FORM'; payload: any }
+  | { type: 'HIDE_ACCEPTANCE_FORM' }
+  | { type: 'UPDATE_CAR_STATUS'; payload: { carId: string; status: 'available' | 'assigned' | 'maintenance' | 'in_transfer' } }
+  | { type: 'UPDATE_REQUEST_STATUS'; payload: { requestId: string; status: 'pending' | 'in_transfer' | 'waiting' } };
 
 export const initialAssignmentState: AssignmentState = {
   cars: [],
@@ -62,6 +70,8 @@ export const initialAssignmentState: AssignmentState = {
   selectedCars: [],
   selectedRequest: null,
   message: null,
+  showAcceptanceForm: false,
+  selectedApprovedAssignment: null,
 };
 
 export const assignmentReducer = (state: AssignmentState, action: AssignmentAction): AssignmentState => {
@@ -103,10 +113,32 @@ export const assignmentReducer = (state: AssignmentState, action: AssignmentActi
         selectedRequest: null
       };
     }
+    case 'UPDATE_CAR_STATUS': 
+      return {
+        ...state,
+        cars: state.cars.map(car => 
+          car.id === action.payload.carId 
+            ? { ...car, status: action.payload.status } 
+            : car
+        )
+      };
+    case 'UPDATE_REQUEST_STATUS': 
+      return {
+        ...state,
+        pendingRequests: state.pendingRequests.map(req =>
+          req.id === action.payload.requestId
+            ? { ...req, status: action.payload.status }
+            : req
+        )
+      };
     case 'RESET_SELECTION': 
       return { ...state, selectedCars: [], selectedRequest: null };
     case 'CLEAR_MESSAGE': 
       return { ...state, message: null };
+    case 'SHOW_ACCEPTANCE_FORM':
+      return { ...state, showAcceptanceForm: true, selectedApprovedAssignment: action.payload };
+    case 'HIDE_ACCEPTANCE_FORM':
+      return { ...state, showAcceptanceForm: false, selectedApprovedAssignment: null };
     default: 
       return state;
   }
@@ -139,12 +171,13 @@ export default function ManualAssignmentView() {
         axios.get('http://localhost:8080/auth/assignments/pending')
       ]);
   
-      // Process regular cars (same as before)
+      // Process regular cars
       const regularCars: Car[] = regularCarsResponse.data?.carList?.map((car: any) => ({
         id: car.id.toString(),
         model: car.model || 'Unknown Model',
         licensePlate: car.plateNumber || 'Unknown Plate',
-        status: car.status?.toLowerCase() === 'approved' ? 'available' : 'maintenance',
+        status: car.status?.toLowerCase() === 'approved' ? 'available' : 
+               car.status?.toLowerCase() === 'in_transfer' ? 'in_transfer' : 'maintenance',
         carType: car.carType,
         manufactureYear: car.manufactureYear,
         motorCapacity: car.motorCapacity,
@@ -153,12 +186,13 @@ export default function ManualAssignmentView() {
         isRentCar: false
       })) || [];
   
-      // Process rent cars (same as before)
+      // Process rent cars
       const rentCars: Car[] = rentCarsResponse.data?.rentCarList?.map((car: any) => ({
         id: `rent-${car.id}`,
         model: car.model || 'Unknown Model',
         licensePlate: car.plateNumber || 'Unknown Plate',
-        status: car.status?.toLowerCase() === 'approved' ? 'available' : 'maintenance',
+        status: car.status?.toLowerCase() === 'approved' ? 'available' : 
+               car.status?.toLowerCase() === 'in_transfer' ? 'in_transfer' : 'maintenance',
         carType: car.bodyType,
         manufactureYear: car.proYear ? parseInt(car.proYear) : undefined,
         motorCapacity: car.cc,
@@ -166,7 +200,7 @@ export default function ManualAssignmentView() {
         isRentCar: true
       })) || [];
   
-      // Combine and filter only automobile-type cars (same as before)
+      // Combine and filter only automobile-type cars
       const allCars = [...regularCars, ...rentCars].filter(car => 
         car.carType?.toLowerCase().includes('auto') || 
         car.carType?.toLowerCase().includes('autho') ||
@@ -175,27 +209,34 @@ export default function ManualAssignmentView() {
   
       dispatch({ type: 'UPDATE_CARS', payload: allCars });
   
-      // Process pending requests - FIXED THIS PART
+      // Process pending requests
       const pendingRequests: PendingRequest[] = requestsResponse.data?.assignmentHistoryList
-        ?.filter((request: any) => request.status === 'Pending') // Only get pending requests
+        ?.filter((request: any) => request.status === 'Pending' || request.status === 'In_transfer')
         .map((request: any) => ({
           id: request.id.toString(),
           requesterName: request.requesterName || 'Unknown Requester',
           department: request.department || 'Unknown Department',
           position: request.position || 'Unknown Position',
           requestDate: request.requestDate || new Date().toISOString(),
-          requestedCarType: request.rentalType, // Changed from requestedCarType to rentalType
-          status: 'pending',
+          requestedCarType: request.rentalType,
+          status: request.status?.toLowerCase() === 'in_transfer' ? 'in_transfer' : 'pending',
           totalPercentage: request.totalPercentage || 0,
-          priority: request.totalPercentage || 0
+          priority: request.totalPercentage || 0,
+          requestLetterNo: request.requestLetterNo
         })) || [];
   
-      // Filter automobile requests and sort by priority (descending)
+      // Filter automobile requests and sort by status (in_transfer first) and priority (descending)
       const automobileRequests = pendingRequests.filter(request => 
-        request.requestedCarType?.toLowerCase().includes('standard') || // Changed from auto/autho to standard
+        request.requestedCarType?.toLowerCase().includes('standard') ||
         request.requestedCarType?.toLowerCase().includes('project') ||
         request.requestedCarType?.toLowerCase().includes('organizational')
-      ).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      ).sort((a, b) => {
+        // In_transfer requests come first
+        if (a.status === 'in_transfer' && b.status !== 'in_transfer') return -1;
+        if (a.status !== 'in_transfer' && b.status === 'in_transfer') return 1;
+        // Then sort by priority (descending)
+        return (b.priority || 0) - (a.priority || 0);
+      });
   
       dispatch({ type: 'UPDATE_PENDING_REQUESTS', payload: automobileRequests });
   
@@ -228,8 +269,13 @@ export default function ManualAssignmentView() {
       );
     }
     
-    // Sort cars by motor capacity (CC) and year (descending)
+    // Sort cars by status (in_transfer first) then motor capacity (CC) and year (descending)
     filteredC.sort((a, b) => {
+      // In_transfer cars come first
+      if (a.status === 'in_transfer' && b.status !== 'in_transfer') return -1;
+      if (a.status !== 'in_transfer' && b.status === 'in_transfer') return 1;
+      
+      // Then sort by motor capacity and year
       const aCC = parseMotorCapacity(a.motorCapacity);
       const bCC = parseMotorCapacity(b.motorCapacity);
       
@@ -252,7 +298,7 @@ export default function ManualAssignmentView() {
       );
     }
     
-    // Requests are already sorted by priority in loadData
+    // Requests are already sorted by status and priority in loadData
     setFilteredRequests(filteredReqs);
   }, [assignmentState.cars, assignmentState.pendingRequests, carSearchTerm, requestSearchTerm]);
 
@@ -269,95 +315,140 @@ export default function ManualAssignmentView() {
     setRequestSearchTerm(query); 
   };
 
-  const handleAssignCar = async () => {
-    if (assignmentState.selectedCars.length === 0 || !assignmentState.selectedRequest) {
-      Swal.fire({ 
-        title: 'Selection Missing', 
-        text: 'Please select at least one car and a pending request.', 
-        icon: 'warning' 
-      });
-      return;
-    }
-  
-    try {
-      // Get the selected request
-      const request = assignmentState.pendingRequests.find(req => req.id === assignmentState.selectedRequest);
-      if (!request) throw new Error('Request not found');
-  
-      // Get selected cars data
-      const selectedCarsData = assignmentState.selectedCars.map(carId => {
-        const car = assignmentState.cars.find(c => c.id === carId);
-        if (!car) throw new Error(`Car with ID ${carId} not found`);
-        return car;
-      });
-  
-      // Update cars status to assigned
-      await Promise.all(
-        selectedCarsData.map(car => {
-          const isRentCar = car.id.startsWith('rent-');
-          const endpoint = isRentCar 
-            ? `http://localhost:8080/auth/rent-car/status/${car.licensePlate}`
-            : `http://localhost:8080/auth/car/status/${car.licensePlate}`;
-          
-          return axios.put(endpoint, {
-            status: 'Assigned',
-            assignmentDate: new Date().toISOString().split('T')[0]
-          });
-        })
-      );
-  
-      // Prepare update data for the request
-      const updateData = {
-        status: 'Assigned',
-        carIds: [
-          ...(request.carIds || []),
-          ...assignmentState.selectedCars
-        ],
-        plateNumbers: [
-          ...(request.plateNumbers?.split(', ') || []),
-          ...selectedCarsData.map(c => c.licensePlate)
-        ].join(', '),
-        allCarModels: [
-          ...(request.allCarModels?.split(', ') || []),
-          ...selectedCarsData.map(c => c.model)
-        ].join(', '),
-        numberOfCar: `${assignmentState.selectedCars.length}/${assignmentState.selectedCars.length}`
-      };
-  
-      // Update the assignment request
-      const updateResponse = await axios.put(
-        `http://localhost:8080/auth/car/assignments/update/${assignmentState.selectedRequest}`,
-        updateData
-      );
-  
-      if (updateResponse.data.codStatus === 200) {
-        dispatch({ 
-          type: 'ASSIGN_CAR_SUCCESS', 
-          payload: { 
-            carIds: assignmentState.selectedCars, 
-            requestId: assignmentState.selectedRequest 
-          } 
+  const handleCloseAcceptanceForm = () => {
+    dispatch({ type: 'HIDE_ACCEPTANCE_FORM' });
+  };
+const handleAssignCar = async () => {
+  if (assignmentState.selectedCars.length === 0 || !assignmentState.selectedRequest) {
+    Swal.fire({
+      title: 'Selection Missing',
+      text: 'Please select at least one car and a pending request.',
+      icon: 'warning',
+    });
+    return;
+  }
+
+  // Get selected request and car data
+  const selectedRequest = assignmentState.pendingRequests.find(
+    req => req.id === assignmentState.selectedRequest
+  );
+  const selectedCarsData = assignmentState.selectedCars.map(carId => {
+    const car = assignmentState.cars.find(c => c.id === carId);
+    if (!car) throw new Error(`Car with ID ${carId} not found`);
+    return car;
+  });
+
+  if (!selectedRequest) {
+    Swal.fire({
+      title: 'Error!',
+      text: 'Selected request not found.',
+      icon: 'error',
+    });
+    return;
+  }
+
+  const isInTransferRequest = selectedRequest?.status === 'in_transfer';
+
+  try {
+    setIsLoading(true);
+
+    // --- Common Logic: Update car status based on type ---
+    await Promise.all(
+      selectedCarsData.map(async car => {
+        const isRentCar = car.id.startsWith('rent-');
+        const endpoint = isRentCar
+          ? `http://localhost:8080/auth/rent-car/status/${car.licensePlate}`
+          : `http://localhost:8080/auth/car/status/${car.licensePlate}`;
+
+        // Set different statuses depending on request type
+        const carStatus = isInTransferRequest ? 'In_transfer' : 'Assigned';
+        await axios.put(endpoint, {
+          status: carStatus,
+          assignmentDate: new Date().toISOString().split('T')[0],
         });
-        
-        Swal.fire({ 
-          title: 'Success!', 
-          text: `${assignmentState.selectedCars.length} car(s) assigned successfully.`, 
-          icon: 'success', 
-          timer: 2000, 
-          showConfirmButton: false 
+
+        dispatch({
+          type: 'UPDATE_CAR_STATUS',
+          payload: { carId: car.id, status: isInTransferRequest ? 'in_transfer' : 'assigned' },
+        });
+      })
+    );
+
+    // --- Shared Request Data Preparation ---
+    const plateNumbers = [
+      ...(selectedRequest.plateNumbers?.split(', ') || []),
+      ...selectedCarsData.map(car => car.licensePlate),
+    ].join(', ');
+
+    const allCarModels = [
+      ...(selectedRequest.allCarModels?.split(', ') || []),
+      ...selectedCarsData.map(car => car.model),
+    ].join(', ');
+
+    const carIds = [...(selectedRequest.carIds || []), ...assignmentState.selectedCars];
+
+    // --- Determine request status based on type ---
+    const requestStatus = isInTransferRequest ? 'Waiting' : 'Assigned';
+
+    // --- Common Logic: Update request status and metadata ---
+    const updateResponse = await axios.put(
+      `http://localhost:8080/auth/car/assignments/update/${assignmentState.selectedRequest}`,
+      {
+        status: requestStatus,
+        carIds,
+        plateNumbers,
+        allCarModels,
+        numberOfCar: `${assignmentState.selectedCars.length}/${assignmentState.selectedCars.length}`,
+      }
+    );
+
+    if (updateResponse.data.codStatus === 200) {
+      if (!isInTransferRequest) {
+        // Only complete assignment for non-in_transfer
+        dispatch({
+          type: 'ASSIGN_CAR_SUCCESS',
+          payload: {
+            carIds: assignmentState.selectedCars,
+            requestId: assignmentState.selectedRequest,
+          },
+        });
+
+        Swal.fire({
+          title: 'Success!',
+          text: `${assignmentState.selectedCars.length} car(s) assigned successfully.`,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
         });
       } else {
-        throw new Error(updateResponse.data.message || 'Failed to update request');
+        // For In_transfer, just update UI and prompt for acceptance form
+        dispatch({
+          type: 'UPDATE_REQUEST_STATUS',
+          payload: { requestId: assignmentState.selectedRequest, status: 'waiting' },
+        });
+
+        Swal.fire({
+          title: 'Success!',
+          text: `The car has been marked as "In_transfer" and ready for acceptance. The request status has been updated to "Waiting". You can proceed to the vehicle acceptance form.`,
+          icon: 'success',
+        });
+
+        dispatch({ type: 'RESET_SELECTION' });
       }
-    } catch (error) {
-      console.error('Assignment error:', error);
-      Swal.fire({ 
-        title: 'Assignment Failed!', 
-        text: error instanceof Error ? error.message : 'Could not assign car(s).', 
-        icon: 'error' 
-      });
+    } else {
+      throw new Error(updateResponse.data.message || 'Failed to update request');
     }
-  };
+  } catch (error) {
+    console.error('Assignment error:', error);
+    Swal.fire({
+      title: 'Error!',
+      text: error instanceof Error ? error.message : 'Could not assign car(s).',
+      icon: 'error',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -417,6 +508,8 @@ export default function ManualAssignmentView() {
                       key={request.id}
                       className={`cursor-pointer hover:bg-gray-50 ${
                         assignmentState.selectedRequest === request.id ? 'bg-blue-50' : ''
+                      } ${
+                        request.status === 'in_transfer' ? 'bg-purple-50 hover:bg-purple-100' : ''
                       }`}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -431,6 +524,12 @@ export default function ManualAssignmentView() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="font-medium text-gray-900">{request.requesterName}</div>
                         <div className="text-xs text-gray-500">{new Date(request.requestDate).toLocaleDateString()}</div>
+                        {request.status === 'in_transfer' && (
+                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">In Transfer</span>
+                        )}
+                        {request.status === 'waiting' && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Waiting</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                         {request.position}
@@ -492,12 +591,14 @@ export default function ManualAssignmentView() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredCars
-                    .filter(car => car.status === 'available')
+                    .filter(car => car.status === 'available' || car.status === 'in_transfer')
                     .map((car) => (
                       <tr 
                         key={car.id}
                         className={`hover:bg-gray-50 ${
                           assignmentState.selectedCars.includes(car.id) ? 'bg-blue-50' : ''
+                        } ${
+                          car.status === 'in_transfer' ? 'bg-purple-50 hover:bg-purple-100' : ''
                         }`}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -513,6 +614,9 @@ export default function ManualAssignmentView() {
                           {car.isRentCar && (
                             <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Rental</span>
                           )}
+                          {car.status === 'in_transfer' && (
+                            <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">In Transfer</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                           {car.licensePlate}
@@ -525,7 +629,7 @@ export default function ManualAssignmentView() {
                         </td>
                       </tr>
                     ))}
-                  {filteredCars.filter(car => car.status === 'available').length === 0 && (
+                  {filteredCars.filter(car => car.status === 'available' || car.status === 'in_transfer').length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                         {isLoading ? 'Loading cars...' : 'No available automobiles found'}
@@ -555,6 +659,51 @@ export default function ManualAssignmentView() {
           Assign Selected Cars ({assignmentState.selectedCars.length})
         </motion.button>
       </div>
+
+      {/* Acceptance Form Modal */}
+      <AnimatePresence>
+        {assignmentState.showAcceptanceForm && assignmentState.selectedApprovedAssignment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 50 }}
+              className="bg-white rounded-xl shadow-xl w-full max-w-[950px] ml-auto mr-12 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-2xl font-bold text-gray-800">
+                    Vehicle Acceptance Form - {assignmentState.selectedApprovedAssignment.requestLetterNo}
+                  </h2>
+                  <button
+                    onClick={handleCloseAcceptanceForm}
+                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <VehicleAcceptanceForm 
+                  initialData={{
+                    plateNumber: assignmentState.selectedApprovedAssignment.car?.licensePlate || 
+                                assignmentState.selectedApprovedAssignment.rentCar?.licensePlate || '',
+                    carType: assignmentState.selectedApprovedAssignment.car?.carType || 
+                             assignmentState.selectedApprovedAssignment.rentCar?.model || '',
+                    km: assignmentState.selectedApprovedAssignment.rentCar?.km || '0',
+                  }}
+                  onClose={handleCloseAcceptanceForm}
+                  
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
