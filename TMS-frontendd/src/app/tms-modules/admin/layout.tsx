@@ -24,7 +24,6 @@ const sidebarItems = [
       { title: 'Assign Cars', link: '/tms-modules/admin/car-management/assign-car', icon: <FiUser /> },
       { title: 'Car Attendance', link: '/tms-modules/admin/car-management/car-attendance', icon: <FiClipboard /> },
       { title: 'Vehicle Inspection', link: '/tms-modules/admin/car-management/vehicle-inspection', icon: <FiSettings /> },
-      { title: 'Vehicle Transfer', link: '/tms-modules/admin/car-management/transfer-form', icon: <FiSettings /> },
     ],
   },
   {
