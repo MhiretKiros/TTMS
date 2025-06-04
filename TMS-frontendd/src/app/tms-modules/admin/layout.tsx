@@ -84,6 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           items={sidebarItems} 
           isOpen={sidebarOpen} 
           onToggle={() => setSidebarOpen(!sidebarOpen)}
+          activeColor="#3c8dbc" // Pass the active color to Sidebar component
         />
       </div>
       

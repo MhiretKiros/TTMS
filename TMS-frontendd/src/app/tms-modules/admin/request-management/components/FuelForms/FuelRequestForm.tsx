@@ -31,8 +31,8 @@ interface FuelRequestFormProps {
     tripExplanation?: string;
     claimantName?: string;
     serviceNumber?: string;
-    actualStartingDate?: string;
-    actualReturnDate?: string;
+    actualStartingDate?: Date;
+    actualReturnDate?: Date;
     accountNumber?: string;
     paymentType?: string;
   };
@@ -60,8 +60,8 @@ export const FuelRequestForm = ({
     tripExplanation: defaultValues?.tripExplanation || '',
     claimantName: defaultValues?.claimantName || '',
     serviceNumber: defaultValues?.serviceNumber || '',
-    actualStartingDate: defaultValues?.actualStartingDate || '',
-    actualReturnDate: defaultValues?.actualReturnDate || '',
+    actualStartingDate: defaultValues?.actualStartingDate || new Date(),
+    actualReturnDate: defaultValues?.actualReturnDate || new Date(),
     confirmation:false,
     authorizerName: '',
     accountNumber: defaultValues?.accountNumber || '',
@@ -116,7 +116,6 @@ const handleFuelSubmit = async (e: React.FormEvent) => {
     let response = await TravelApi.fuelRequest({
       id: travelRequestId, // Pass the correct ID here
       authorizerName: formData.authorizerName,
-      accountNumber: formData.accountNumber,
       status: 'COMPLETED',
       assignedCarType: formData.vehicleType || '',
 
@@ -170,8 +169,11 @@ if(response){
             <input
               type="date"
               name="actualStartingDate"
-              value={formData.actualStartingDate}
-              onChange={handleChange}
+              value={
+                formData.actualStartingDate
+                  ? new Date(formData.actualStartingDate).toISOString().split('T')[0]
+                  : ''
+              }              onChange={handleChange}
               className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
               readOnly={isReadOnly}
             />
@@ -181,8 +183,11 @@ if(response){
             <input
               type="date"
               name="actualReturnDate"
-              value={formData.actualReturnDate}
-              onChange={handleChange}
+              value={
+                formData.actualReturnDate
+                  ? new Date(formData.actualReturnDate).toISOString().split('T')[0]
+                  : ''
+              }              onChange={handleChange}
               className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
               readOnly={isReadOnly}
             />

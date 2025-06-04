@@ -13,8 +13,8 @@ export interface FuelRequest {
     authorizerName: string;
     accountNumber: string;
     status: 'pending' | 'approved' | 'completed';
-    dateRequested: Date;
-  }
+    actualStartingDate: Date;
+    actualReturnDate: Date;  }
   
   export interface FuelReturn {
     id: string;
@@ -30,5 +30,6 @@ export interface FuelRequest {
     dutyTravelKm: number;
     garageKm: number;
     assemblerName: string;
-    dateReturned: Date;
+    actualStartingDate: Date;
+    actualReturnDate: Date;
   }

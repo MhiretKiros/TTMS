@@ -635,7 +635,7 @@ const populateFormData = (request: TravelRequest) => {
         destinationPlace: formData.destinationPlace,
         travelers: formData.travelers.filter(t => t.trim()),
         travelReason: formData.travelReason,
-        carType: formData.carType || undefined,
+        carType: formData.carType || undefined, 
         travelDistance: formData.travelDistance ? parseFloat(formData.travelDistance) : undefined,
         startingDate: formData.startingDate 
           ? `${formData.startingDate}T00:00:00`
@@ -2249,7 +2249,7 @@ const renderDriverModal = () => (
      {/* Service Provider */}
      <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Service Provider *
+        Distributor Manager *
       </label>
       <input
         type="text"
@@ -2326,26 +2326,28 @@ const renderDriverModal = () => (
                         <FiX className="text-gray-500" />
                       </button>
                     </div>
-                    <FuelRequestForm 
-                      travelRequestId={selectedRequest.id}
-                      defaultValues={{
-                        travelers: selectedRequest.travelers.map(t => t.name), // Extract just the names
-                        startingPlace: selectedRequest.startingPlace,
-                        destinationPlace: selectedRequest.destinationPlace,
-                        vehicleType: formData.assignedCarType,
-                        licensePlate: formData.vehicleDetails,
-                        assignedDriver: formData.assignedDriver,
-                        travelDistance: formData.kmDifference ? Number(formData.kmDifference) : 0,
-                        tripExplanation: formData.travelReason,
-                        claimantName: formData.claimantName,
-                        serviceNumber: `TR-${selectedRequest.id}`,
-                        startingDate: formData.actualStartingDate || formData.startingDate,
-                        endingDate: formData.actualReturnDate || formData.returnDate
-                      }}
-                      onSuccess={() => {
-                        closeModals();
+                     <FuelRequestForm
+                                        travelRequestId={selectedRequest.id}
+                                        defaultValues={{
+                                          travelers: selectedRequest.travelers,
+                                          startingPlace: selectedRequest.startingPlace,
+                                          destinationPlace: selectedRequest.destinationPlace,
+                                          vehicleType: selectedRequest.assignedCarType,
+                                          licensePlate: selectedRequest.vehicleDetails,
+                                          assignedDriver: selectedRequest.assignedDriver,
+                                          travelDistance: selectedRequest.travelDistance,
+                                          tripExplanation: selectedRequest.travelReason,
+                                          claimantName: selectedRequest.claimantName,
+                                          serviceNumber: `FR-${selectedRequest.id}`,
+                                          actualStartingDate: formData.actualStartingDate,
+                                          actualReturnDate: formData.actualReturnDate,
+                                          accountNumber: selectedRequest.accountNumber,
+                                        }}
+                                       
+                              onSuccess={() => {
+                             closeModals();
                         // Refresh table data
-                        TravelApi.getRequests(actorType).then(data => {
+                            TravelApi.getRequests(actorType).then(data => {
                           setRequests(data);
                           setFilteredRequests(data);
                         });

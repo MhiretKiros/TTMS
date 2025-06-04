@@ -24,8 +24,8 @@ interface FuelReturnFormProps {
     tripExplanation?: string;
     claimantName?: string;
     serviceNumber?: string;
-    startingDate?: string;
-    endingDate?: string;
+    actualStartingDate?: Date;
+    actualReturnDate?: Date;
     startingKilometrs?: number;
     endingKilometrs?: number;
     kmDifference?: number;
@@ -48,8 +48,8 @@ export const FuelReturnForm = ({
     assignedDriver: defaultValues?.assignedDriver || '',
     claimantName: defaultValues?.claimantName || '',
     serviceNumber: defaultValues?.serviceNumber || '',
-    startingDate: defaultValues?.startingDate || '',
-    endingDate: defaultValues?.endingDate || '',
+    actualStartingDate: defaultValues?.actualStartingDate || new Date(),
+    actualReturnDate: defaultValues?.actualReturnDate || new Date(),
     startingKilometrs: defaultValues?.startingKilometrs || 0,
     endingKilometrs: defaultValues?.endingKilometrs || 0,
     kmDifference: defaultValues?.kmDifference || 0,
@@ -147,9 +147,12 @@ const showSuccessAlert = (title: string, message: string) => {
             <label className="block text-sm font-medium text-gray-700">Starting Date</label>
             <input
               type="date"
-              name="startingDate"
-              value={formData.startingDate}
-              onChange={handleChange}
+              name="actualStartingDate"
+              value={
+                formData.actualStartingDate
+                  ? new Date(formData.actualStartingDate).toISOString().split('T')[0]
+                  : ''
+              }              onChange={handleChange}
               className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
               readOnly={isReadOnly}
             />
@@ -158,8 +161,12 @@ const showSuccessAlert = (title: string, message: string) => {
             <label className="block text-sm font-medium text-gray-700">Ending Date</label>
             <input
               type="date"
-              name="endingDate"
-              value={formData.endingDate}
+              name="actualReturnDate"
+              value={
+                formData.actualReturnDate
+                  ? new Date(formData.actualReturnDate).toISOString().split('T')[0]
+                  : ''
+              }  
               onChange={handleChange}
               className={`w-full px-3 py-2 rounded border ${isReadOnly ? 'bg-gray-100' : 'bg-white'} border-gray-300`}
               readOnly={isReadOnly}

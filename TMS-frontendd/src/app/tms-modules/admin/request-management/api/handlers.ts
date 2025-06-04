@@ -23,8 +23,6 @@ export interface TravelRequest {
   assignedCarType?: string;
   assignedDriver?: string;
   vehicleDetails?: string;
-  actualStartingDate?: string;
-  actualReturnDate?: string;
   startingKilometers?: number;
   endingKilometers?: number;
   kmDifference?: number;
@@ -34,6 +32,8 @@ export interface TravelRequest {
   accountNumber?:string;
   authorizerName?:string;
   assemblerName?:string;
+  actualStartingDate: Date;
+  actualReturnDate: Date;
 }
 
 // Helper function to parse dates in API responses
@@ -184,7 +184,6 @@ async fuelRequest(data: {
   id?: number;
   assignedCarType: string;
   authorizerName: string;
-  accountNumber: string;
   status: 'COMPLETED';
 }): Promise<TravelRequest> {
   try {
@@ -193,7 +192,6 @@ async fuelRequest(data: {
     // Convert all number fields from string to number
     const payload = {
       authorizerName: data.authorizerName,
-      accountNumber: data.accountNumber,
       status: data.status,
     };
 

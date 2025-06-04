@@ -6,11 +6,11 @@ import { usePathname } from 'next/navigation';
 interface SidebarItem {
   title: string;
   link: string;
-  icon: string;
+  icon: React.ReactNode;
   subItems?: {
     title: string;
     link: string;
-    icon: string;
+    icon: React.ReactNode;
   }[];
 }
 
@@ -21,6 +21,7 @@ export default function Sidebar({ items, isOpen, onToggle }: {
 }) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const pathname = usePathname();
+  const activeColor = '#3c8dbc'; // Active text color
 
   const handleItemClick = (link: string) => {
     setExpandedItem(expandedItem === link ? null : link);
@@ -45,7 +46,11 @@ export default function Sidebar({ items, isOpen, onToggle }: {
               {item.subItems ? (
                 <>
                   <div 
-                    className={`flex items-center justify-between p-3 ${pathname.startsWith(item.link) ? 'bg-gray-700' : 'hover:bg-gray-700'} rounded-lg cursor-pointer`}
+                    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
+                      pathname.startsWith(item.link) 
+                        ? 'text-[#3c8dbc] shadow-md shadow-gray-900' 
+                        : 'hover:bg-gray-700 hover:shadow-md hover:shadow-gray-900'
+                    }`}
                     onClick={() => handleItemClick(item.link)}
                   >
                     <div className="flex items-center">
@@ -59,8 +64,9 @@ export default function Sidebar({ items, isOpen, onToggle }: {
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
+                        strokeWidth={2}
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                       </svg>
                     )}
                   </div>
@@ -70,7 +76,11 @@ export default function Sidebar({ items, isOpen, onToggle }: {
                         <li key={subItem.link}>
                           <Link
                             href={subItem.link}
-                            className={`flex items-center p-2 pl-8 ${pathname === subItem.link ? 'text-blue-400' : 'hover:text-gray-300'}`}
+                            className={`flex items-center p-2 pl-8 rounded transition-all ${
+                              pathname === subItem.link 
+                                ? 'text-[#3c8dbc] shadow-md shadow-gray-900' 
+                                : 'hover:bg-gray-700 hover:shadow-md hover:shadow-gray-900'
+                            }`}
                           >
                             <span className="mr-3">{subItem.icon}</span>
                             {subItem.title}
@@ -83,7 +93,11 @@ export default function Sidebar({ items, isOpen, onToggle }: {
               ) : (
                 <Link
                   href={item.link}
-                  className={`flex items-center p-3 ${pathname === item.link ? 'bg-blue-700' : 'hover:bg-gray-700'} rounded-lg`}
+                  className={`flex items-center p-3 rounded-lg transition-all ${
+                    pathname === item.link 
+                      ? 'text-[#3c8dbc] shadow-md shadow-gray-900' 
+                      : 'hover:bg-gray-700 hover:shadow-md hover:shadow-gray-900'
+                  }`}
                 >
                   <span className="mr-3">{item.icon}</span>
                   {isOpen && <span>{item.title}</span>}
