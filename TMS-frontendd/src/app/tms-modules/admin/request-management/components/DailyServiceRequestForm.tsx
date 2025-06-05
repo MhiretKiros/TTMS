@@ -1403,7 +1403,6 @@ const populateFormData = (request: DailyServiceRequest) => {
         name="driverName"
         placeholder="Auto-filled from plate selection"
         value={formData.driverName}
-        readOnly
         className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
       />
       {errors.driverName && (

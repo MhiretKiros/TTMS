@@ -1,5 +1,6 @@
 'use client';
 import axios from 'axios';
+import L from 'leaflet'; // Import L for custom icons if needed
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap, Popup } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
@@ -18,23 +19,27 @@ async function fetchInspectedBuses() {
   );
 }
 
-type ExistingAssignedRoute = {
-  plateNumber: string;
+type Waypoint = {
   destinationLat: number;
   destinationLng: number;
-  destinationName?: string; // To store the fetched name
+  destinationName?: string;
+};
+
+type ExistingAssignedRoute = {
+  plateNumber: string;
   id?: string | number; // Optional, but good if backend provides it
+  waypoints: Waypoint[]; // Now stores an array of waypoints
 }
 
 // Fetch real route from OpenRouteService
-async function fetchRoute(start: [number, number], end: [number, number]) {
+async function fetchRoute(points: LatLngTuple[]) { // Accepts an array of points
   const apiKey = '5b3ce3597851110001cf6248db908c59be8b4a8e85283a6208452126'; // <-- Replace with your real key
   const url = 'https://api.openrouteservice.org/v2/directions/driving-car/geojson';
+  if (points.length < 2) {
+    return []; // Not enough points to form a route
+  }
   const body = {
-    coordinates: [
-      [start[1], start[0]], // [lng, lat]
-      [end[1], end[0]],
-    ],
+    coordinates: points.map(p => [p[1], p[0]]), // Convert all points to [lng, lat]
   };
   const headers = {
     'Authorization': apiKey,
@@ -140,12 +145,12 @@ function MapSearchBar({ onSelect }: { onSelect: (latlng: [number, number]) => vo
 function MapViewUpdater({
   routeCoords,
   busPosition,
-  destination,
+  activeWaypoints,
   selectedBus
 }: {
   routeCoords: LatLngTuple[];
   busPosition: LatLngTuple | null;
-  destination: LatLngTuple | null;
+  activeWaypoints: LatLngTuple[];
   selectedBus: any | null;
 }) {
   const map = useMap(); 
@@ -153,16 +158,22 @@ function MapViewUpdater({
   useEffect(() => {
     if (!map) return;
 
-    if (routeCoords.length > 0 && busPosition && destination) {
-      const bounds: LatLngTuple[] = [busPosition, destination, ...routeCoords];
+    let bounds: LatLngTuple[] = [];
+    if (busPosition) bounds.push(busPosition);
+    // Always include Wello Sefer if there are waypoints for an auto-route context
+    if (activeWaypoints.length > 0) bounds.push(welloSefer); 
+    if (activeWaypoints.length > 0) bounds.push(...activeWaypoints);
+
+
+    if (bounds.length > 1) {
       map.fitBounds(bounds, { padding: [50, 50] });
-    } else if (destination) {
-      map.setView(destination, 15);
-    } else if (busPosition) {
-      map.setView(busPosition, 14);
+    } else if (bounds.length === 1) { // e.g. only busPosition or only WelloSefer
+      map.setView(bounds[0], 15);
+    } else if (routeCoords.length > 0) { // If there's a drawn route but no specific points to bound
+        map.fitBounds(routeCoords, { padding: [50, 50] });
     }
     // If nothing is set, map remains at its last state or initial center/zoom
-  }, [routeCoords, busPosition, destination, selectedBus, map]);
+  }, [routeCoords, busPosition, activeWaypoints, selectedBus, map]);
 
   return null;
 }
@@ -170,8 +181,8 @@ function MapViewUpdater({
 export default function LeafletMap() {
   const [buses, setBuses] = useState<any[]>([]);
   const [selectedBus, setSelectedBus] = useState<any | null>(null);
-  const [destination, setDestination] = useState<[number, number] | null>(null);
-  // State to store routes fetched from the backend
+  const [activeRouteWaypoints, setActiveRouteWaypoints] = useState<LatLngTuple[]>([]);
+  const [activeRouteWaypointNames, setActiveRouteWaypointNames] = useState<string[]>([]);
   const [existingAssignedRoutes, setExistingAssignedRoutes] = useState<ExistingAssignedRoute[]>([]);
   const [routeCoords, setRouteCoords] = useState<LatLngTuple[]>([]);
   const [busSearchQuery, setBusSearchQuery] = useState('');
@@ -181,7 +192,6 @@ export default function LeafletMap() {
   useEffect(() => {
     fetchInspectedBuses().then(setBuses).catch(console.error);
 
-    // Fetch existing assigned routes from the backend
     setIsLoadingAssignedRoutes(true);
     fetch('http://localhost:8080/auth/organization-car/assigned-routes')
       .then(res => {
@@ -191,16 +201,27 @@ export default function LeafletMap() {
         return res.json();
       })
       .then(async (data) => {
-        const rawRoutes: Omit<ExistingAssignedRoute, 'destinationName'>[] = data.assignedRoutes || data || [];
-        const routesWithNames = await Promise.all(
-          rawRoutes.map(async (r) => ({
-            ...r,
-            plateNumber: r.plateNumber,
-            destinationLat: parseFloat(String(r.destinationLat)),
-            destinationLng: parseFloat(String(r.destinationLng)),
-            destinationName: await fetchLocationName(parseFloat(String(r.destinationLat)), parseFloat(String(r.destinationLng))),
-            id: r.id,
-          }))
+        const rawRoutes: any[] = data.assignedRoutes || data || [];
+        const routesWithNames: ExistingAssignedRoute[] = await Promise.all(
+          rawRoutes.map(async (route) => {
+            const waypointsWithNames: Waypoint[] = route.waypoints && Array.isArray(route.waypoints)
+              ? await Promise.all(
+                  route.waypoints.map(async (wp: any) => ({
+                    destinationLat: parseFloat(String(wp.destinationLat || wp.latitude)),
+                    destinationLng: parseFloat(String(wp.destinationLng || wp.longitude)),
+                    destinationName: await fetchLocationName(
+                      parseFloat(String(wp.destinationLat || wp.latitude)),
+                      parseFloat(String(wp.destinationLng || wp.longitude))
+                    ),
+                  }))
+                )
+              : []; // Handle cases where waypoints might be missing or not an array
+            return {
+              plateNumber: route.plateNumber,
+              id: route.id,
+              waypoints: waypointsWithNames,
+            };
+          })
         );
         setExistingAssignedRoutes(routesWithNames);
       })
@@ -212,45 +233,71 @@ export default function LeafletMap() {
     selectedBus?.organizationCar?.lat && selectedBus?.organizationCar?.lng
       ? [Number(selectedBus.organizationCar.lat), Number(selectedBus.organizationCar.lng)]
       : selectedBus
-        ? welloSefer // Default to Wello Sefer if bus is selected but has no specific coords
-        : null; // No bus selected, no specific bus position
+        ? welloSefer 
+        : null; 
 
-  const mapInitialCenter = welloSefer; // Always have a defined initial center
+  const mapInitialCenter = welloSefer; 
 
-  // Fetch real route when bus or destination changes
   useEffect(() => {
-    if (selectedBus && destination && busPosition) { // Ensure busPosition is also available
-      fetchRoute(busPosition, destination)
-        .then(setRouteCoords)
+    if (activeRouteWaypoints.length > 0) {
+      Promise.all(activeRouteWaypoints.map(wp => fetchLocationName(wp[0], wp[1])))
+        .then(setActiveRouteWaypointNames)
         .catch((err) => {
-          console.error("Error fetching route:", err);
-          setRouteCoords([]);
-          // alert("Could not fetch the route. Please check the locations or try again.");
+          console.error("Error fetching waypoint names:", err);
+          setActiveRouteWaypointNames(activeRouteWaypoints.map(wp => `${wp[0].toFixed(4)}, ${wp[1].toFixed(4)}`));
         });
     } else {
-      setRouteCoords([]); // Clear route if no bus/destination or if busPosition is missing
+      setActiveRouteWaypointNames([]);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBus, destination]);
+  }, [activeRouteWaypoints]);
+
+  useEffect(() => {
+    if (selectedBus && activeRouteWaypoints.length > 0) {
+      const pointsForRoute = [welloSefer, ...activeRouteWaypoints];
+      
+      if (pointsForRoute.length >= 2) {
+        fetchRoute(pointsForRoute)
+          .then(setRouteCoords)
+          .catch((err) => {
+            console.error("Error fetching API route:", err);
+            setRouteCoords([]);
+          });
+      } else {
+        setRouteCoords([]);
+      }
+    } else {
+      setRouteCoords([]); 
+    }
+  }, [selectedBus, activeRouteWaypoints, busPosition]); // Added busPosition as dependency
+
+  const handlePointSelected = (latlng: LatLngTuple) => {
+    if (!selectedBus) {
+      alert("Please select a bus first.");
+      return;
+    }
+    setActiveRouteWaypoints(prevPoints => [...prevPoints, latlng]);
+  };
 
   const handleAssignRoute = async () => {
-    if (selectedBus && destination) {
+    if (selectedBus && activeRouteWaypoints.length > 0) {
       const plateNumber = selectedBus.organizationCar?.plateNumber;
       if (!plateNumber) {
         alert("Selected bus has no plate number.");
         return;
       }
 
-      // Allow re-assignment: The check for alreadyAssigned to prevent assignment is removed.
-
       try {
+        const waypointsPayload = activeRouteWaypoints.map(wp => ({
+          latitude: wp[0],
+          longitude: wp[1],
+        }));
+
         const response = await fetch('http://localhost:8080/auth/organization-car/assign-route', {
-          method: 'POST',
+          method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             plateNumber: plateNumber,
-            latitude: destination[0],
-            longitude: destination[1],
+            waypoints: waypointsPayload,
           }),
         });
 
@@ -259,38 +306,45 @@ export default function LeafletMap() {
           throw new Error(errorData.message || `Failed to assign route. Status: ${response.status}`);
         }
 
-        const newAssignmentDataFromResponse = await response.json().catch(() => null); // Get response data if any
-        const destinationName = await fetchLocationName(destination[0], destination[1]);
-
-        alert(
-          `Route successfully assigned/updated for ${plateNumber}!\nNew Destination: ${destinationName}`
+        const newAssignmentDataFromResponse = await response.json().catch(() => null);
+        const assignedWaypointNames = await Promise.all(
+          activeRouteWaypoints.map(wp => fetchLocationName(wp[0], wp[1]))
         );
 
-        // Update local state to reflect the new assignment immediately
+        alert(
+          `Route successfully assigned/updated for ${plateNumber}!\nWaypoints: ${assignedWaypointNames.join(' -> ')}`
+        );
+
         setExistingAssignedRoutes(prevRoutes => {
           const updatedRouteEntry: ExistingAssignedRoute = {
             plateNumber: plateNumber,
-            destinationLat: destination[0],
-            destinationLng: destination[1],
-            destinationName: destinationName,
-            id: newAssignmentDataFromResponse?.id || getBusAssignmentDetails(plateNumber)?.id // Use new ID from response, or old ID if updating
+            id: newAssignmentDataFromResponse?.id || getBusAssignmentDetails(plateNumber)?.id,
+            waypoints: activeRouteWaypoints.map((wp, index) => ({
+              destinationLat: wp[0],
+              destinationLng: wp[1],
+              destinationName: assignedWaypointNames[index],
+            })),
           };
           return prevRoutes
-            .filter(route => route.plateNumber !== plateNumber) // Remove old entry for this plate
-            .concat(updatedRouteEntry); // Add the new/updated entry
+            .filter(route => route.plateNumber !== plateNumber)
+            .concat(updatedRouteEntry);
         });
-        setDestination(null); // Clear destination for next assignment
-        setRouteCoords([]);   // Clear drawn route
+        setActiveRouteWaypoints([]); 
+        setActiveRouteWaypointNames([]);
+        setRouteCoords([]);   
       } catch (error) {
         console.error("Error assigning route:", error);
         alert(`Error assigning route: ${error instanceof Error ? error.message : String(error)}`);
       }
+    } else { 
+      alert("Please select a bus and add at least one waypoint."); 
     }
   };
 
   const isBusCurrentlyAssigned = (plateNumber?: string) => {
     if (!plateNumber) return false;
-    return existingAssignedRoutes.some(route => route.plateNumber === plateNumber);
+    const assignment = getBusAssignmentDetails(plateNumber);
+    return !!(assignment && assignment.waypoints && assignment.waypoints.length > 0);
   };
 
   const getBusAssignmentDetails = (plateNumber?: string) => {
@@ -302,10 +356,28 @@ export default function LeafletMap() {
     bus.organizationCar?.plateNumber?.toLowerCase().includes(busSearchQuery.toLowerCase())
   );
 
+  const handleClearEntireRoute = () => {
+    setActiveRouteWaypoints([]);
+    setActiveRouteWaypointNames([]);
+    setRouteCoords([]);
+  };
+
+  const intermediateWaypointIcon = new L.Icon({
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [25, 41], // Standard size for clarity, or smaller if preferred
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+  });
+
+
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow">
       <h1 className="text-2xl font-bold mb-2">Assign Route to Registered & Inspected Buses</h1>
-      <p className="mb-4 text-gray-600">Select a bus, then click on the map or use the search bar to set a destination. Click "Assign Route" to save.</p>
+      <p className="mb-4 text-gray-600">
+        Select a bus. Click on the map or search to add waypoints. A route will be generated from Wello Sefer through these points.
+      </p>
       <div className="flex flex-col md:flex-row gap-6">
         <div className="md:w-1/3">
           <div className="mb-4">
@@ -336,30 +408,30 @@ export default function LeafletMap() {
                         className={`p-3 border-b last:border-b-0 cursor-pointer transition-colors ${
                           selectedBus?.organizationCar?.plateNumber === plate
                             ? 'bg-blue-500 text-white'
-                            : assignment
+                            : (assignment && assignment.waypoints && assignment.waypoints.length > 0)
                               ? 'bg-green-50 hover:bg-green-100'
                                 : 'bg-gray-50 hover:bg-gray-100 '
                         }`}
                         onClick={() => {
                           setSelectedBus(bus);
+                          setActiveRouteWaypoints([]); 
+                          setActiveRouteWaypointNames([]);
+                          setRouteCoords([]);   
+
                           const currentAssignment = getBusAssignmentDetails(plate);
-                          if (currentAssignment) {
-                            // Bus is already assigned, display its route
-                            const assignedDest: LatLngTuple = [currentAssignment.destinationLat, currentAssignment.destinationLng];
-                            setDestination(assignedDest);
-                            // The useEffect for [selectedBus, destination] will fetch and display the route.
-                          } else {
-                            // Bus is not assigned, clear destination for new assignment
-                            setDestination(null);
-                            setRouteCoords([]);
+                          if (currentAssignment && currentAssignment.waypoints && currentAssignment.waypoints.length > 0) {
+                            const assignedWaypointsLatLng: LatLngTuple[] = currentAssignment.waypoints.map(wp => [wp.destinationLat, wp.destinationLng]);
+                            setActiveRouteWaypoints(assignedWaypointsLatLng);
                           }
                         }}
                       >
                         <span className="font-medium">{plate}</span>
-                        {assignment && (
-                          <span className="block text-xs text-green-700">
-                            Assigned to: {assignment.destinationName || `${assignment.destinationLat.toFixed(4)}, ${assignment.destinationLng.toFixed(4)}`}
-                          </span>
+                        {assignment && assignment.waypoints && assignment.waypoints.length > 0 && (
+                          <div className="text-xs text-green-700">
+                            Assigned ({assignment.waypoints.length} stops): 
+                            {assignment.waypoints.slice(0, 2).map(wp => wp.destinationName || `${wp.destinationLat.toFixed(2)}, ${wp.destinationLng.toFixed(2)}`).join(' -> ')}
+                            {assignment.waypoints.length > 2 ? '...' : ''}
+                          </div>
                         )}
                       </li>
                     );
@@ -370,71 +442,78 @@ export default function LeafletMap() {
         </div>
         <div className="md:w-2/3 relative">
           <MapContainer
-            center={mapInitialCenter} // Use a consistent initial center
-            zoom={13} // Default zoom
+            center={mapInitialCenter}
+            zoom={13}
             style={{ width: '100%', height: '400px' }}
-            // Removed key to let MapViewUpdater handle view changes smoothly
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
             <MapViewUpdater
               routeCoords={routeCoords}
               busPosition={busPosition}
-              destination={destination}
+              activeWaypoints={activeRouteWaypoints}
               selectedBus={selectedBus}
             />
+            {busPosition && selectedBus && (
+              <Marker position={busPosition} icon={intermediateWaypointIcon}>
+                <Popup>Bus: {selectedBus.organizationCar.plateNumber}<br/>Current Location (or Wello Sefer)</Popup>
+              </Marker>
+            )}
 
-            {busPosition && selectedBus && ( // Render bus marker if bus is selected and has a position
-              <Marker position={busPosition}>
-                <Popup>Bus: {selectedBus.organizationCar.plateNumber}<br/>Current Location</Popup>
+            {activeRouteWaypoints.map((wp, index) => (
+              <Marker key={`waypoint-${index}`} position={wp}>
+                <Popup>Waypoint {index + 1}: {activeRouteWaypointNames[index] || `${wp[0].toFixed(4)}, ${wp[1].toFixed(4)}`}</Popup>
               </Marker>
-            )}
-            {destination && (
-              <Marker position={destination}>
-                <Popup>
-                  {
-                    (() => {
-                      const assignment = getBusAssignmentDetails(selectedBus?.organizationCar?.plateNumber);
-                      if (assignment && destination && assignment.destinationLat === destination[0] && assignment.destinationLng === destination[1]) {
-                        return `Assigned Destination: ${assignment.destinationName || `Lat ${assignment.destinationLat.toFixed(4)}, Lng ${assignment.destinationLng.toFixed(4)}`}`;
-                      }
-                      return "Selected Destination for New Assignment";
-                    })()
-                  }
-                </Popup>
-              </Marker>
-            )}
+            ))}
+
             {routeCoords.length > 0 && <Polyline positions={routeCoords} color="blue" />}
-            {/* Allow setting destination even if bus is already assigned, for re-assignment purposes */}
+            
             {selectedBus && (
-              <DestinationSetter onSet={setDestination} />
+              <DestinationSetter onSet={handlePointSelected} />
             )}
-            <MapSearchBar onSelect={(latlng) => {
-              if (selectedBus) { // Allow setting destination if a bus is selected
-                setDestination(latlng);
-              // Removed the specific alert that prevented setting a new destination for an assigned bus.
-              // The user can now select a new destination for re-assignment.
-              // } else if (selectedBus && isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber)) {
-                // alert(`Bus ${selectedBus.organizationCar.plateNumber} is already assigned. You are selecting a new destination to re-assign.`);
-              } else {
-                alert("Please select a bus first.");
-              }
-            }} />
+            <MapSearchBar onSelect={handlePointSelected} />
           </MapContainer>
           <div className="mt-4 flex flex-col gap-3">
-            {selectedBus && isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber) && (
-              <p className="text-orange-600 font-semibold p-2 bg-orange-100 rounded">
-                Car {selectedBus.organizationCar.plateNumber} is currently assigned to: {getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationName || 'N/A'}.
-                {destination && (getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationLat !== destination[0] || getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationLng !== destination[1]) && " Select a new destination on the map to re-assign."}
-              </p>
-            )}
+            <div className="flex gap-2">
+              {selectedBus && activeRouteWaypoints.length > 0 && (
+                 <button
+                  onClick={handleClearEntireRoute}
+                  className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition-colors"
+                >
+                  Clear Current Waypoints
+                </button>
+              )}
+            </div>
+            {selectedBus && (() => {
+              const assignment = getBusAssignmentDetails(selectedBus.organizationCar?.plateNumber);
+              if (assignment && assignment.waypoints && assignment.waypoints.length > 0) {
+                const assignedWaypointsText = assignment.waypoints.map(wp => wp.destinationName || `${wp.destinationLat.toFixed(2)},${wp.destinationLng.toFixed(2)}`).join(' -> ');
+                return (
+                  <p className="text-orange-600 font-semibold p-2 bg-orange-100 rounded">
+                    Car {selectedBus.organizationCar.plateNumber} is currently assigned to: {assignedWaypointsText}.
+                    {activeRouteWaypoints.length > 0 && " Modifying points below will update this assignment."}
+                  </p>
+                );
+              }
+              return null;
+            })()}
             <button
               className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={
                 !selectedBus ||
-                !destination ||
+                activeRouteWaypoints.length === 0 || 
                 isLoadingAssignedRoutes ||
-                (isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber) && getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationLat === destination[0] && getBusAssignmentDetails(selectedBus.organizationCar.plateNumber)?.destinationLng === destination[1]) // Disable if assigned and destination hasn't changed
+                (() => { 
+                  if (isBusCurrentlyAssigned(selectedBus?.organizationCar?.plateNumber)) {
+                    const currentAssignment = getBusAssignmentDetails(selectedBus.organizationCar.plateNumber);
+                    if (currentAssignment && currentAssignment.waypoints.length === activeRouteWaypoints.length) {
+                      return currentAssignment.waypoints.every((cw, i) => 
+                        cw.destinationLat === activeRouteWaypoints[i][0] && cw.destinationLng === activeRouteWaypoints[i][1]
+                      );
+                    }
+                  }
+                  return false;
+                })()
               }
               onClick={handleAssignRoute}
             >
@@ -448,24 +527,20 @@ export default function LeafletMap() {
               View All Assigned Routes
             </button>
           </div>
-          {selectedBus && !destination && !isBusCurrentlyAssigned(selectedBus.organizationCar?.plateNumber) && (
+          {selectedBus && activeRouteWaypoints.length === 0 && (
             <p className="mt-2 text-sm text-gray-500">
-              Click on the map or use search to set a destination for {selectedBus.organizationCar.plateNumber}.
+              Click on the map or use search to add waypoints for {selectedBus.organizationCar.plateNumber}. Route will start from Wello Sefer.
             </p>
           )}
-          {selectedBus && destination && (() => {
+          {selectedBus && activeRouteWaypoints.length > 0 && (() => {
             const currentAssignment = getBusAssignmentDetails(selectedBus.organizationCar.plateNumber);
-            if (currentAssignment) {
-              // Bus is assigned
-              if (currentAssignment.destinationLat === destination[0] && currentAssignment.destinationLng === destination[1]) {
-                // Destination shown is the current assignment
-                return <p className="mt-2 text-sm text-green-700">Displaying current route for {selectedBus.organizationCar.plateNumber} to {currentAssignment.destinationName || 'its assigned destination'}.</p>;
-              } else {
-                // Destination shown is a new potential assignment
-                return <p className="mt-2 text-sm text-blue-700">Previewing new route for {selectedBus.organizationCar.plateNumber} to the selected destination. Click "Assign Route" to confirm re-assignment.</p>;
-              }
+            if (currentAssignment && currentAssignment.waypoints.length === activeRouteWaypoints.length && currentAssignment.waypoints.every((cw, i) => cw.destinationLat === activeRouteWaypoints[i][0] && cw.destinationLng === activeRouteWaypoints[i][1])) {
+                return <p className="mt-2 text-sm text-green-700">These waypoints match the current assignment for {selectedBus.organizationCar.plateNumber}.</p>;
+            } else if (currentAssignment && currentAssignment.waypoints && currentAssignment.waypoints.length > 0) {
+                return <p className="mt-2 text-sm text-blue-700">Previewing new route for {selectedBus.organizationCar.plateNumber} via {activeRouteWaypoints.length} waypoint(s). This will update the current assignment.</p>;
+            } else {
+                 return <p className="mt-2 text-sm text-blue-700">Previewing new route for {selectedBus.organizationCar.plateNumber} via {activeRouteWaypoints.length} waypoint(s). This will be a new assignment.</p>;
             }
-            return null; // Not assigned, or message handled by the block above
           })()}
         </div>
       </div>
