@@ -272,8 +272,8 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
     const fetchAvailableCars = async () => {
       try {
         const [regularCarsResponse, rentCarsResponse] = await Promise.all([
-          axios.get('http://localhost:8080/auth/car/approved'),
-          axios.get('http://localhost:8080/auth/rent-car/approved')
+          axios.get('http://localhost:8080/auth/car/in-transfer'),
+          axios.get('http://localhost:8080/auth/rent-car/in-transfer')
         ]);
 
         const regularCars: Car[] = regularCarsResponse.data?.carList?.map((car: any) => ({

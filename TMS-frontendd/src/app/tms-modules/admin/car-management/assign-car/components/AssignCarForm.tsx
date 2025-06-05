@@ -219,7 +219,7 @@ export default function RentalRequestForm() {
         const rawCars = rentalType === 'organizational' ? data.rentCarList : data.carList;
         
         return rawCars
-          .filter((car: any) => car.status.toLowerCase() === 'approved')
+          .filter((car: any) => car.status.toLowerCase() === 'inspectedandready')
           .map((car: any) => rentalType === 'organizational' ? {
             id: car.id,
             plateNumber: car.plateNumber,
@@ -303,7 +303,7 @@ export default function RentalRequestForm() {
         .filter(car => {
           const carType = car.carType?.toLowerCase() || '';
           const isAutomobile = carType.includes('auto') || carType.includes('autho');
-          return isAutomobile && car.status === 'Approved';
+          return isAutomobile && car.status === 'InspectedAndReady';
         });
 
       console.log('Total approved automobiles:', allApprovedAutomobiles.length);
@@ -409,7 +409,7 @@ export default function RentalRequestForm() {
         allApprovedCars.filter(car => {
           const carType = car.carType?.toLowerCase() || '';
           return (carType.includes('auto') || carType.includes('autho')) && 
-                 car.status === 'Approved';
+                 car.status === 'InspectedAndReady';
         }),
         formData.position,
         isHighPriority

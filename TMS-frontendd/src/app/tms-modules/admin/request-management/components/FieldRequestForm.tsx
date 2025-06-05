@@ -84,7 +84,7 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     cargoType: '',
     cargoWeight: '',
     numberOfPassengers: '',
-    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED',
+    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED'| 'InspectedAndRead',
   });
 
   const [showCargoDropdown, setShowCargoDropdown] = useState(false);
@@ -133,21 +133,21 @@ useEffect(() => {
 
       const vehicles = [
         ...(carsRes.data.carList || []).filter((car: { status: string }) => 
-          car.status.toLowerCase() === 'approved').map((v: any) => ({
+          car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
           plate: v.plateNumber,
           driver: v.driverName || 'No driver assigned',
           carType: v.carType,
           type: 'car' as const // Add type identifier
         })),
         ...(orgCarsRes.data.organizationCarList || []).filter((car: { status: string }) => 
-          car.status.toLowerCase() === 'approved').map((v: any) => ({
+          car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
           plate: v.plateNumber,
           driver: v.driverName || 'No driver assigned',
           carType: v.carType,
           type: 'organization' as const // Add type identifier
         })),
         ...(rentCarsRes.data.rentCarList || []).filter((car: { status: string }) => 
-          car.status.toLowerCase() === 'approved').map((v: any) => ({
+          car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
           plate: v.licensePlate,
           driver: v.driverName || 'No driver assigned',
           carType: v.vehicleType,
@@ -860,7 +860,7 @@ if (!validVehicleTypes.includes(vehicleType)) {
     if (vehicleType && formData.vehicleDetails) {
       try {
         let response;
-        const statusUpdate = { status: 'Approved' }; // Consistent payload
+        const statusUpdate = { status: 'InspectedAndReady' }; // Consistent payload
     
         if (vehicleType === 'car') {
           response = await axios.put(

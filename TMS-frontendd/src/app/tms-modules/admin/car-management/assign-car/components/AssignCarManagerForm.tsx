@@ -165,7 +165,7 @@ export default function AssignCarManagerForm() {
       
       if (carsResponse.data.codStatus === 200) {
         const cars = carsResponse.data.carList
-          .filter((car: any) => car.status.toLowerCase() === 'approved')
+          .filter((car: any) => car.status.toLowerCase() === 'inspectedandready')
           .map((car: any) => ({
             ...car,
             carType: car.carType?.toLowerCase() || '',
@@ -176,7 +176,7 @@ export default function AssignCarManagerForm() {
 
       if (rentCarsResponse.data.codStatus === 200) {
           const rentCars = rentCarsResponse.data.rentCarList
-            .filter((car: any) => car.status.toLowerCase() === 'approved')
+            .filter((car: any) => car.status.toLowerCase() === 'inspectedandready')
             .map((car: any) => ({
               id: car.id,
               plateNumber: car.plateNumber,

@@ -176,7 +176,7 @@ export default function ManualAssignmentView() {
         id: car.id.toString(),
         model: car.model || 'Unknown Model',
         licensePlate: car.plateNumber || 'Unknown Plate',
-        status: car.status?.toLowerCase() === 'approved' ? 'available' : 
+        status: car.status?.toLowerCase() === 'inspectedandready' ? 'available' : 
                car.status?.toLowerCase() === 'in_transfer' ? 'in_transfer' : 'maintenance',
         carType: car.carType,
         manufactureYear: car.manufactureYear,
@@ -191,7 +191,7 @@ export default function ManualAssignmentView() {
         id: `rent-${car.id}`,
         model: car.model || 'Unknown Model',
         licensePlate: car.plateNumber || 'Unknown Plate',
-        status: car.status?.toLowerCase() === 'approved' ? 'available' : 
+        status: car.status?.toLowerCase() === 'inspectedandready' ? 'available' : 
                car.status?.toLowerCase() === 'in_transfer' ? 'in_transfer' : 'maintenance',
         carType: car.bodyType,
         manufactureYear: car.proYear ? parseInt(car.proYear) : undefined,
