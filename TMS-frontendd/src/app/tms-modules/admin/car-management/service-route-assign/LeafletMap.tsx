@@ -4,6 +4,17 @@ import L from 'leaflet'; // Import L for custom icons if needed
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap, Popup } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
+// Fix for default marker icon paths
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon.src,
+  iconRetinaUrl: markerIcon2x.src,
+  shadowUrl: markerShadow.src,
+});
 import 'leaflet/dist/leaflet.css';
 import { useRouter } from 'next/navigation';
 
@@ -18,6 +29,8 @@ async function fetchInspectedBuses() {
     (bus: any) => bus.organizationCar && bus.organizationCar.plateNumber
   );
 }
+
+const API_BASE_URL = 'http://localhost:8080'; // Assuming Spring Boot runs on port 8080
 
 type Waypoint = {
   destinationLat: number;
@@ -52,7 +65,6 @@ async function fetchRoute(points: LatLngTuple[]) { // Accepts an array of points
   );
 }
 
-// Helper function for reverse geocoding (can be moved to a utils file)
 async function fetchLocationName(lat: number, lng: number): Promise<string> {
   try {
     const response = await fetch(
@@ -79,7 +91,7 @@ function DestinationSetter({ onSet }: { onSet: (latlng: [number, number]) => voi
   return null;
 }
 
-// --- Search Bar Component ---
+
 function MapSearchBar({ onSelect }: { onSelect: (latlng: [number, number]) => void }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
@@ -193,7 +205,7 @@ export default function LeafletMap() {
     fetchInspectedBuses().then(setBuses).catch(console.error);
 
     setIsLoadingAssignedRoutes(true);
-    fetch('http://localhost:8080/auth/organization-car/assigned-routes')
+    fetch(`${API_BASE_URL}/api/routes`) // Updated URL
       .then(res => {
         if (!res.ok) {
           throw new Error('Failed to fetch assigned routes');
@@ -201,17 +213,18 @@ export default function LeafletMap() {
         return res.json();
       })
       .then(async (data) => {
-        const rawRoutes: any[] = data.assignedRoutes || data || [];
+        const rawRoutes: any[] = data || []; // Assuming API returns the list directly
         const routesWithNames: ExistingAssignedRoute[] = await Promise.all(
           rawRoutes.map(async (route) => {
             const waypointsWithNames: Waypoint[] = route.waypoints && Array.isArray(route.waypoints)
               ? await Promise.all(
                   route.waypoints.map(async (wp: any) => ({
-                    destinationLat: parseFloat(String(wp.destinationLat || wp.latitude)),
-                    destinationLng: parseFloat(String(wp.destinationLng || wp.longitude)),
+                    // Assuming backend DTO for waypoint provides 'latitude' and 'longitude' as numbers
+                    destinationLat: Number(wp.latitude),
+                    destinationLng: Number(wp.longitude),
                     destinationName: await fetchLocationName(
-                      parseFloat(String(wp.destinationLat || wp.latitude)),
-                      parseFloat(String(wp.destinationLng || wp.longitude))
+                      Number(wp.latitude),
+                      Number(wp.longitude)
                     ),
                   }))
                 )
@@ -292,7 +305,7 @@ export default function LeafletMap() {
           longitude: wp[1],
         }));
 
-        const response = await fetch('http://localhost:8080/auth/organization-car/assign-route', {
+        const response = await fetch(`${API_BASE_URL}/api/routes/assign`, { // Updated URL
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
