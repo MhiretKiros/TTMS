@@ -41,37 +41,61 @@ export default function AssignedRoutesPage() {
   useEffect(() => {
     setIsLoading(true);
     setError(null);
-    fetch(`${API_BASE_URL}/api/routes`) // Updated URL
-      .then(res => res.json())
-      .then(async (data) => {
-        // Assuming data is an array of AssignedRouteResponseDTO
+
+    const fetchAndProcessRoutes = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/routes`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch routes. Status: ${response.status}`);
+        }
+        const data = await response.json();
         const rawRoutesFromApi: any[] = data || [];
 
-        const processedRoutes: AssignedRoute[] = await Promise.all(
-          rawRoutesFromApi.map(async (apiRoute) => {
-            const waypointsWithNames: Waypoint[] = apiRoute.waypoints && Array.isArray(apiRoute.waypoints)
-              ? await Promise.all(
-                  apiRoute.waypoints.map(async (wp: any) => ({
-                    // Assuming backend DTO for waypoint provides 'latitude' and 'longitude' as numbers
-                    latitude: Number(wp.latitude),
-                    longitude: Number(wp.longitude),
-                    name: await fetchLocationName(
-                      Number(wp.latitude),
-                      Number(wp.longitude)
-                    ),
-                  }))
-                )
-              : [];
-            return {
-              id: apiRoute.id,
-              plateNumber: apiRoute.plateNumber,
-              waypoints: waypointsWithNames,
-            };
-          })
-        );
-        setRoutes(processedRoutes);
-      })
-      .catch(err => { console.error(err); setError("Failed to load assigned routes."); setIsLoading(false); });
+        // Stage 1: Set routes with coordinates immediately for faster initial display
+        const routesWithCoordsOnly: AssignedRoute[] = rawRoutesFromApi.map(apiRoute => ({
+          id: apiRoute.id,
+          plateNumber: apiRoute.plateNumber,
+          waypoints: apiRoute.waypoints && Array.isArray(apiRoute.waypoints)
+            ? apiRoute.waypoints.map((wp: any) => ({
+                latitude: Number(wp.latitude),
+                longitude: Number(wp.longitude),
+                // Name will be fetched asynchronously later
+              }))
+            : [],
+        }));
+        setRoutes(routesWithCoordsOnly);
+
+        // Stage 2: Asynchronously fetch names and update the state
+        // This allows the UI to render once with basic data, then enhance with names
+        const routesWithNamesPromises = rawRoutesFromApi.map(async (apiRoute) => {
+          const waypointsWithNames: Waypoint[] = apiRoute.waypoints && Array.isArray(apiRoute.waypoints)
+            ? await Promise.all(
+                apiRoute.waypoints.map(async (wp: any) => ({
+                  latitude: Number(wp.latitude),
+                  longitude: Number(wp.longitude),
+                  name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+                }))
+              )
+            : [];
+          return {
+            id: apiRoute.id,
+            plateNumber: apiRoute.plateNumber,
+            waypoints: waypointsWithNames,
+          };
+        });
+
+        const finalRoutesWithNames = await Promise.all(routesWithNamesPromises);
+        setRoutes(finalRoutesWithNames);
+
+      } catch (err: any) {
+        console.error("Error loading assigned routes:", err);
+        setError(err.message || "Failed to load assigned routes.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAndProcessRoutes();
   }, []);
 
   return (

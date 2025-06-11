@@ -387,10 +387,28 @@ export default function LeafletMap() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow">
-      <h1 className="text-2xl font-bold mb-2">Assign Route to Registered & Inspected Buses</h1>
-      <p className="mb-4 text-gray-600">
-        Select a bus. Click on the map or search to add waypoints. A route will be generated from Wello Sefer through these points.
-      </p>
+      <div className="flex justify-between items-center mb-4 border-b pb-3">
+        <div>
+          <h1 className="text-2xl font-bold">Assign Route to Inspected Buses</h1>
+          <p className="text-sm text-gray-600">
+            Select a bus, then click on the map or search to add waypoints.
+          </p>
+        </div>
+        <div className="flex space-x-2">
+          <button
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            onClick={() => router.push('/tms-modules/admin/car-management/assigned-routes')}
+          >
+            View All Assigned Routes
+          </button>
+          <button
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            onClick={() => router.push('/tms-modules/admin/car-management/service-route-assign/employee-car-assignment')}
+          >
+            Employee Car Assignment
+          </button>
+        </div>
+      </div>
       <div className="flex flex-col md:flex-row gap-6">
         <div className="md:w-1/3">
           <div className="mb-4">
@@ -532,14 +550,9 @@ export default function LeafletMap() {
             >
               Assign Route to {selectedBus?.organizationCar?.plateNumber || "Bus"}
             </button>
-            
-            <button
-              className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
-              onClick={() => router.push('/tms-modules/admin/car-management/assigned-routes')}
-            >
-              View All Assigned Routes
-            </button>
+            {/* Navigation buttons moved to the top */}
           </div>
+          
           {selectedBus && activeRouteWaypoints.length === 0 && (
             <p className="mt-2 text-sm text-gray-500">
               Click on the map or use search to add waypoints for {selectedBus.organizationCar.plateNumber}. Route will start from Wello Sefer.
