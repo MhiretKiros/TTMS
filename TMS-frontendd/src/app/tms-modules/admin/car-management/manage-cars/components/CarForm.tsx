@@ -201,11 +201,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                   disabled={isSubmitting}
                 >
                   <option value="Authomobile">Authomobile</option>
-                  <option value="Minibus">Minibus</option>
-                  <option value="Bus">Bus</option>
-                  <option value="Sedan">Sedan</option>
-                  <option value="SUV">SUV</option>
-                  <option value="Truck">Truck</option>
+                  
                 </select>
               </div>
 

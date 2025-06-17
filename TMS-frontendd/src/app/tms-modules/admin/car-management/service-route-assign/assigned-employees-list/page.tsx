@@ -66,7 +66,7 @@ export default function AssignedEmployeesListPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center text-gray-500 mt-10">
-          <FiLoader className="animate-spin mr-3 h-6 w-6" />
+          <FiLoader className="animate-spin mr-3 h-6 w-6"/>
           <p className="text-lg">Loading employee assignments...</p>
         </div>
       ) : !error && employees.length === 0 ? (
