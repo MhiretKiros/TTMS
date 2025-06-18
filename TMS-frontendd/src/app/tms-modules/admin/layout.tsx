@@ -25,6 +25,8 @@ const sidebarItems = [
       { title: 'Assign Cars', link: '/tms-modules/admin/car-management/assign-car', icon: <FiUser /> },
       { title: 'Car Attendance', link: '/tms-modules/admin/car-management/car-attendance', icon: <FiClipboard /> },
       { title: 'Vehicle Inspection', link: '/tms-modules/admin/car-management/vehicle-inspection', icon: <FiSettings /> },
+      { title: 'Avaliable seats', link: '/tms-modules/admin/car-management/Avaliable-seats', icon: <FiAlertTriangle /> },
+
     ],
   },
   {
