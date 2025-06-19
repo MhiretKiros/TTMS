@@ -16,6 +16,8 @@ export interface DailyServiceRequest {
   kmDifference?: number;
   carType?: string;
   plateNumber?: string;
+  reason?: string;
+  returnDateTime: string; // ISO format with time
   status: 'PENDING' | 'ASSIGNED' | 'COMPLETED  ';
 }
 const parseDates = (obj: any): any => {
@@ -73,7 +75,7 @@ export const DailyServiceApi = {
     }
   },
 
-  async completeRequest(id: number, data: { startKm: number; endKm: number }): Promise<DailyServiceRequest> {
+  async completeRequest(id: number, data: { startKm: number; endKm: number, reason: string }): Promise<DailyServiceRequest> {
     try {
       const response = await axios.patch(`${API_BASE_URL}/${id}/complete`, {
         ...data,
