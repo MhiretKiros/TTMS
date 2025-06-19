@@ -25,8 +25,7 @@ export default function ServiceRequestPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-7xl mx-auto"
-      >
-        {/* Header */}
+      >        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <motion.h1 
             initial={{ x: -50 }}
@@ -71,7 +70,7 @@ export default function ServiceRequestPage() {
             transition={{ duration: 0.3 }}
             className="w-full"
           >
-            {activeTab === 'field' && <TravelRequestForm actorType="driver" onSuccess={handleSuccess} />}
+            {activeTab === 'field' && <TravelRequestForm actorType="user" onSuccess={handleSuccess} />}
             {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
             {activeTab === 'daily' && <DailyServiceRequestForm actorType="manager" onSuccess={handleSuccess} />}
             {activeTab === 'comment' && <CommentForm onSuccess={handleSuccess} />}
