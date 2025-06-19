@@ -20,7 +20,7 @@ const sidebarItems = [
     subItems: [
       { title: 'Manage Cars', link: '/tms-modules/admin/car-management/manage-cars', icon: <FiTruck /> },
       { title: 'Maintain Cars Log', link: '/tms-modules/admin/car-management/maintenances', icon: <FiSettings /> }, // Corrected typo and clarified
-      { title: 'Add Maintenance Record', link: '/tms-modules/admin/car-management/add-maintenance-record', icon: <FiTool /> }, // New page
+      { title: 'Maintenance Record', link: '/tms-modules/admin/car-management/add-maintenance-record', icon: <FiTool /> }, // New page
       { title: 'Assign Routes', link: '/tms-modules/admin/car-management/service-route-assign', icon: <FiBox /> },
       { title: 'Assign Cars', link: '/tms-modules/admin/car-management/assign-car', icon: <FiUser /> },
       { title: 'Car Attendance', link: '/tms-modules/admin/car-management/car-attendance', icon: <FiClipboard /> },

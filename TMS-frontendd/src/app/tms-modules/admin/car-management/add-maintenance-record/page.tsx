@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { FiTool, FiUser, FiFileText, FiCalendar, FiTruck, FiSearch, FiSave } from 'react-icons/fi';
 
+// Consider aligning field names more closely with your backend VehicleDetailsDTO
 interface VehicleDetails {
-  type: string;
-  km: string;
+  vehicleType: string; // Changed from 'type' for potential backend consistency
+  currentMileage: string; // Changed from 'km'
   chassisNumber: string;
 }
 
@@ -53,6 +54,15 @@ const initialRepairDetails: RepairDetails = {
   worksDoneDescription: '',
 };
 
+// Define your API base URL, or ensure your proxy is set up correctly for relative paths
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''; // Example: http://localhost:8080
+
+const initialFormState = {
+  plateNumber: '',
+  driverDescription: '',
+  mechanicalRepair: initialRepairDetails,
+  electricalRepair: initialRepairDetails,
+};
 export default function AddMaintenanceRecordPage() {
   const [plateNumber, setPlateNumber] = useState('');
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(null);
@@ -62,32 +72,44 @@ export default function AddMaintenanceRecordPage() {
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const resetForm = () => {
+    setPlateNumber('');
+    setVehicleDetails(null);
+    setDriverDescription('');
+    setMechanicalRepair(initialRepairDetails);
+    setElectricalRepair(initialRepairDetails);
+  };
+
   const handleFetchVehicleDetails = async () => {
     if (!plateNumber) {
       alert('Please enter a plate number.');
       return;
     }
     setIsLoadingVehicle(true);
-    // Simulate API call
     console.log(`Fetching details for plate: ${plateNumber}`);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    // Replace with actual API call:
-    // try {
-    //   const response = await fetch(`/api/vehicle-details?plateNumber=${plateNumber}`);
-    //   if (!response.ok) throw new Error('Vehicle not found');
-    //   const data = await response.json();
-    //   setVehicleDetails(data);
-    // } catch (error) {
-    //   console.error('Error fetching vehicle details:', error);
-    //   alert('Failed to fetch vehicle details. Please check the plate number.');
-    //   setVehicleDetails(null);
-    // }
-    setVehicleDetails({
-      type: 'Sedan',
-      km: '125000',
-      chassisNumber: 'ABC123XYZ789',
-    });
-    setIsLoadingVehicle(false);
+    try {
+      // Use the endpoint from MaintainanceController
+      const response = await fetch(`${API_BASE_URL}/api/maintenance/vehicle-details?plateNumber=${encodeURIComponent(plateNumber)}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          const errorText = await response.text();
+          alert(errorText || 'Vehicle not found. Please check the plate number.');
+        } else {
+          const errorData = await response.text();
+          throw new Error(`Failed to fetch vehicle details: ${response.status} ${errorData}`);
+        }
+        setVehicleDetails(null);
+      } else {
+        const data: VehicleDetails = await response.json();
+        setVehicleDetails(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching vehicle details:', error);
+      alert(`Failed to fetch vehicle details: ${error.message}. Please check the plate number and ensure the backend is running.`);
+      setVehicleDetails(null);
+    } finally {
+      setIsLoadingVehicle(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -95,18 +117,37 @@ export default function AddMaintenanceRecordPage() {
     setIsSubmitting(true);
     const formData = {
       plateNumber,
-      vehicleDetails,
-      driverDescription,
-      mechanicalRepair,
-      electricalRepair,
+      // vehicleDetails, // Backend likely fetches this or uses plateNumber
+      driverReport: driverDescription, // Align with backend DTO if needed
+      mechanicalRepairDetails: mechanicalRepair, // Align with backend DTO
+      electricalRepairDetails: electricalRepair, // Align with backend DTO
     };
     console.log('Submitting maintenance record:', formData);
-    // Replace with actual API call to save data
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    alert('Maintenance record submitted successfully!');
-    // Optionally, reset form or redirect
-    setIsSubmitting(false);
+    try {
+      // Use the endpoint from MaintainanceController
+      const response = await fetch(`${API_BASE_URL}/api/maintenance/records`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text(); // Or response.json() if backend sends structured error
+        throw new Error(errorText || `HTTP error! status: ${response.status}`);
+      }
+      // const responseData = await response.json(); // If you need to use the created record data
+      alert('Maintenance record submitted successfully!');
+      resetForm(); // Reset form on success
+    } catch (error: any) {
+      console.error('Error submitting maintenance record:', error);
+      alert(`Failed to submit maintenance record: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
   const renderRepairSection = (
     title: string,
@@ -206,8 +247,8 @@ export default function AddMaintenanceRecordPage() {
 
           {vehicleDetails && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border border-slate-300 rounded-md bg-white shadow">
-              <div><strong className="text-slate-600 font-medium">Type of Vehicle:</strong> <span className="text-slate-800">{vehicleDetails.type}</span></div>
-              <div><strong className="text-slate-600 font-medium">Kilometers:</strong> <span className="text-slate-800">{vehicleDetails.km}</span></div>
+              <div><strong className="text-slate-600 font-medium">Type of Vehicle:</strong> <span className="text-slate-800">{vehicleDetails.vehicleType}</span></div>
+              <div><strong className="text-slate-600 font-medium">Kilometers:</strong> <span className="text-slate-800">{vehicleDetails.currentMileage}</span></div>
               <div><strong className="text-slate-600 font-medium">Chassis Number:</strong> <span className="text-slate-800">{vehicleDetails.chassisNumber}</span></div>
             </div>
           )}
