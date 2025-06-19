@@ -4,6 +4,17 @@ import L from 'leaflet'; // Import L for custom icons if needed
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap, Popup } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
+// Fix for default marker icon paths
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon.src,
+  iconRetinaUrl: markerIcon2x.src,
+  shadowUrl: markerShadow.src,
+});
 import 'leaflet/dist/leaflet.css';
 import { useRouter } from 'next/navigation';
 
@@ -18,6 +29,8 @@ async function fetchInspectedBuses() {
     (bus: any) => bus.organizationCar && bus.organizationCar.plateNumber
   );
 }
+
+const API_BASE_URL = 'http://localhost:8080'; // Assuming Spring Boot runs on port 8080
 
 type Waypoint = {
   destinationLat: number;
@@ -52,7 +65,6 @@ async function fetchRoute(points: LatLngTuple[]) { // Accepts an array of points
   );
 }
 
-// Helper function for reverse geocoding (can be moved to a utils file)
 async function fetchLocationName(lat: number, lng: number): Promise<string> {
   try {
     const response = await fetch(
@@ -79,7 +91,7 @@ function DestinationSetter({ onSet }: { onSet: (latlng: [number, number]) => voi
   return null;
 }
 
-// --- Search Bar Component ---
+
 function MapSearchBar({ onSelect }: { onSelect: (latlng: [number, number]) => void }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
@@ -193,7 +205,7 @@ export default function LeafletMap() {
     fetchInspectedBuses().then(setBuses).catch(console.error);
 
     setIsLoadingAssignedRoutes(true);
-    fetch('http://localhost:8080/auth/organization-car/assigned-routes')
+    fetch(`${API_BASE_URL}/api/routes`) // Updated URL
       .then(res => {
         if (!res.ok) {
           throw new Error('Failed to fetch assigned routes');
@@ -201,17 +213,18 @@ export default function LeafletMap() {
         return res.json();
       })
       .then(async (data) => {
-        const rawRoutes: any[] = data.assignedRoutes || data || [];
+        const rawRoutes: any[] = data || []; // Assuming API returns the list directly
         const routesWithNames: ExistingAssignedRoute[] = await Promise.all(
           rawRoutes.map(async (route) => {
             const waypointsWithNames: Waypoint[] = route.waypoints && Array.isArray(route.waypoints)
               ? await Promise.all(
                   route.waypoints.map(async (wp: any) => ({
-                    destinationLat: parseFloat(String(wp.destinationLat || wp.latitude)),
-                    destinationLng: parseFloat(String(wp.destinationLng || wp.longitude)),
+                    // Assuming backend DTO for waypoint provides 'latitude' and 'longitude' as numbers
+                    destinationLat: Number(wp.latitude),
+                    destinationLng: Number(wp.longitude),
                     destinationName: await fetchLocationName(
-                      parseFloat(String(wp.destinationLat || wp.latitude)),
-                      parseFloat(String(wp.destinationLng || wp.longitude))
+                      Number(wp.latitude),
+                      Number(wp.longitude)
                     ),
                   }))
                 )
@@ -292,7 +305,7 @@ export default function LeafletMap() {
           longitude: wp[1],
         }));
 
-        const response = await fetch('http://localhost:8080/auth/organization-car/assign-route', {
+        const response = await fetch(`${API_BASE_URL}/api/routes/assign`, { // Updated URL
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -374,10 +387,28 @@ export default function LeafletMap() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow">
-      <h1 className="text-2xl font-bold mb-2">Assign Route to Registered & Inspected Buses</h1>
-      <p className="mb-4 text-gray-600">
-        Select a bus. Click on the map or search to add waypoints. A route will be generated from Wello Sefer through these points.
-      </p>
+      <div className="flex justify-between items-center mb-4 border-b pb-3">
+        <div>
+          <h1 className="text-2xl font-bold">Assign Route to Inspected Buses</h1>
+          <p className="text-sm text-gray-600">
+            Select a bus, then click on the map or search to add waypoints.
+          </p>
+        </div>
+        <div className="flex space-x-2">
+          <button
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            onClick={() => router.push('/tms-modules/admin/car-management/assigned-routes')}
+          >
+            View All Assigned Routes
+          </button>
+          <button
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            onClick={() => router.push('/tms-modules/admin/car-management/service-route-assign/employee-car-assignment')}
+          >
+            Employee Car Assignment
+          </button>
+        </div>
+      </div>
       <div className="flex flex-col md:flex-row gap-6">
         <div className="md:w-1/3">
           <div className="mb-4">
@@ -519,14 +550,9 @@ export default function LeafletMap() {
             >
               Assign Route to {selectedBus?.organizationCar?.plateNumber || "Bus"}
             </button>
-            
-            <button
-              className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
-              onClick={() => router.push('/tms-modules/admin/car-management/assigned-routes')}
-            >
-              View All Assigned Routes
-            </button>
+            {/* Navigation buttons moved to the top */}
           </div>
+          
           {selectedBus && activeRouteWaypoints.length === 0 && (
             <p className="mt-2 text-sm text-gray-500">
               Click on the map or use search to add waypoints for {selectedBus.organizationCar.plateNumber}. Route will start from Wello Sefer.

@@ -1,21 +1,25 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { FiMapPin, FiAlertCircle, FiLoader } from 'react-icons/fi'; // Added icons
+import { FiMapPin, FiAlertCircle, FiLoader, FiList } from 'react-icons/fi'; // Added FiList
+
+const API_BASE_URL = 'http://localhost:8080'; // Assuming Spring Boot runs on port 8080
+
+type Waypoint = {
+  latitude: number;
+  longitude: number;
+  name?: string; // To store the fetched name
+};
 
 type AssignedRoute = {
+  id?: string | number;
   plateNumber: string;
-  destinationLat: number;
-  destinationLng: number;
-  destinationName?: string; // To store the fetched name
-  // Assuming your backend might also return an ID or a timestamp for uniqueness if plate numbers can have multiple historical assignments
-  id?: string | number; 
+  waypoints: Waypoint[];
 };
 
 export default function AssignedRoutesPage() {
   const [routes, setRoutes] = useState<AssignedRoute[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   // Helper function for reverse geocoding
   async function fetchLocationName(lat: number, lng: number): Promise<string> {
     try {
@@ -36,19 +40,62 @@ export default function AssignedRoutesPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    fetch('http://localhost:8080/auth/organization-car/assigned-routes')
-      .then(res => res.json())
-      .then(async (data) => {
-        const rawRoutes: Omit<AssignedRoute, 'destinationName'>[] = data.assignedRoutes || data || [];
-        const routesWithNames = await Promise.all(
-          rawRoutes.map(async (route) => ({
-            ...route,
-            destinationName: await fetchLocationName(route.destinationLat, route.destinationLng),
-          }))
-        );
-        setRoutes(routesWithNames);
-      })
-      .catch(err => { console.error(err); setError("Failed to load assigned routes."); setIsLoading(false); });
+    setError(null);
+
+    const fetchAndProcessRoutes = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/routes`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch routes. Status: ${response.status}`);
+        }
+        const data = await response.json();
+        const rawRoutesFromApi: any[] = data || [];
+
+        // Stage 1: Set routes with coordinates immediately for faster initial display
+        const routesWithCoordsOnly: AssignedRoute[] = rawRoutesFromApi.map(apiRoute => ({
+          id: apiRoute.id,
+          plateNumber: apiRoute.plateNumber,
+          waypoints: apiRoute.waypoints && Array.isArray(apiRoute.waypoints)
+            ? apiRoute.waypoints.map((wp: any) => ({
+                latitude: Number(wp.latitude),
+                longitude: Number(wp.longitude),
+                // Name will be fetched asynchronously later
+              }))
+            : [],
+        }));
+        setRoutes(routesWithCoordsOnly);
+
+        // Stage 2: Asynchronously fetch names and update the state
+        // This allows the UI to render once with basic data, then enhance with names
+        const routesWithNamesPromises = rawRoutesFromApi.map(async (apiRoute) => {
+          const waypointsWithNames: Waypoint[] = apiRoute.waypoints && Array.isArray(apiRoute.waypoints)
+            ? await Promise.all(
+                apiRoute.waypoints.map(async (wp: any) => ({
+                  latitude: Number(wp.latitude),
+                  longitude: Number(wp.longitude),
+                  name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+                }))
+              )
+            : [];
+          return {
+            id: apiRoute.id,
+            plateNumber: apiRoute.plateNumber,
+            waypoints: waypointsWithNames,
+          };
+        });
+
+        const finalRoutesWithNames = await Promise.all(routesWithNamesPromises);
+        setRoutes(finalRoutesWithNames);
+
+      } catch (err: any) {
+        console.error("Error loading assigned routes:", err);
+        setError(err.message || "Failed to load assigned routes.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAndProcessRoutes();
   }, []);
 
   return (
@@ -58,7 +105,7 @@ export default function AssignedRoutesPage() {
         <thead>
           <tr className="bg-gray-100">
             <th className="border px-4 py-2 text-left">Plate Number</th>
-            <th className="border px-4 py-2 text-left">Destination (Lat, Lng)</th>
+            <th className="border px-4 py-2 text-left">Waypoints</th>
             <th className="border px-4 py-2 text-left">Status</th>
           </tr>
         </thead>
@@ -87,8 +134,18 @@ export default function AssignedRoutesPage() {
             routes.map((route, idx) => (
               <tr key={route.id || route.plateNumber || idx} className="hover:bg-gray-50">
                 <td className="border px-4 py-2">{route.plateNumber}</td>
-                <td className="border px-4 py-2">
-                  {route.destinationName || `${route.destinationLat.toFixed(5)}, ${route.destinationLng.toFixed(5)}`}
+                <td className="border px-4 py-2 ">
+                  {route.waypoints.length > 0 ? (
+                    <ul className="list-disc list-inside">
+                      {route.waypoints.map((wp, wpIdx) => (
+                        <li key={wpIdx}>
+                          {wp.name || `${wp.latitude.toFixed(4)}, ${wp.longitude.toFixed(4)}`}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-gray-500">No waypoints</span>
+                  )}
                 </td>
                 <td className="border px-4 py-2 text-green-600">Assigned</td>
               </tr>

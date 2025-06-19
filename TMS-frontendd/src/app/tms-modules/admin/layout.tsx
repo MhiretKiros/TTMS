@@ -1,10 +1,10 @@
 "use client";
 import Sidebar from '@/app/component/Sidebar';
-import Header from '@/app/component/Header';
+import Header from '@/app/component/Header'; // Assuming Header component exists and is correctly imported
 import { useState } from 'react';
 import {
   FiHome, FiTruck, FiSettings, FiClipboard,
-  FiBox, FiAlertTriangle, FiBarChart2, FiUser, FiFileText,
+  FiBox, FiAlertTriangle, FiBarChart2, FiUser, FiFileText, FiTool,
 } from 'react-icons/fi';
 
 const sidebarItems = [
@@ -19,11 +19,15 @@ const sidebarItems = [
     link: '/tms-modules/admin/car-management',
     subItems: [
       { title: 'Manage Cars', link: '/tms-modules/admin/car-management/manage-cars', icon: <FiTruck /> },
+
       { title: 'Mantaine Cars', link: '/tms-modules/admin/car-management/maintenance', icon: <FiSettings /> },
+
       { title: 'Assign Routes', link: '/tms-modules/admin/car-management/service-route-assign', icon: <FiBox /> },
       { title: 'Assign Cars', link: '/tms-modules/admin/car-management/assign-car', icon: <FiUser /> },
       { title: 'Car Attendance', link: '/tms-modules/admin/car-management/car-attendance', icon: <FiClipboard /> },
       { title: 'Vehicle Inspection', link: '/tms-modules/admin/car-management/vehicle-inspection', icon: <FiSettings /> },
+      { title: 'Avaliable seats', link: '/tms-modules/admin/car-management/Avaliable-seats', icon: <FiAlertTriangle /> },
+
     ],
   },
   {

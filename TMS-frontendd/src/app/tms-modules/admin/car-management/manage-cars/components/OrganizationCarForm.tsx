@@ -339,7 +339,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Load Capacity (kg) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Number of seats *</label>
                   <input
                     type="number"
                     name="loadCapacity"
