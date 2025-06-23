@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FiTool, FiUser, FiFileText, FiCalendar, FiTruck, FiSearch, FiSave } from 'react-icons/fi';
+import { useSearchParams } from 'next/navigation'; // Import useSearchParams
 
 // Consider aligning field names more closely with your backend VehicleDetailsDTO
 interface VehicleDetails {
@@ -55,8 +56,7 @@ const initialRepairDetails: RepairDetails = {
 };
 
 // Define your API base URL, or ensure your proxy is set up correctly for relative paths
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''; // Example: http://localhost:8080
-
+const API_BASE_URL = 'http://localhost:8080';
 const initialFormState = {
   plateNumber: '',
   driverDescription: '',
@@ -64,7 +64,9 @@ const initialFormState = {
   electricalRepair: initialRepairDetails,
 };
 export default function AddMaintenanceRecordPage() {
-  const [plateNumber, setPlateNumber] = useState('');
+  const searchParams = useSearchParams(); // Get search parameters from URL
+  const initialPlateNumberFromUrl = searchParams.get('plateNumber') || ''; // Read 'plateNumber' param
+  const [plateNumber, setPlateNumber] = useState(initialPlateNumberFromUrl); // Initialize plateNumber state
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails | null>(null);
   const [driverDescription, setDriverDescription] = useState('');
   const [mechanicalRepair, setMechanicalRepair] = useState<RepairDetails>(initialRepairDetails);
@@ -80,37 +82,46 @@ export default function AddMaintenanceRecordPage() {
     setElectricalRepair(initialRepairDetails);
   };
 
-  const handleFetchVehicleDetails = async () => {
+  // Make handleFetchVehicleDetails a useCallback to prevent re-creation on every render
+  // and to be used safely in useEffect dependencies.
+  const handleFetchVehicleDetails = useCallback(async () => {
     if (!plateNumber) {
       alert('Please enter a plate number.');
       return;
     }
     setIsLoadingVehicle(true);
     console.log(`Fetching details for plate: ${plateNumber}`);
+    let fetchedData: VehicleDetails | null = null; // Use a temporary variable to hold fetched data
     try {
       // Use the endpoint from MaintainanceController
       const response = await fetch(`${API_BASE_URL}/api/maintenance/vehicle-details?plateNumber=${encodeURIComponent(plateNumber)}`);
       if (!response.ok) {
         if (response.status === 404) {
           const errorText = await response.text();
-          alert(errorText || 'Vehicle not found. Please check the plate number.');
+          alert(errorText || `Vehicle with plate number '${plateNumber}' not found. Please check the plate number.`);
         } else {
           const errorData = await response.text();
           throw new Error(`Failed to fetch vehicle details: ${response.status} ${errorData}`);
         }
-        setVehicleDetails(null);
       } else {
         const data: VehicleDetails = await response.json();
-        setVehicleDetails(data);
+        fetchedData = data; // Assign fetched data
       }
     } catch (error: any) {
       console.error('Error fetching vehicle details:', error);
       alert(`Failed to fetch vehicle details: ${error.message}. Please check the plate number and ensure the backend is running.`);
-      setVehicleDetails(null);
     } finally {
+      setVehicleDetails(fetchedData); // Set vehicle details based on the result of the fetch
       setIsLoadingVehicle(false);
     }
-  };
+  }, [plateNumber]); // Dependency on plateNumber state
+
+  // Effect to fetch vehicle details if a plate number is provided via URL on initial load
+  useEffect(() => {
+    if (initialPlateNumberFromUrl) {
+      handleFetchVehicleDetails();
+    }
+  }, [initialPlateNumberFromUrl, handleFetchVehicleDetails]); // Dependencies
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
