@@ -1,39 +1,26 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FiSearch, FiTruck, FiList, FiEdit, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiList, FiEdit, FiRefreshCw } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 
-// Re-use interfaces from the existing context file for consistency
-interface VehicleDetails {
-  vehicleType: string;
-  currentMileage: string;
-  chassisNumber: string;
-}
-
-interface RepairDetails {
-  dateOfReceipt: string;
-  dateStarted: string;
-  dateFinished: string;
-  duration: string;
-  inspectorName: string;
-  teamLeader: string;
-  worksDoneLevel: 'low' | 'medium' | 'high' | '';
-  worksDoneDescription: string;
-}
-
-// Define the MaintenanceRequest interface based on the expected backend DTO
-// This should align with the DTO returned by your /api/maintenance/approved endpoint
+// This interface should align with the MaintenanceRequest.java entity from the backend.
 interface MaintenanceRequest {
-  id: string; // Unique ID for the request (e.g., UUID from backend)
+  id: number; // Corresponds to Long id
   plateNumber: string;
-  vehicleDetails: VehicleDetails; // Details of the vehicle at the time of request
-  driverReport: string;
-  mechanicalRepairDetails: RepairDetails;
-  electricalRepairDetails: RepairDetails;
-  status: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'REJECTED'; // Example statuses
-  requestDate: string; // Date when the request was made/approved (e.g., ISO string)
-  // Add any other fields that your backend DTO might include (e.g., approvalDate, mechanicNotes)
+  vehicleType: string;
+  reportingDriver: string;
+  categoryWorkProcess: string;
+  kilometerReading: number;
+  defectDetails: string; // This is the "Driver Report"
+  mechanicDiagnosis: string | null;
+  requestingPersonnel: string | null;
+  authorizingPersonnel: string | null;
+  status: 'PENDING' | 'CHECKED' | 'REJECTED' | 'INSPECTION' | 'COMPLETED' | 'APPROVED';
+  createdAt: string; // Corresponds to LocalDateTime, will be an ISO string
+  createdBy: string;
+  updatedAt: string | null;
+  updatedBy: string | null;
 }
 
 const API_BASE_URL = 'http://localhost:8080';
@@ -75,9 +62,9 @@ export default function ApprovedMaintenanceRequestsPage() {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     const results = allRequests.filter(request =>
       request.plateNumber?.toLowerCase().includes(lowerCaseSearchTerm) ||
-      request.vehicleDetails?.vehicleType?.toLowerCase().includes(lowerCaseSearchTerm) ||
-      request.vehicleDetails?.chassisNumber?.toLowerCase().includes(lowerCaseSearchTerm) ||
-      request.driverReport?.toLowerCase().includes(lowerCaseSearchTerm)
+      request.vehicleType?.toLowerCase().includes(lowerCaseSearchTerm) ||
+      request.defectDetails?.toLowerCase().includes(lowerCaseSearchTerm) ||
+      request.reportingDriver?.toLowerCase().includes(lowerCaseSearchTerm)
     );
     setFilteredRequests(results);
   }, [searchTerm, allRequests]);
@@ -103,14 +90,14 @@ export default function ApprovedMaintenanceRequestsPage() {
           </h2>
           <div className="flex flex-col sm:flex-row items-end gap-4">
             <div className="flex-grow">
-              <label htmlFor="searchPlate" className="block text-sm font-medium text-slate-700 mb-1">Search by Plate Number, Type, Chassis, or Driver Report</label>
+              <label htmlFor="searchPlate" className="block text-sm font-medium text-slate-700 mb-1">Search by Plate Number, Type, Driver, or Report</label>
               <input
                 type="text"
                 id="searchPlate"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="mt-1 block w-full px-4 py-2.5 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter plate number, vehicle type, chassis number, or driver report keyword"
+                placeholder="Enter plate number, vehicle type, driver name, or report keyword"
               />
             </div>
             <button
@@ -151,13 +138,10 @@ export default function ApprovedMaintenanceRequestsPage() {
                     Vehicle Type
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Chassis Number
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Driver Report Summary
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Request Date
+                    Date
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Actions
@@ -168,10 +152,9 @@ export default function ApprovedMaintenanceRequestsPage() {
                 {filteredRequests.map((request) => (
                   <tr key={request.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{request.plateNumber || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{request.vehicleDetails?.vehicleType || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{request.vehicleDetails?.chassisNumber || 'N/A'}</td>
-                    <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate">{request.driverReport || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{request.requestDate ? new Date(request.requestDate).toLocaleDateString() : 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{request.vehicleType || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate">{request.defectDetails || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleRecordMaintenance(request.plateNumber)}
