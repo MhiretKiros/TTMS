@@ -96,10 +96,10 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.plateNumber) newErrors.plateNumber = 'Plate number is required';
-    if (!formData.ownerName) newErrors.ownerName = 'Owner name is required';
+    if (!formData.ownerName) newErrors.ownerName = 'Agent name is required';
     if (!formData.model) newErrors.model = 'Model is required';
     if (!formData.driverName) newErrors.driverName = 'Driver name is required';
-    if (!formData.loadCapacity) newErrors.loadCapacity = 'Load capacity is required';
+    if (!formData.loadCapacity) newErrors.loadCapacity = 'Number Of Seats is required';
     // Add validation for status if needed, though default usually suffices
     if (!formData.status) newErrors.status = 'Status is required';
 
@@ -177,7 +177,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Owner Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Agent Name *</label>
                   <input
                     type="text"
                     name="ownerName"
@@ -194,7 +194,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                 </div>
 
                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Owner Phone</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Agent Phone</label>
                     <input
                       type="tel" // Use tel type for phone numbers
                       name="ownerPhone"
@@ -380,7 +380,7 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Driver Attributes</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Driver Experience</label>
                   <input
                     type="text"
                     name="driverAttributes"

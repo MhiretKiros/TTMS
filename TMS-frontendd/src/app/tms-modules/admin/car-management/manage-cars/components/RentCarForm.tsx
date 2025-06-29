@@ -43,7 +43,7 @@ interface RentCar {
   position: string;
   libre: string;
   transmission: string;
-  dataAntollerNatue: string;
+  // dataAntollerNatue: string;
   km: string;
 }
 
@@ -87,7 +87,7 @@ const initialRentCarFormData: RentCar = {
   position: '',
   libre: '',
   transmission: '',
-  dataAntollerNatue: '',
+  // dataAntollerNatue: '',
   km: ''
 };
 
@@ -118,8 +118,16 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
   }, [car]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+
+    if (type === 'checkbox') {
+      const { checked } = e.target as HTMLInputElement;
+      // The dropdowns used 'Yes'/'No'. We map boolean to that.
+      setFormData(prev => ({ ...prev, [name]: checked ? 'Yes' : 'No' }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -448,64 +456,64 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
               <div className="md:col-span-2">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Equipment Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Radio</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="radio-checkbox"
+                      type="checkbox"
                       name="radio"
-                      value={formData.radio}
+                      checked={formData.radio === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="radio-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Radio
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Antena</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="antena-checkbox"
+                      type="checkbox"
                       name="antena"
-                      value={formData.antena}
+                      checked={formData.antena === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="antena-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Antena
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Krik</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="krik-checkbox"
+                      type="checkbox"
                       name="krik"
-                      value={formData.krik}
+                      checked={formData.krik === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="krik-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Krik
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Krik Manesha</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="krikManesha-checkbox"
+                      type="checkbox"
                       name="krikManesha"
-                      value={formData.krikManesha}
+                      checked={formData.krikManesha === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="krikManesha-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Krik Manesha
+                    </label>
                   </div>
 
                   <div>
@@ -524,109 +532,109 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Goma Maficha</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="gomaMaficha-checkbox"
+                      type="checkbox"
                       name="gomaMaficha"
-                      value={formData.gomaMaficha}
+                      checked={formData.gomaMaficha === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="gomaMaficha-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Goma Maficha
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mefcha</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="mefcha-checkbox"
+                      type="checkbox"
                       name="mefcha"
-                      value={formData.mefcha}
+                      checked={formData.mefcha === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="mefcha-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Mefcha
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Reserve Tayer</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="reserveTayer-checkbox"
+                      type="checkbox"
                       name="reserveTayer"
-                      value={formData.reserveTayer}
+                      checked={formData.reserveTayer === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="reserveTayer-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Reserve Tayer
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Goma Get</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="gomaGet-checkbox"
+                      type="checkbox"
                       name="gomaGet"
-                      value={formData.gomaGet}
+                      checked={formData.gomaGet === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="gomaGet-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Goma Get
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Pinsa</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="pinsa-checkbox"
+                      type="checkbox"
                       name="pinsa"
-                      value={formData.pinsa}
+                      checked={formData.pinsa === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="pinsa-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Pinsa
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Kacavite</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="kacavite-checkbox"
+                      type="checkbox"
                       name="kacavite"
-                      value={formData.kacavite}
+                      checked={formData.kacavite === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="kacavite-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Kacavite
+                    </label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Fire Protection</label>
-                    <select
+                  <div className="flex items-center pt-6">
+                    <input
+                      id="fireProtection-checkbox"
+                      type="checkbox"
                       name="fireProtection"
-                      value={formData.fireProtection}
+                      checked={formData.fireProtection === 'Yes'}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isSubmitting}
-                    >
-                      <option value="">Select</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    />
+                    <label htmlFor="fireProtection-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                      Fire Protection
+                    </label>
                   </div>
                 </div>
               </div>
@@ -746,7 +754,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                     </select>
                   </div>
 
-                  <div>
+                  {/* <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data Antoller Natue</label>
                     <input
                       type="text"
@@ -756,7 +764,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={isSubmitting}
                     />
-                  </div>
+                  </div> */}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>

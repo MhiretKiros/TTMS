@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiUser, FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader } from 'react-icons/fi';
+import { FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX } from 'react-icons/fi';
 
-const API_BASE_URL = 'http://localhost:8080'; // Assuming Spring Boot runs on port 8080
+const API_BASE_URL = 'http://localhost:8080';
 
 type CarSeatInfo = {
   id: string | number;
@@ -23,6 +23,7 @@ export default function CarSeatCounterPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [expandedCarId, setExpandedCarId] = useState<string | number | null>(null);
 
   // Fetch all cars with their seat information and assigned employees
   const fetchCarSeatData = async () => {
@@ -33,13 +34,11 @@ export default function CarSeatCounterPage() {
       const carsResponse = await fetch(`${API_BASE_URL}/auth/organization-car/service-buses`);
       if (!carsResponse.ok) throw new Error('Failed to fetch service cars');
       const carsData = await carsResponse.json();
-      console.log("Raw Cars Data from API:", JSON.stringify(carsData, null, 2));
       
       // Then fetch all assigned employees
       const assignmentsResponse = await fetch(`${API_BASE_URL}/api/employees`);
       if (!assignmentsResponse.ok) throw new Error('Failed to fetch employee assignments');
       const assignmentsData = await assignmentsResponse.json();
-      console.log("Raw Assignments Data from API:", JSON.stringify(assignmentsData, null, 2));
 
       const validAssignments = Array.isArray(assignmentsData) ? assignmentsData : [];
 
@@ -50,27 +49,18 @@ export default function CarSeatCounterPage() {
           const carId = car.organizationCar.id;
           const plateNumber = car.organizationCar.plateNumber;
           const model = car.organizationCar.model || 'Unknown Model';
-          const totalSeats = car.organizationCar.seatCapacity || 14; // Default to 14 if not specified
-
-          console.log(`Processing Car: ${plateNumber}, Initial Total Seats: ${totalSeats}`);
+          const totalSeats = car.organizationCar.loadCapacity || 14;
           
           // Find all employees assigned to this car
           const assignedEmployees = validAssignments
-            .filter((assignment: any) => {
-              const isMatch = assignment.assignedCarPlateNumber === plateNumber;
-              // if (plateNumber === "YOUR_SPECIFIC_PLATE_TO_DEBUG") { // For targeted debugging
-              //   console.log(`  Comparing for ${plateNumber}: Assignment object:`, assignment, `Match: ${isMatch}`);
-              // }
-              return isMatch;
-            })
+            .filter((assignment: any) => assignment.assignedCarPlateNumber === plateNumber)
             .map((assignment: any) => ({
               employeeId: assignment.employeeId,
               name: assignment.employeeName,
               department: assignment.employeeDepartment
             }));
-          // console.log(`Car: ${plateNumber}, Found ${assignedEmployees.length} assigned employees. Total Seats: ${totalSeats}`);
 
-          const processedCar = {
+          return {
             id: carId,
             plateNumber,
             model,
@@ -78,10 +68,7 @@ export default function CarSeatCounterPage() {
             availableSeats: totalSeats - assignedEmployees.length,
             assignedEmployees
           };
-          console.log(`Processed Car: ${plateNumber}`, processedCar);
-          return processedCar;
         });
-      console.log("Processed Cars with seat counts:", JSON.stringify(processedCars, null, 2));
 
       setCars(processedCars);
     } catch (err: any) {
@@ -93,107 +80,14 @@ export default function CarSeatCounterPage() {
     }
   };
 
-  // Handle moving an employee from one car to another
-  const handleReassignEmployee = async (employeeId: string, fromCarId: string | number, toCarId: string | number) => {
-    if (!employeeId || !fromCarId || !toCarId) {
-      setError("Missing required information for reassignment");
-      return;
-    }
-
-    if (fromCarId === toCarId) {
-      setError("Employee is already assigned to this car");
-      return;
-    }
-
-    setError(null);
-    setSuccessMessage(null);
-    setIsLoading(true);
-
-    try {
-      // Find the employee details
-      const employeeResponse = await fetch(`${API_BASE_URL}/api/employees/${employeeId}`);
-      if (!employeeResponse.ok) throw new Error('Failed to fetch employee details');
-      const employeeData = await employeeResponse.json();
-
-      // Find the target car details
-      const toCar = cars.find(car => car.id === Number(toCarId));
-      if (!toCar) throw new Error('Target car not found');
-      if (toCar.availableSeats <= 0) throw new Error('Target car has no available seats');
-
-      // Perform the reassignment
-      const reassignResponse = await fetch(`${API_BASE_URL}/api/employees/assign-car`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeId,
-          fromCarPlateNumber: cars.find(car => car.id === fromCarId)?.plateNumber,
-          toCarPlateNumber: toCar.plateNumber
-        })
-      });
-
-      if (!reassignResponse.ok) {
-        const errorData = await reassignResponse.json().catch(() => ({ message: 'Reassignment failed' }));
-        throw new Error(errorData.message || 'Failed to reassign employee');
-      }
-
-      setSuccessMessage(`Successfully moved ${employeeData.name} to ${toCar.plateNumber}`);
-      // Refresh the data
-      await fetchCarSeatData();
-    } catch (err: any) {
-      console.error("Reassignment error:", err);
-      setError(err.message || "Failed to reassign employee");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle removing an employee from a car
-  const handleRemoveAssignment = async (employeeId: string, carId: string | number) => {
-    if (!employeeId || !carId) {
-      setError("Missing required information for removal");
-      return;
-    }
-
-    setError(null);
-    setSuccessMessage(null);
-    setIsLoading(true);
-
-    try {
-      // Find the employee details
-      const employeeResponse = await fetch(`${API_BASE_URL}/api/employees/${employeeId}`);
-      if (!employeeResponse.ok) throw new Error('Failed to fetch employee details');
-      const employeeData = await employeeResponse.json();
-
-      // Perform the removal
-      const removeResponse = await fetch(`${API_BASE_URL}/api/employees/remove-car-assignment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employeeId,
-          carPlateNumber: cars.find(car => car.id === carId)?.plateNumber
-        })
-      });
-
-      if (!removeResponse.ok) {
-        const errorData = await removeResponse.json().catch(() => ({ message: 'Removal failed' }));
-        throw new Error(errorData.message || 'Failed to remove assignment');
-      }
-
-      setSuccessMessage(`Successfully removed ${employeeData.name} from car assignment`);
-      // Refresh the data
-      await fetchCarSeatData();
-    } catch (err: any) {
-      console.error("Removal error:", err);
-      setError(err.message || "Failed to remove assignment");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Initial data fetch
   useEffect(() => {
     fetchCarSeatData();
   }, []);
+
+  const toggleCarExpansion = (carId: string | number) => {
+    setExpandedCarId(expandedCarId === carId ? null : carId);
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
@@ -211,13 +105,31 @@ export default function CarSeatCounterPage() {
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md flex items-center">
-          <FiAlertCircle className="mr-2" /> {error}
+        <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md flex items-center justify-between">
+          <div className="flex items-center">
+            <FiAlertCircle className="mr-2" /> 
+            <span>{error}</span>
+          </div>
+          <button 
+            onClick={() => setError(null)} 
+            className="text-red-500 hover:text-red-700"
+          >
+            <FiX />
+          </button>
         </div>
       )}
       {successMessage && (
-        <div className="mb-4 p-3 bg-green-100 text-green-700 border border-green-300 rounded-md flex items-center">
-          <FiCheckCircle className="mr-2" /> {successMessage}
+        <div className="mb-4 p-3 bg-green-100 text-green-700 border border-green-300 rounded-md flex items-center justify-between">
+          <div className="flex items-center">
+            <FiCheckCircle className="mr-2" /> 
+            <span>{successMessage}</span>
+          </div>
+          <button 
+            onClick={() => setSuccessMessage(null)} 
+            className="text-green-500 hover:text-green-700"
+          >
+            <FiX />
+          </button>
         </div>
       )}
 
@@ -234,7 +146,10 @@ export default function CarSeatCounterPage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {cars.map((car) => (
             <div key={car.id} className="border rounded-lg overflow-hidden shadow-sm">
-              <div className={`p-4 ${car.availableSeats <= 0 ? 'bg-red-50' : 'bg-blue-50'} border-b`}>
+              <div
+                className={`p-4 ${car.availableSeats <= 0 ? 'bg-red-50' : 'bg-blue-50'} border-b cursor-pointer`}
+                onClick={() => toggleCarExpansion(car.id)}
+              >
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-bold text-lg flex items-center">
@@ -262,59 +177,29 @@ export default function CarSeatCounterPage() {
                 </div>
               </div>
 
-              <div className="p-4">
-                <h4 className="font-medium text-sm flex items-center mb-2">
-                  <FiUsers className="mr-1" /> Assigned Employees ({car.assignedEmployees.length})
-                </h4>
-                
-                {car.assignedEmployees.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">No employees assigned</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {car.assignedEmployees.map((employee) => (
-                      <li key={employee.employeeId} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                        <div>
-                          <div className="font-medium">{employee.name}</div>
-                          <div className="text-xs text-gray-500">{employee.department} • ID: {employee.employeeId}</div>
-                        </div>
-                        <div className="flex space-x-1">
-                          <select
-                            className="text-xs border rounded p-1"
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                handleReassignEmployee(
-                                  employee.employeeId,
-                                  car.id,
-                                  e.target.value
-                                );
-                                e.target.value = ''; // Reset the select
-                              }
-                            }}
-                            disabled={isLoading}
-                          >
-                            <option value="">Move to...</option>
-                            {cars
-                              .filter(otherCar => otherCar.id !== car.id && otherCar.availableSeats > 0)
-                              .map(otherCar => (
-                                <option key={otherCar.id} value={otherCar.id}>
-                                  {otherCar.plateNumber} ({otherCar.availableSeats} seats)
-                                </option>
-                              ))}
-                          </select>
-                          <button
-                            onClick={() => handleRemoveAssignment(employee.employeeId, car.id)}
-                            disabled={isLoading}
-                            className="text-xs text-red-600 hover:text-red-800 p-1"
-                            title="Remove assignment"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              {expandedCarId === car.id && (
+                <div className="p-4">
+                  {car.assignedEmployees.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">No employees assigned</p>
+                  ) : (
+                    <>
+                      <h4 className="font-medium text-sm flex items-center mb-2">
+                        <FiUsers className="mr-1" /> Assigned Employees ({car.assignedEmployees.length})
+                      </h4>
+                      <ul className="space-y-2">
+                        {car.assignedEmployees.map((employee) => (
+                          <li key={employee.employeeId} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                            <div>
+                              <div className="font-medium">{employee.name}</div>
+                              <div className="text-xs text-gray-500">{employee.department} • ID: {employee.employeeId}</div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

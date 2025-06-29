@@ -12,8 +12,8 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
 }) => {
   const [formData, setFormData] = useState<Omit<Car, 'id'>>({
     plateNumber: '',
-    ownerName: '',
-    ownerPhone: '',
+    AgentName: '',
+    AgentPhone: '',
     model: '',
     carType: 'Minibus',
     manufactureYear: new Date().getFullYear().toString(),
@@ -59,8 +59,8 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.plateNumber) newErrors.plateNumber = 'Plate number is required';
-    if (!formData.ownerName) newErrors.ownerName = 'Owner name is required';
-    if (!formData.ownerPhone) newErrors.ownerPhone = 'Owner phone is required';
+    if (!formData.ownerName) newErrors.ownerName = 'Agent name is required';
+    if (!formData.ownerPhone) newErrors.ownerPhone = 'Agent phone is required';
     if (!formData.model) newErrors.model = 'Model is required';
     if (!formData.manufactureYear) newErrors.manufactureYear = 'Manufacture year is required';
     if (!formData.motorCapacity) newErrors.motorCapacity = 'Motor capacity is required';
@@ -138,7 +138,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
 
               {/* Owner Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Owner Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Agent Name *</label>
                 <input
                   type="text"
                   name="ownerName"
@@ -156,7 +156,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
 
               {/* Owner Phone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Owner Phone *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Agent Phone *</label>
                 <input
                   type="tel"
                   name="ownerPhone"
