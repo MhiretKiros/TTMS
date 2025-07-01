@@ -29,6 +29,8 @@ const sidebarItems = [
       { title: 'Car Attendance', link: '/tms-modules/admin/car-management/car-attendance', icon: <FiClipboard /> },
       { title: 'Vehicle Inspection', link: '/tms-modules/admin/car-management/vehicle-inspection', icon: <FiSettings /> },
       { title: 'Avaliable seats', link: '/tms-modules/admin/car-management/Avaliable-seats', icon: <FiAlertTriangle /> },
+     { title: 'NEZEKE Notification', link: '/tms-modules/admin/car-management/foc-form', icon: <FiClipboard /> },
+  
     ],
   },
   {
