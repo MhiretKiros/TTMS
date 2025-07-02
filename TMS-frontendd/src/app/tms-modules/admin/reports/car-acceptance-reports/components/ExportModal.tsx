@@ -1,44 +1,103 @@
-// ExportModal.tsx
 'use client';
 
 import React, { useState } from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 import { VehicleTransfer, VehicleAcceptance, CarReportsFilters } from '../types';
+import insaprofile from '../images/insaprofile.png';
 
-// Professional PDF styles with perfect spacing
+// Updated styles with INSA format
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
+    paddingTop: 100,
+    paddingBottom: 60,
+    paddingHorizontal: 40,
     fontFamily: 'Helvetica',
+    position: 'relative',
     fontSize: 10,
     lineHeight: 1.4
   },
   header: {
-    marginBottom: 30,
+    position: 'absolute',
+    top: 20,
+    left: 40,
+    right: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    borderBottomStyle: 'solid',
+    paddingBottom: 15,
+    marginBottom: 15,
+    flexDirection: 'column'
+  },
+  headerTable: {
+    width: '100%',
+    flexDirection: 'row',
+    marginBottom: 5,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'solid'
+  },
+  headerTableCell: {
+    padding: 5,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'solid',
+    verticalAlign: 'top' as 'top'
+  },
+  headerLeft: {
+    width: '20%',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  headerCenter: {
+    width: '60%',
+    alignItems: 'center',
+    justifyContent: 'center',
     textAlign: 'center'
   },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5
+  headerRight: {
+    width: '20%',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    textAlign: 'right'
   },
-  subtitle: {
+  headerTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 3
+  },
+  headerSubtitle: {
     fontSize: 10,
-    marginBottom: 20
+    marginBottom: 3
+  },
+  headerInfo: {
+    fontSize: 8,
+    marginBottom: 3
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 40,
+    right: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#000',
+    borderTopStyle: 'solid',
+    paddingTop: 10,
+    flexDirection: 'column',
+    fontSize: 8,
+    textAlign: 'center'
   },
   section: {
     marginBottom: 25,
     breakInside: 'avoid'
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 10,
-    borderBottom: '1px solid #000',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
     paddingBottom: 3
-  },
-  filterContainer: {
-    marginBottom: 20
   },
   filterItem: {
     flexDirection: 'row',
@@ -52,44 +111,57 @@ const styles = StyleSheet.create({
     flex: 1
   },
   card: {
-    marginBottom: 25,
-    breakInside: 'avoid'
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderStyle: 'solid',
+    borderRadius: 3,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#f9f9f9'
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8
+    marginBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
+    paddingBottom: 3
   },
   cardTitle: {
     fontSize: 11,
     fontWeight: 'bold'
   },
   cardDate: {
-    fontSize: 9
+    fontSize: 10,
+    color: '#555'
   },
   detailRow: {
     flexDirection: 'row',
-    marginBottom: 6,
-    alignItems: 'flex-start'
+    marginBottom: 3
   },
   detailLabel: {
-    width: 120,
-    fontWeight: 'bold'
+    width: '40%',
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#666'
   },
   detailValue: {
-    flex: 1
+    width: '60%',
+    fontSize: 9
   },
   inspectionContainer: {
     marginTop: 10,
     marginBottom: 10
   },
   inspectionTitle: {
+    fontSize: 10,
     fontWeight: 'bold',
     marginBottom: 5
   },
   inspectionItem: {
-    marginBottom: 4,
-    flexDirection: 'row'
+    flexDirection: 'row',
+    marginBottom: 3
   },
   passed: {
     color: '#28a745',
@@ -109,21 +181,14 @@ const styles = StyleSheet.create({
   },
   transferContainer: {
     marginTop: 15,
-    marginLeft: 15,
-    paddingTop: 10,
-    borderTop: '1px solid #eee'
-  },
-  footer: {
-    marginTop: 30,
-    textAlign: 'center',
-    fontSize: 9,
-    paddingTop: 10,
-    borderTop: '1px solid #eee'
+    paddingLeft: 10,
+    borderLeftWidth: 2,
+    borderLeftColor: '#3c8dbc'
   },
   pageNumber: {
     position: 'absolute',
     fontSize: 10,
-    bottom: 20,
+    bottom: 30,
     left: 0,
     right: 0,
     textAlign: 'center'
@@ -139,6 +204,8 @@ const CarReportPDF = ({
   transfers: VehicleTransfer[], 
   filters: CarReportsFilters 
 }) => {
+  const currentDate = new Date().toLocaleDateString();
+  const letterNumber = `INS/REP/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`;
   const transfersByAssignmentId = transfers.reduce((acc, transfer) => {
     if (!acc[transfer.assignmentHistoryId]) {
       acc[transfer.assignmentHistoryId] = [];
@@ -147,181 +214,211 @@ const CarReportPDF = ({
     return acc;
   }, {} as Record<number, VehicleTransfer[]>);
 
+  // Split data into pages (1 acceptance with its transfers per page)
+  const pages = acceptances.map((acceptance, index) => ({
+    acceptance,
+    transfers: acceptance.assignmentHistoryId 
+      ? transfersByAssignmentId[acceptance.assignmentHistoryId] || []
+      : [],
+    pageNumber: index + 1
+  }));
+
   return (
     <Document>
-      <Page size="A4" style={styles.page} wrap>
-        <View style={styles.header}>
-          <Text style={styles.title}>VEHICLE ACCEPTANCE & TRANSFER REPORT</Text>
-          <Text style={styles.subtitle}>Generated on {new Date().toLocaleDateString()}</Text>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>FILTER CRITERIA</Text>
-          <View style={styles.filterContainer}>
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Date Range:</Text>
-              <Text style={styles.filterValue}>{filters.start || 'Not specified'} to {filters.end || 'Not specified'}</Text>
-            </View>
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Plate Number:</Text>
-              <Text style={styles.filterValue}>{filters.plateNumber || 'All'}</Text>
+      {pages.map(({ acceptance, transfers, pageNumber }) => (
+        <Page key={acceptance.id} size="A4" style={styles.page} wrap>
+          {/* Header - appears on every page */}
+          <View fixed style={styles.header}>
+            <View style={styles.headerTable}>
+              <View style={[styles.headerTableCell, styles.headerLeft]}>
+                <Image src={insaprofile.src} style={{ width: 50, height: 50 }} />
+              </View>
+              
+              <View style={[styles.headerTableCell, styles.headerCenter]}>
+                <Text style={styles.headerTitle}>
+                  INFORMATION NETWORK SECURITY ADMINISTRATION
+                </Text>
+                
+                <Text style={styles.headerSubtitle}>
+                  VEHICLE ACCEPTANCE & TRANSFER REPORT
+                </Text>
+              </View>
+              
+              <View style={[styles.headerTableCell, styles.headerRight]}>
+                <Text style={styles.headerInfo}>Letter No: {letterNumber}</Text>
+                <Text style={styles.headerInfo}>Date: {currentDate}</Text>
+                <Text style={styles.headerInfo}>Page: {pageNumber} of {acceptances.length}</Text>
+              </View>
             </View>
           </View>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            VEHICLE RECORDS ({acceptances.length} acceptances, {transfers.length} transfers)
-          </Text>
-          
-          {acceptances.map((acceptance) => {
-            const relatedTransfers = acceptance.assignmentHistoryId 
-              ? transfersByAssignmentId[acceptance.assignmentHistoryId] || []
-              : [];
-            
-            return (
-              <View key={acceptance.id} style={styles.card} wrap={false}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>ACCEPTANCE: {acceptance.plateNumber}</Text>
-                  <Text style={styles.cardDate}>
-                    {new Date(acceptance.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Car Type:</Text>
-                  <Text style={styles.detailValue}>{acceptance.carType}</Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>KM:</Text>
-                  <Text style={styles.detailValue}>{acceptance.km}</Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Inspection Summary:</Text>
-                  <Text style={styles.detailValue}>
-                    {Object.values(acceptance.inspectionItems).filter(v => v).length}/
-                    {Object.values(acceptance.inspectionItems).length} passed
-                  </Text>
-                </View>
-                
-                <View style={styles.inspectionContainer}>
-                  <Text style={styles.inspectionTitle}>Inspection Details:</Text>
-                  {Object.entries(acceptance.inspectionItems).map(([item, passed]) => (
-                    <View key={item} style={styles.inspectionItem}>
-                      <Text style={passed ? styles.passed : styles.failed}>
-                        {passed ? '✓' : '✗'}
-                      </Text>
-                      <Text>{item}</Text>
-                    </View>
-                  ))}
-                </View>
-                
-                {acceptance.attachments?.length > 0 && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Attachments:</Text>
-                    <Text style={styles.detailValue}>
-                      {acceptance.attachments.join(', ')}
-                    </Text>
-                  </View>
-                )}
-                
-                {acceptance.physicalContent?.length > 0 && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Physical Content:</Text>
-                    <Text style={styles.detailValue}>
-                      {acceptance.physicalContent.join(', ')}
-                    </Text>
-                  </View>
-                )}
-                
-                {acceptance.notes?.length > 0 && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Notes:</Text>
-                    <Text style={styles.detailValue}>
-                      {acceptance.notes.join(', ')}
-                    </Text>
-                  </View>
-                )}
-                
-                <View style={styles.signatureContainer}>
-                  <Text style={styles.inspectionTitle}>Signatures:</Text>
-                  {acceptance.signatures.map((signature, idx) => (
-                    <View key={idx} style={styles.signatureRow}>
-                      <Text>{signature.role}: {signature.name}</Text>
-                      <Text>Date: {signature.date}</Text>
-                    </View>
-                  ))}
-                </View>
-                
-                {relatedTransfers.length > 0 && (
-                  <View style={styles.transferContainer}>
-                    <Text style={{ marginBottom: 8, fontWeight: 'bold' }}>
-                      Associated Transfers ({relatedTransfers.length}):
-                    </Text>
-                    {relatedTransfers.map((transfer) => (
-                      <View key={transfer.transferId} style={{ marginBottom: 15 }}>
-                        <View style={styles.cardHeader}>
-                          <Text style={styles.cardTitle}>TRANSFER #{transfer.transferNumber}</Text>
-                          <Text style={styles.cardDate}>
-                            {new Date(transfer.transferDate).toLocaleDateString()}
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>From Official:</Text>
-                          <Text style={styles.detailValue}>{transfer.designatedOfficial}</Text>
-                        </View>
-                        
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>To Official:</Text>
-                          <Text style={styles.detailValue}>{transfer.currentDesignatedOfficial}</Text>
-                        </View>
-                        
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Driver:</Text>
-                          <Text style={styles.detailValue}>{transfer.driverName}</Text>
-                        </View>
-                        
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>KM Change:</Text>
-                          <Text style={styles.detailValue}>
-                            {transfer.oldKmReading} → {transfer.newKmReading}
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Fuel Change:</Text>
-                          <Text style={styles.detailValue}>
-                            {transfer.oldFuelLiters} → {transfer.newFuelLiters}
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Reason:</Text>
-                          <Text style={styles.detailValue}>{transfer.transferReason}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
+
+          {/* Only show filter criteria on first page */}
+          {pageNumber === 1 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>FILTER CRITERIA</Text>
+              <View style={styles.filterItem}>
+                <Text style={styles.filterLabel}>Date Range:</Text>
+                <Text style={styles.filterValue}>
+                  {filters.start || 'Not specified'} to {filters.end || 'Not specified'}
+                </Text>
               </View>
-            );
-          })}
-        </View>
-        
-        <View style={styles.footer}>
-          <Text>End of Report - Total Acceptances: {acceptances.length} | Total Transfers: {transfers.length}</Text>
-        </View>
-        
-        <Text style={styles.pageNumber} render={({ pageNumber, totalPages }) => (
-          `Page ${pageNumber} of ${totalPages}`
-        )} fixed />
-      </Page>
+              <View style={styles.filterItem}>
+                <Text style={styles.filterLabel}>Plate Number:</Text>
+                <Text style={styles.filterValue}>{filters.plateNumber || 'All'}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Acceptance details */}
+          <View style={styles.section}>
+            {pageNumber === 1 && (
+              <Text style={styles.sectionTitle}>
+                VEHICLE RECORDS ({acceptances.length} acceptances, {transfers.length} transfers)
+              </Text>
+            )}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>ACCEPTANCE: {acceptance.plateNumber}</Text>
+                <Text style={styles.cardDate}>
+                  {new Date(acceptance.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Car Type:</Text>
+                <Text style={styles.detailValue}>{acceptance.carType}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>KM:</Text>
+                <Text style={styles.detailValue}>{acceptance.km}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Inspection Summary:</Text>
+                <Text style={styles.detailValue}>
+                  {Object.values(acceptance.inspectionItems).filter(v => v).length}/
+                  {Object.values(acceptance.inspectionItems).length} passed
+                </Text>
+              </View>
+              
+              <View style={styles.inspectionContainer}>
+                <Text style={styles.inspectionTitle}>Inspection Details:</Text>
+                {Object.entries(acceptance.inspectionItems).map(([item, passed]) => (
+                  <View key={item} style={styles.inspectionItem}>
+                    <Text style={passed ? styles.passed : styles.failed}>
+                      {passed ? '✓' : '✗'}
+                    </Text>
+                    <Text>{item}</Text>
+                  </View>
+                ))}
+              </View>
+              
+              {acceptance.attachments?.length > 0 && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Attachments:</Text>
+                  <Text style={styles.detailValue}>
+                    {acceptance.attachments.join(', ')}
+                  </Text>
+                </View>
+              )}
+              
+              {acceptance.physicalContent?.length > 0 && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Physical Content:</Text>
+                  <Text style={styles.detailValue}>
+                    {acceptance.physicalContent.join(', ')}
+                  </Text>
+                </View>
+              )}
+              
+              {acceptance.notes?.length > 0 && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Notes:</Text>
+                  <Text style={styles.detailValue}>
+                    {acceptance.notes.join(', ')}
+                  </Text>
+                </View>
+              )}
+              
+              <View style={styles.signatureContainer}>
+                <Text style={styles.inspectionTitle}>Signatures:</Text>
+                {acceptance.signatures.map((signature, idx) => (
+                  <View key={idx} style={styles.signatureRow}>
+                    <Text>{signature.role}: {signature.name}</Text>
+                    <Text>Date: {signature.date}</Text>
+                  </View>
+                ))}
+              </View>
+              
+              {transfers.length > 0 && (
+                <View style={styles.transferContainer}>
+                  <Text style={[styles.inspectionTitle, { marginBottom: 8 }]}>
+                    Associated Transfers ({transfers.length}):
+                  </Text>
+                  {transfers.map((transfer) => (
+                    <View key={transfer.transferId} style={{ marginBottom: 15 }}>
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.cardTitle}>TRANSFER #{transfer.transferNumber}</Text>
+                        <Text style={styles.cardDate}>
+                          {new Date(transfer.transferDate).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>From Official:</Text>
+                        <Text style={styles.detailValue}>{transfer.designatedOfficial}</Text>
+                      </View>
+                      
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>To Official:</Text>
+                        <Text style={styles.detailValue}>{transfer.currentDesignatedOfficial}</Text>
+                      </View>
+                      
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Driver:</Text>
+                        <Text style={styles.detailValue}>{transfer.driverName}</Text>
+                      </View>
+                      
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>KM Change:</Text>
+                        <Text style={styles.detailValue}>
+                          {transfer.oldKmReading} → {transfer.newKmReading}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Fuel Change:</Text>
+                        <Text style={styles.detailValue}>
+                          {transfer.oldFuelLiters} → {transfer.newFuelLiters}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Reason:</Text>
+                        <Text style={styles.detailValue}>{transfer.transferReason}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+          
+          {/* Footer - appears on every page */}
+          <View fixed style={styles.footer}>
+            <Text>INFORMATION NETWORK SECURITY ADMINISTRATION</Text>
+            <Text>Make sure whether the letter is correct or not before use</Text>
+          </View>
+        </Page>
+      ))}
     </Document>
   );
 };
+
+// ... [Keep the AcceptanceDetails, TransferDetails, and ExportModal components exactly as they are in your original file] ...
+
+
 
 const AcceptanceDetails = ({ acceptance, expanded, onToggle }: { 
   acceptance: VehicleAcceptance, 
@@ -622,7 +719,7 @@ export default function ExportModal({
             <PDFDownloadLink
               document={<CarReportPDF acceptances={acceptances} transfers={transfers} filters={filters} />}
               fileName={`vehicle_report_${new Date().toISOString().slice(0, 10)}.pdf`}
-              className="px-4 py-2 rounded-md text-sm font-medium text-white bg-[#3c8dbc] hover:bg-[#367fa9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3c8dbc]"
+              className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               {({ loading }) => (
                 loading ? 'Preparing PDF...' : 'Download PDF Report'

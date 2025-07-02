@@ -48,7 +48,7 @@ interface AssignmentResult {
   details?: string;
   assignedCars?: Car[];
   assignedRequest?: FormData;
-  status?: 'Pending' | 'Assigned';
+  status?: 'Pending' | 'Assigned' | 'SemiAssigned';
   assignmentDate?: string;
   numberOfCar?: string;
 }
@@ -375,7 +375,7 @@ export default function AssignCarManagerForm() {
       const assignedCount = proposedCars.length;
       const requestedCount = formData.selectedModels.length;
       const isFullyAssigned = assignedCount === requestedCount;
-      const status = isFullyAssigned ? 'Assigned' : 'Pending';
+      const status = isFullyAssigned ? 'Assigned' : 'SemiAssigned';
       const numberOfCar = `${assignedCount}/${requestedCount}`;
 
       await Promise.all(

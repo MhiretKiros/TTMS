@@ -1,12 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiTool, FiCheckCircle, FiAlertCircle, FiList, FiPlus, FiFileText, FiUser, FiUsers } from 'react-icons/fi';
+import { FiTool, FiCheckCircle, FiAlertCircle, FiList, FiPlus, FiFileText, FiUser, FiUsers, FiClipboard } from 'react-icons/fi';
 import MaintenanceRequestForm from './components/MaintenanceRequestForm';
 import Swal from 'sweetalert2';
 
 export default function MaintenanceRequestPage() {
-  const [activeTab, setActiveTab] = useState<'driver' | 'distributor' | 'maintenance'>('driver');
+  const [activeTab, setActiveTab] = useState<'driver' | 'distributor' | 'maintenance' | 'inspector'>('driver');
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -37,10 +37,24 @@ export default function MaintenanceRequestPage() {
 
   return (
     <div className="w-full min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-7xl mx-auto">
-        {/* Header and Tab Navigation remain the same */}
+      <div className="w-full max-w-7xl mx-auto space-y-6">
+        {/* Dropdown for selecting actorType */}
+        <div className="flex items-center gap-4">
+          <label htmlFor="actorType" className="text-lg font-medium text-gray-700">Select Request Type:</label>
+          <select
+            id="actorType"
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value as 'driver' | 'distributor' | 'maintenance' | 'inspector')}
+            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            <option value="driver">Driver</option>
+            <option value="distributor">Distributor</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="inspector">Inspector</option>
+          </select>
+        </div>
 
-        {/* Main Content */}
+        {/* Form container with animation */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
           <AnimatePresence mode="wait">
             <motion.div
@@ -73,8 +87,6 @@ export default function MaintenanceRequestPage() {
             </motion.div>
           </AnimatePresence>
         </div>
-
-        {/* Status Legend remains the same */}
       </div>
     </div>
   );

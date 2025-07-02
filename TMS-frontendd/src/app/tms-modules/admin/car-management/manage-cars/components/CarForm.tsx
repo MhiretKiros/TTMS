@@ -15,7 +15,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     AgentName: '',
     AgentPhone: '',
     model: '',
-    carType: 'Minibus',
+    carType: 'Authomobile',
     manufactureYear: new Date().getFullYear().toString(),
     motorCapacity: '',
     kmPerLiter: '',

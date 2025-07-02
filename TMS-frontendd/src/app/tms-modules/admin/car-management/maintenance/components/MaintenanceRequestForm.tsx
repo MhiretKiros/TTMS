@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiTool, FiUser, FiAlertCircle, FiSend, FiCheckCircle, 
   FiPlus, FiMinus, FiSearch, FiX, FiFileText, FiList, 
-  FiUpload, FiTrash2, FiDownload, FiEye
+  FiUpload, FiTrash2, FiDownload, FiEye, FiFile,
+  FiPlusCircle, FiClipboard, FiArrowRight, FiDollarSign
 } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
@@ -13,10 +14,12 @@ import { MaintenanceRequest } from '../api/handlers';
 import RequestsTable from './RequestsTable';
 
 const API_BASE_URL = 'http://localhost:8080/api/maintenance-requests';
-
+const CARS_API_URL = 'http://localhost:8080/auth/rent-car/all';
+const CAR_STATUS_API_URL = 'http://localhost:8080/auth/rent-car/status';
+ 
 interface MaintenanceRequestFormProps {
   requestId?: number;
-  actorType: 'driver' | 'distributor' | 'maintenance';
+  actorType: 'driver' | 'distributor' | 'maintenance' | 'inspector';
   onSuccess?: () => void;
   onCancel?: () => void;
   onRowClick?: (request: { id: number }) => void;
@@ -29,6 +32,17 @@ interface Signature {
   date: string;
 }
 
+interface Car {
+  id: number;
+  plateNumber: string;
+  model: string;
+  bodyType: string;
+  km: string;
+  vehicleType: string;
+  currentKilometer: number;
+  status: string;
+}
+
 const defectCategories = [
   "Engine", "Transmission", "Brakes", "Suspension", 
   "Electrical", "Body", "Interior", "Tires", "Other"
@@ -36,7 +50,7 @@ const defectCategories = [
 
 export default function MaintenanceRequestForm({ requestId, actorType, onSuccess }: MaintenanceRequestFormProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'add' | 'view'>('add');
+  const [showRequestForm, setShowRequestForm] = useState(false);
   const [formData, setFormData] = useState({
     plateNumber: '',
     vehicleType: '',
@@ -47,15 +61,23 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     mechanicDiagnosis: '',
     requestingPersonnel: '',
     authorizingPersonnel: '',
-    status: 'PENDING' as 'PENDING' | 'CHECKED' | 'REJECTED' | 'INSPECTION' | 'COMPLETED' | 'APPROVED',
+    fuelAmount: '',
+    status: 'PENDING' as 'PENDING' | 'CHECKED' | 'REJECTED' | 'INSPECTION' | 'COMPLETED' | 'APPROVED' | 'FINISHED',
     attachments: [''],
     physicalContent: [''],
     notes: [''],
     carImages: [] as (File | string)[],
     signatures: [
       { role: 'Driver', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
-      { role: 'Mechanic', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
-      { role: 'Supervisor', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
+      { role: 'Mechanic', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
+    ],
+    returnFiles: [] as (File | string)[],
+    returnKilometerReading: '',
+    returnNotes: '',
+    returnFuelAmount: '',
+    returnSignatures: [
+      { role: 'Inspector', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
+      { role: 'Driver', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
     ]
   });
 
@@ -70,8 +92,13 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showAcceptanceModal, setShowAcceptanceModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const [filePreviews, setFilePreviews] = useState<Array<{ url: string; type: 'image' | 'pdf' | 'other' }>>([]);
-
+  const [returnFilePreviews, setReturnFilePreviews] = useState<Array<{ url: string; type: 'image' | 'pdf' | 'other' }>>([]);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [carSearch, setCarSearch] = useState('');
+  const [showCarDropdown, setShowCarDropdown] = useState(false);
+  
   useEffect(() => {
     const loadRequests = async () => {
       try {
@@ -82,10 +109,16 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
           data = await axios.get(`${API_BASE_URL}/distributor`).then(res => res.data);
         } else if (actorType === 'maintenance') {
           data = await axios.get(`${API_BASE_URL}/maintenance`).then(res => res.data);
+        } else if (actorType === 'inspector') {
+          data = await axios.get(`${API_BASE_URL}/inspector`).then(res => res.data);
         }
         
         setRequests(data);
-        setFilteredRequests(data);
+        if (actorType === 'driver') {
+          setFilteredRequests([]);
+        } else {
+          setFilteredRequests(data);
+        }
         
         if (requestId) {
           const request = data.find((r: MaintenanceRequest) => r.id === requestId) || 
@@ -100,10 +133,23 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       }
     };
     
-    if (actorType !== 'driver' || activeTab === 'view') {
-      loadRequests();
+    loadRequests();
+  }, [requestId, actorType]);
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const response = await axios.get(CARS_API_URL);
+        setCars(response.data.rentCarList);
+      } catch (error) {
+        console.error('Failed to fetch cars:', error);
+      }
+    };
+    
+    if (showRequestForm) {
+      fetchCars();
     }
-  }, [requestId, actorType, activeTab]);
+  }, [showRequestForm]);
 
   const populateFormData = (request: MaintenanceRequest) => {
     setFormData({
@@ -116,6 +162,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       mechanicDiagnosis: request.mechanicDiagnosis || '',
       requestingPersonnel: request.requestingPersonnel || '',
       authorizingPersonnel: request.authorizingPersonnel || '',
+      fuelAmount: request.fuelAmount?.toString() || '',
       status: request.status,
       attachments: request.attachments || [''],
       physicalContent: request.physicalContent || [''],
@@ -128,18 +175,39 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         date: sig.date
       })) || [
         { role: 'Driver', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
-        { role: 'Mechanic', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
-        { role: 'Supervisor', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
+        { role: 'Mechanic', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
+      ],
+      returnFiles: request.returnFiles || [],
+      returnKilometerReading: request.returnKilometerReading?.toString() || '',
+      returnNotes: request.returnNotes || '',
+      returnFuelAmount: request.returnFuelAmount?.toString() || '',
+      returnSignatures: request.returnSignatures?.map(sig => ({
+        role: sig.role,
+        name: sig.name,
+        signature: sig.signature,
+        date: sig.date
+      })) || [
+        { role: 'Inspector', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
+        { role: 'Driver', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
       ]
     });
 
-    // Set file previews if there are existing images
     if (request.carImages && request.carImages.length > 0) {
-      const previews = request.carImages.map((image: string) => ({
-        url: image,
-        type: image.endsWith('.pdf') ? 'pdf' : 'image'
+      const previews = request.carImages.map((file: string) => ({
+        url: `${API_BASE_URL}/files/${file}`,
+        type: file.endsWith('.pdf') ? 'pdf' : 
+              ['jpg', 'jpeg', 'png', 'gif'].some(ext => file.toLowerCase().endsWith(ext)) ? 'image' : 'other'
       }));
       setFilePreviews(previews);
+    }
+
+    if (request.returnFiles && request.returnFiles.length > 0) {
+      const previews = request.returnFiles.map((file: string) => ({
+        url: `${API_BASE_URL}/files/${file}`,
+        type: file.endsWith('.pdf') ? 'pdf' : 
+              ['jpg', 'jpeg', 'png', 'gif'].some(ext => file.toLowerCase().endsWith(ext)) ? 'image' : 'other'
+      }));
+      setReturnFilePreviews(previews);
     }
   };
 
@@ -182,23 +250,24 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     }
   };
 
-  const handleSignatureChange = (index: number, field: keyof Signature, value: string) => {
+  const handleSignatureChange = (index: number, field: keyof Signature, value: string, isReturn = false) => {
     setFormData(prev => {
-      const updatedSignatures = [...prev.signatures];
+      const signatureField = isReturn ? 'returnSignatures' : 'signatures';
+      const updatedSignatures = [...prev[signatureField]];
       updatedSignatures[index] = {
         ...updatedSignatures[index],
         [field]: value
       };
-      return { ...prev, signatures: updatedSignatures };
+      return { ...prev, [signatureField]: updatedSignatures };
     });
 
-    const errorKey = `signature${field}${index}`;
+    const errorKey = `signature${field}${index}${isReturn ? 'Return' : ''}`;
     if (errors[errorKey]) {
       setErrors(prev => ({ ...prev, [errorKey]: '' }));
     }
   };
 
-  const handleCarFilesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilesUpload = (e: React.ChangeEvent<HTMLInputElement>, isReturnFiles = false) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
       const validFiles = newFiles.filter(file => 
@@ -221,16 +290,24 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                 file.type === 'application/pdf' ? 'pdf' : 'other'
         }));
 
-        setFilePreviews(prev => [...prev, ...newPreviews]);
-        setFormData(prev => ({
-          ...prev,
-          carImages: [...prev.carImages, ...validFiles]
-        }));
+        if (isReturnFiles) {
+          setReturnFilePreviews(prev => [...prev, ...newPreviews]);
+          setFormData(prev => ({
+            ...prev,
+            returnFiles: [...prev.returnFiles, ...validFiles]
+          }));
+        } else {
+          setFilePreviews(prev => [...prev, ...newPreviews]);
+          setFormData(prev => ({
+            ...prev,
+            carImages: [...prev.carImages, ...validFiles]
+          }));
+        }
       }
     }
   };
 
-  const removeCarFile = (index: number) => {
+  const removeFile = (index: number, isReturnFile = false) => {
     Swal.fire({
       title: 'Are you sure?',
       text: 'Do you want to remove this file?',
@@ -240,16 +317,29 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       cancelButtonText: 'No, keep it'
     }).then((result) => {
       if (result.isConfirmed) {
-        setFilePreviews(prev => {
-          const newPreviews = [...prev];
-          newPreviews.splice(index, 1);
-          return newPreviews;
-        });
-        setFormData(prev => {
-          const newImages = [...prev.carImages];
-          newImages.splice(index, 1);
-          return { ...prev, carImages: newImages };
-        });
+        if (isReturnFile) {
+          setReturnFilePreviews(prev => {
+            const newPreviews = [...prev];
+            newPreviews.splice(index, 1);
+            return newPreviews;
+          });
+          setFormData(prev => {
+            const newFiles = [...prev.returnFiles];
+            newFiles.splice(index, 1);
+            return { ...prev, returnFiles: newFiles };
+          });
+        } else {
+          setFilePreviews(prev => {
+            const newPreviews = [...prev];
+            newPreviews.splice(index, 1);
+            return newPreviews;
+          });
+          setFormData(prev => {
+            const newImages = [...prev.carImages];
+            newImages.splice(index, 1);
+            return { ...prev, carImages: newImages };
+          });
+        }
       }
     });
   };
@@ -270,7 +360,36 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     if (formData.defectDetails.length > 500) newErrors.defectDetails = 'Defect details too long';
     if (formData.mechanicDiagnosis.length > 500) newErrors.mechanicDiagnosis = 'Diagnosis too long';
 
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
+  const validateAcceptanceForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.fuelAmount) newErrors.fuelAmount = 'Fuel amount is required';
+    
+    formData.signatures.forEach((sig, index) => {
+      if (!sig.name.trim()) newErrors[`signatureName${index}`] = 'Name is required';
+      if (!sig.signature.trim()) newErrors[`signatureValue${index}`] = 'Signature is required';
+      if (!sig.date.trim()) newErrors[`signatureDate${index}`] = 'Date is required';
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateReturnForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.returnKilometerReading) newErrors.returnKilometerReading = 'Return kilometer reading is required';
+    if (!formData.returnFuelAmount) newErrors.returnFuelAmount = 'Return fuel amount is required';
+    
+    formData.returnSignatures.forEach((sig, index) => {
+      if (!sig.name.trim()) newErrors[`signatureName${index}Return`] = 'Name is required';
+      if (!sig.signature.trim()) newErrors[`signatureValue${index}Return`] = 'Signature is required';
+      if (!sig.date.trim()) newErrors[`signatureDate${index}Return`] = 'Date is required';
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -317,11 +436,38 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         `Maintenance request ${requestId ? 'updated' : 'submitted'} successfully!`
       );
 
-      if (actorType === 'driver') {
-        setActiveTab('view');
-      } else if (onSuccess) {
-        onSuccess();
-      }
+      setShowRequestForm(false);
+      setFormData({
+        plateNumber: '',
+        vehicleType: '',
+        reportingDriver: '',
+        categoryWorkProcess: '',
+        kilometerReading: '',
+        defectDetails: '',
+        mechanicDiagnosis: '',
+        requestingPersonnel: '',
+        authorizingPersonnel: '',
+        fuelAmount: '',
+        status: 'PENDING',
+        attachments: [''],
+        physicalContent: [''],
+        notes: [''],
+        carImages: [],
+        signatures: [
+          { role: 'Driver', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
+          { role: 'Mechanic', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
+        ],
+        returnFiles: [],
+        returnKilometerReading: '',
+        returnNotes: '',
+        returnFuelAmount: '',
+        returnSignatures: [
+          { role: 'Inspector', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
+          { role: 'Driver', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
+        ]
+      });
+      setFilePreviews([]);
+      setReturnFilePreviews([]);
     } catch (error: any) {
       setApiError(error.response?.data?.message || `Failed to ${requestId ? 'update' : 'submit'} request`);
     } finally {
@@ -329,9 +475,15 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     }
   };
 
-  const handleStatusChange = async (id: number, status: 'CHECKED' | 'REJECTED' | 'APPROVED' | 'COMPLETED') => {
+  const handleStatusChange = async (id: number, status: 'CHECKED' | 'REJECTED' | 'APPROVED' | 'COMPLETED' | 'FINISHED') => {
     try {
       setIsApproving(true);
+      
+      if (status === 'COMPLETED') {
+        setShowReturnModal(true);
+        return;
+      }
+      
       await axios.patch(`${API_BASE_URL}/${id}/status?status=${status}`).then(res => res.data);
       
       setRequests(prev => prev.map(req => 
@@ -347,15 +499,15 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         `Request has been ${status.toLowerCase()} successfully`
       );
       
-      // Refresh data
       const data = await axios.get(
         actorType === 'distributor' ? `${API_BASE_URL}/distributor` : 
         actorType === 'maintenance' ? `${API_BASE_URL}/maintenance` : 
+        actorType === 'inspector' ? `${API_BASE_URL}/inspector` :
         `${API_BASE_URL}/driver`
       ).then(res => res.data);
       
       setRequests(data);
-      setFilteredRequests(data);
+      setFilteredRequests([]);
       closeModals();
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Failed to update status');
@@ -370,7 +522,6 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     try {
       setIsSubmitting(true);
       
-      // First upload images if there are any
       if (formData.carImages.length > 0) {
         const formDataObj = new FormData();
         formData.carImages.forEach((file) => {
@@ -379,20 +530,20 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
           }
         });
         
-        await axios.post(`${API_BASE_URL}/${selectedRequest.id}/upload-images`, formDataObj, {
+        await axios.post(`${API_BASE_URL}/${selectedRequest.id}/upload-files`, formDataObj, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
       }
 
-      // Then submit the acceptance data
       const acceptanceData = {
         attachments: formData.attachments.filter(Boolean),
         physicalContent: formData.physicalContent.filter(Boolean),
         notes: formData.notes.filter(Boolean),
         requestingPersonnel: formData.requestingPersonnel,
         authorizingPersonnel: formData.authorizingPersonnel,
+        fuelAmount: formData.fuelAmount,
         signatures: formData.signatures.map(sig => ({
           role: sig.role,
           name: sig.name,
@@ -403,18 +554,112 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
 
       await axios.post(`${API_BASE_URL}/${selectedRequest.id}/acceptance`, acceptanceData);
       
+      await axios.put(`${CAR_STATUS_API_URL}/${selectedRequest.plateNumber}`, {
+        status: 'InMaintainance'
+      });
+
       showSuccessAlert(
         'Success!', 
-        'Acceptance form submitted successfully'
+        'Acceptance form submitted successfully and car status updated'
       );
       
-      // Refresh data
       const data = await axios.get(`${API_BASE_URL}/driver`).then(res => res.data);
       setRequests(data);
-      setFilteredRequests(data);
+      setFilteredRequests([]);
       closeModals();
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Failed to submit acceptance');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReturnSubmit = async () => {
+    if (!selectedRequest) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      // First validate the form
+      if (!validateReturnForm()) {
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Prepare form data for file uploads
+      const formDataObj = new FormData();
+      
+      // Upload new files if any (regular files)
+      const filesToUpload = formData.carImages.filter(file => file instanceof File) as File[];
+      if (filesToUpload.length > 0) {
+        filesToUpload.forEach(file => {
+          formDataObj.append('files', file);
+        });
+        
+        await axios.post(`${API_BASE_URL}/${selectedRequest.id}/upload-files`, formDataObj, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      // Upload return files if any
+      const returnFilesToUpload = formData.returnFiles.filter(file => file instanceof File) as File[];
+      if (returnFilesToUpload.length > 0) {
+        const returnFormData = new FormData();
+        returnFilesToUpload.forEach(file => {
+          returnFormData.append('files', file);
+        });
+        
+        await axios.post(`${API_BASE_URL}/${selectedRequest.id}/upload-return-files`, returnFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      // Prepare return data payload
+      const returnData = {
+        returnKilometerReading: parseFloat(formData.returnKilometerReading),
+        returnNotes: formData.returnNotes,
+        returnFuelAmount: parseFloat(formData.returnFuelAmount),
+        returnSignatures: formData.returnSignatures.map(sig => ({
+          role: sig.role,
+          name: sig.name,
+          signature: sig.signature,
+          date: sig.date
+        }))
+      };
+
+      // Submit return data and complete the process
+      await axios.post(`${API_BASE_URL}/${selectedRequest.id}/complete-return`, returnData);
+      
+      // Update car status to Available
+      await axios.put(`${CAR_STATUS_API_URL}/${selectedRequest.plateNumber}`, {
+        status: 'Available'
+      });
+
+      showSuccessAlert(
+        'Success!', 
+        'Vehicle return process completed successfully'
+      );
+      
+      // Refresh requests
+      const data = await axios.get(
+        actorType === 'driver' ? `${API_BASE_URL}/driver` :
+        actorType === 'distributor' ? `${API_BASE_URL}/distributor` :
+        actorType === 'maintenance' ? `${API_BASE_URL}/maintenance` :
+        `${API_BASE_URL}/inspector`
+      ).then(res => res.data);
+      
+      setRequests(data);
+      if (actorType === 'driver') {
+        setFilteredRequests(data.filter((req: MaintenanceRequest) => 
+          req.reportingDriver.toLowerCase() === searchQuery.toLowerCase()
+        ));
+      } else {
+        setFilteredRequests(data);
+      }
+      
+      closeModals();
+    } catch (error: any) {
+      setApiError(error.response?.data?.message || 'Failed to complete return process');
     } finally {
       setIsSubmitting(false);
     }
@@ -434,7 +679,10 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
 
   const handleRowClick = (request: MaintenanceRequest) => {
     setSelectedRequest(request);
-    if (actorType === 'driver' && request.status === 'APPROVED') {
+    if (actorType === 'inspector' && request.status === 'COMPLETED') {
+      setShowReturnModal(true);
+    } else if ((actorType === 'driver' && request.status === 'APPROVED') || 
+               (actorType === 'inspector' && request.status === 'APPROVED')) {
       setShowAcceptanceModal(true);
     } else {
       setShowRequestModal(true);
@@ -444,254 +692,320 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
   const closeModals = () => {
     setShowRequestModal(false);
     setShowAcceptanceModal(false);
+    setShowReturnModal(false);
   };
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredRequests(requests);
+  const handleCarSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCarSearch(value);
+    setShowCarDropdown(true);
+    
+    const matchedCar = cars.find(car => car.plateNumber === value);
+    if (matchedCar) {
+      setFormData(prev => ({
+        ...prev,
+        plateNumber: matchedCar.plateNumber,
+        vehicleType: matchedCar.model || matchedCar.bodyType || '',
+        kilometerReading: matchedCar.km ? matchedCar.km.toString() : ''
+      }));
     } else {
-      const query = searchQuery.toLowerCase().trim();
-      const filtered = requests.filter(request => {
-        const fieldsToSearch = [
-          request.plateNumber,
-          request.vehicleType,
-          request.reportingDriver,
-          request.categoryWorkProcess,
-          request.status
-        ];
-        
-        return fieldsToSearch.some(field => field && field.toLowerCase().includes(query));
-      });
-      setFilteredRequests(filtered);
+      setFormData(prev => ({
+        ...prev,
+        plateNumber: value,
+        vehicleType: '',
+        kilometerReading: ''
+      }));
     }
-  }, [searchQuery, requests]);
+  };
+
+  const selectCar = (car: Car) => {
+    setFormData(prev => ({
+      ...prev,
+      plateNumber: car.plateNumber,
+      vehicleType: car.model || car.bodyType || '',
+      kilometerReading: car.km ? car.km.toString() : ''
+    }));
+    setCarSearch(car.plateNumber);
+    setShowCarDropdown(false);
+  };
+
+  const handleDriverSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    if (value.trim() === '') {
+      setFilteredRequests([]);
+    } else {
+      const exactMatch = requests.find(request => 
+        request.reportingDriver.toLowerCase() === value.toLowerCase()
+      );
+      
+      setFilteredRequests(exactMatch ? [exactMatch] : []);
+    }
+  };
 
   const renderRequestForm = () => (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-        {requestId ? 'Edit Maintenance Request' : 'New Maintenance Request'}
-      </h2>
-      
-      {apiError && (
-        <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
-          <div className="flex items-center">
-            <FiAlertCircle className="mr-2" />
-            <span>{apiError}</span>
-          </div>
-        </div>
-      )}
-  
-      {successMessage && (
-        <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">
-          <div className="flex items-center">
-            <FiCheckCircle className="mr-2" />
-            <span>{successMessage}</span>
-          </div>
-        </div>
-      )}
-  
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Plate Number */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Plate Number *</label>
-            <input
-              type="text"
-              name="plateNumber"
-              value={formData.plateNumber}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.plateNumber ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter plate number"
-              maxLength={20}
-            />
-            {errors.plateNumber && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.plateNumber}
-              </p>
-            )}
-          </div>
-  
-          {/* Vehicle Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Type *</label>
-            <input
-              type="text"
-              name="vehicleType"
-              value={formData.vehicleType}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.vehicleType ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter vehicle type"
-              maxLength={50}
-            />
-            {errors.vehicleType && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.vehicleType}
-              </p>
-            )}
-          </div>
-  
-          {/* Reporting Driver */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Driver *</label>
-            <input
-              type="text"
-              name="reportingDriver"
-              value={formData.reportingDriver}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.reportingDriver ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter driver name"
-              maxLength={50}
-            />
-            {errors.reportingDriver && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.reportingDriver}
-              </p>
-            )}
-          </div>
-  
-          {/* Category/Work Process */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category/Work Process *</label>
-            <select
-              name="categoryWorkProcess"
-              value={formData.categoryWorkProcess}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.categoryWorkProcess ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.2 }}
+        className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-semibold text-gray-800">
+              {requestId ? 'Edit Maintenance Request' : 'New Maintenance Request'}
+            </h2>
+            <button
+              onClick={() => setShowRequestForm(false)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <option value="">Select category</option>
-              {defectCategories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-            {errors.categoryWorkProcess && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.categoryWorkProcess}
-              </p>
-            )}
+              <FiX className="text-gray-500" />
+            </button>
           </div>
-  
-          {/* Kilometer Reading */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kilometer Reading *</label>
-            <input
-              type="number"
-              name="kilometerReading"
-              value={formData.kilometerReading}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.kilometerReading ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter current km"
-              min="0"
-              step="0.1"
-            />
-            {errors.kilometerReading && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.kilometerReading}
-              </p>
-            )}
-          </div>
-  
-          {/* Defect Details */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Defect Details *</label>
-            <textarea
-              name="defectDetails"
-              value={formData.defectDetails}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.defectDetails ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Describe the defect"
-              maxLength={500}
-              rows={4}
-            />
-            {errors.defectDetails && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.defectDetails}
-              </p>
-            )}
-          </div>
-  
-          {/* Mechanic Diagnosis */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mechanic Diagnosis</label>
-            <textarea
-              name="mechanicDiagnosis"
-              value={formData.mechanicDiagnosis}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.mechanicDiagnosis ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter mechanic's diagnosis"
-              maxLength={500}
-              rows={4}
-            />
-            {errors.mechanicDiagnosis && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.mechanicDiagnosis}
-              </p>
-            )}
-          </div>
-  
-          {/* Requesting Personnel */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Requesting Personnel</label>
-            <input
-              type="text"
-              name="requestingPersonnel"
-              value={formData.requestingPersonnel}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.requestingPersonnel ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter name"
-              maxLength={50}
-            />
-            {errors.requestingPersonnel && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.requestingPersonnel}
-              </p>
-            )}
-          </div>
-  
-          {/* Authorizing Personnel */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Authorizing Personnel</label>
-            <input
-              type="text"
-              name="authorizingPersonnel"
-              value={formData.authorizingPersonnel}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 rounded-lg border ${errors.authorizingPersonnel ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter name"
-              maxLength={50}
-            />
-            {errors.authorizingPersonnel && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.authorizingPersonnel}
-              </p>
-            )}
-          </div>
+          
+          {apiError && (
+            <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+              <div className="flex items-center">
+                <FiAlertCircle className="mr-2" />
+                <span>{apiError}</span>
+              </div>
+            </div>
+          )}
+      
+          {successMessage && (
+            <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">
+              <div className="flex items-center">
+                <FiCheckCircle className="mr-2" />
+                <span>{successMessage}</span>
+              </div>
+            </div>
+          )}
+      
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Plate Number *</label>
+                <input
+                  type="text"
+                  name="plateNumber"
+                  value={carSearch}
+                  onChange={handleCarSearchChange}
+                  onFocus={() => setShowCarDropdown(true)}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.plateNumber ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Search plate number"
+                  maxLength={20}
+                />
+                {showCarDropdown && carSearch && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {cars
+                      .filter(car => 
+                        car.plateNumber.toLowerCase().includes(carSearch.toLowerCase()) &&
+                        car.status !== 'Maintenance'
+                      )
+                      .map(car => (
+                        <div
+                          key={car.plateNumber}
+                          className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                          onClick={() => selectCar(car)}
+                        >
+                          {car.plateNumber} - {car.model || car.bodyType} (Current km: {car.km || 'N/A'})
+                        </div>
+                      ))}
+                  </div>
+                )}
+                {errors.plateNumber && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.plateNumber}
+                  </p>
+                )}
+              </div>
+      
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Type *</label>
+                <input
+                  type="text"
+                  name="vehicleType"
+                  value={formData.vehicleType}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.vehicleType ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Vehicle type will auto-fill"
+                  maxLength={50}
+                  readOnly
+                />
+                {errors.vehicleType && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.vehicleType}
+                  </p>
+                )}
+              </div>
+      
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Driver *</label>
+                <input
+                  type="text"
+                  name="reportingDriver"
+                  value={formData.reportingDriver}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.reportingDriver ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Enter driver name"
+                  maxLength={50}
+                />
+                {errors.reportingDriver && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.reportingDriver}
+                  </p>
+                )}
+              </div>
+      
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category/Work Process *</label>
+                <select
+                  name="categoryWorkProcess"
+                  value={formData.categoryWorkProcess}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.categoryWorkProcess ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                >
+                  <option value="">Select category</option>
+                  {defectCategories.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+                {errors.categoryWorkProcess && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.categoryWorkProcess}
+                  </p>
+                )}
+              </div>
+      
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kilometer Reading *</label>
+                <input
+                  type="number"
+                  name="kilometerReading"
+                  value={formData.kilometerReading}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.kilometerReading ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Current km will auto-fill"
+                  min="0"
+                  step="0.1"
+                  readOnly
+                />
+                {errors.kilometerReading && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.kilometerReading}
+                  </p>
+                )}
+              </div>
+      
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Defect Details *</label>
+                <textarea
+                  name="defectDetails"
+                  value={formData.defectDetails}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.defectDetails ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Describe the defect"
+                  maxLength={500}
+                  rows={4}
+                />
+                {errors.defectDetails && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.defectDetails}
+                  </p>
+                )}
+              </div>
+      
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mechanic Diagnosis</label>
+                <textarea
+                  name="mechanicDiagnosis"
+                  value={formData.mechanicDiagnosis}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.mechanicDiagnosis ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Enter mechanic's diagnosis"
+                  maxLength={500}
+                  rows={4}
+                />
+                {errors.mechanicDiagnosis && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.mechanicDiagnosis}
+                  </p>
+                )}
+              </div>
+      
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Requesting Personnel</label>
+                <input
+                  type="text"
+                  name="requestingPersonnel"
+                  value={formData.requestingPersonnel}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.requestingPersonnel ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Enter name"
+                  maxLength={50}
+                />
+                {errors.requestingPersonnel && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.requestingPersonnel}
+                  </p>
+                )}
+              </div>
+      
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Authorizing Personnel</label>
+                <input
+                  type="text"
+                  name="authorizingPersonnel"
+                  value={formData.authorizingPersonnel}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.authorizingPersonnel ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Enter name"
+                  maxLength={50}
+                />
+                {errors.authorizingPersonnel && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.authorizingPersonnel}
+                  </p>
+                )}
+              </div>
+            </div>
+      
+            <div className="mt-8 flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={() => setShowRequestForm(false)}
+                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
+                  isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2 animate-spin" />
+                    {requestId ? 'Updating...' : 'Submitting...'}
+                  </>
+                ) : (
+                  <>
+                    <FiSend className="mr-2" />
+                    {requestId ? 'Update' : 'Submit'}
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
-  
-        {/* Submit Button */}
-        <div className="mt-8">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
-              isSubmitting
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <span className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2 animate-spin" />
-                {requestId ? 'Updating...' : 'Submitting...'}
-              </>
-            ) : (
-              <>
-                <FiSend className="mr-2" />
-                {requestId ? 'Update' : 'Submit'}
-              </>
-            )}
-          </button>
-        </div>
-      </form>
+      </motion.div>
     </div>
   );
 
@@ -740,6 +1054,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                   selectedRequest?.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
                   selectedRequest?.status === 'INSPECTION' ? 'bg-purple-100 text-purple-800' :
                   selectedRequest?.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                  selectedRequest?.status === 'FINISHED' ? 'bg-green-200 text-green-800' :
                   'bg-green-100 text-green-800'
                 }`}>
                   {selectedRequest?.status}
@@ -802,17 +1117,88 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
 
             {selectedRequest?.carImages && selectedRequest.carImages.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">Car Images</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                  {selectedRequest.carImages.map((image, index) => (
-                    <div key={index} className="border rounded overflow-hidden">
-                      <img 
-                        src={image} 
-                        alt={`Car image ${index + 1}`} 
-                        className="w-full h-24 object-cover"
-                      />
-                    </div>
-                  ))}
+                <label className="block text-sm font-medium text-gray-500 mb-1">Files</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 w-full">
+                  {selectedRequest.carImages.map((file, index) => {
+                    const isImage = ['jpg', 'jpeg', 'png', 'gif'].some(ext => 
+                      file.toLowerCase().endsWith(ext));
+                    const isPDF = file.toLowerCase().endsWith('.pdf');
+                    
+                    return (
+                      <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50">
+                        {isImage ? (
+                          <>
+                            <img 
+                              src={`${API_BASE_URL}/files/${file}`}
+                              alt={`File ${index + 1}`}
+                              className="w-full h-48 object-cover"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = '/placeholder-image.jpg';
+                              }}
+                            />
+                            <div className="p-1 bg-gray-100 flex justify-between">
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-700 text-xs"
+                              >
+                                View
+                              </a>
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                download
+                                className="text-green-500 hover:text-green-700 text-xs"
+                              >
+                                Download
+                              </a>
+                            </div>
+                          </>
+                        ) : isPDF ? (
+                          <div className="h-48 flex flex-col items-center justify-center p-2">
+                            <FiFile className="text-red-500 text-3xl mb-1" />
+                            <span className="text-xs text-center truncate w-full px-1">
+                              {file}
+                            </span>
+                            <div className="mt-2 flex space-x-2">
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                              >
+                                <FiEye className="w-4 h-4" />
+                              </a>
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                download
+                                className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+                              >
+                                <FiDownload className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-48 flex flex-col items-center justify-center p-2">
+                            <FiFile className="text-gray-500 text-3xl mb-1" />
+                            <span className="text-xs text-center truncate w-full px-1">
+                              {file}
+                            </span>
+                            <div className="mt-2 flex space-x-2">
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                download
+                                className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                              >
+                                <FiDownload className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -820,8 +1206,133 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
             {selectedRequest?.signatures && selectedRequest.signatures.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-500 mb-1">Signatures</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   {selectedRequest.signatures.map((signature, index) => (
+                    <div key={index} className="border p-3 rounded-lg">
+                      <h4 className="font-medium text-gray-700">{signature.role}</h4>
+                      <p className="text-sm">Name: {signature.name}</p>
+                      <p className="text-sm">Signature: {signature.signature}</p>
+                      <p className="text-sm">Date: {signature.date}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedRequest?.returnFiles && selectedRequest.returnFiles.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Return Files</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 w-full">
+                  {selectedRequest.returnFiles.map((file, index) => {
+                    const isImage = ['jpg', 'jpeg', 'png', 'gif'].some(ext => 
+                      file.toLowerCase().endsWith(ext));
+                    const isPDF = file.toLowerCase().endsWith('.pdf');
+                    
+                    return (
+                      <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50">
+                        {isImage ? (
+                          <>
+                            <img 
+                              src={`${API_BASE_URL}/files/${file}`}
+                              alt={`Return file ${index + 1}`}
+                              className="w-full h-48 object-cover"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = '/placeholder-image.jpg';
+                              }}
+                            />
+                            <div className="p-1 bg-gray-100 flex justify-between">
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-700 text-xs"
+                              >
+                                View
+                              </a>
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                download
+                                className="text-green-500 hover:text-green-700 text-xs"
+                              >
+                                Download
+                              </a>
+                            </div>
+                          </>
+                        ) : isPDF ? (
+                          <div className="h-48 flex flex-col items-center justify-center p-2">
+                            <FiFile className="text-red-500 text-3xl mb-1" />
+                            <span className="text-xs text-center truncate w-full px-1">
+                              {file}
+                            </span>
+                            <div className="mt-2 flex space-x-2">
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                              >
+                                <FiEye className="w-4 h-4" />
+                              </a>
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                download
+                                className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+                              >
+                                <FiDownload className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-48 flex flex-col items-center justify-center p-2">
+                            <FiFile className="text-gray-500 text-3xl mb-1" />
+                            <span className="text-xs text-center truncate w-full px-1">
+                              {file}
+                            </span>
+                            <div className="mt-2 flex space-x-2">
+                              <a 
+                                href={`${API_BASE_URL}/files/${file}`}
+                                download
+                                className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                              >
+                                <FiDownload className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {selectedRequest?.returnKilometerReading && (
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Return Kilometer Reading</label>
+                <div className="p-2 bg-gray-50 rounded-lg">{selectedRequest.returnKilometerReading}</div>
+              </div>
+            )}
+
+            {selectedRequest?.returnNotes && (
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Return Notes</label>
+                <div className="p-2 bg-gray-50 rounded-lg whitespace-pre-line">{selectedRequest.returnNotes}</div>
+              </div>
+            )}
+
+            {selectedRequest?.returnFuelAmount && (
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Return Fuel Amount</label>
+                <div className="p-2 bg-gray-50 rounded-lg">{selectedRequest.returnFuelAmount}</div>
+              </div>
+            )}
+
+            {selectedRequest?.returnSignatures && selectedRequest.returnSignatures.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Return Signatures</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  {selectedRequest.returnSignatures.map((signature, index) => (
                     <div key={index} className="border p-3 rounded-lg">
                       <h4 className="font-medium text-gray-700">{signature.role}</h4>
                       <p className="text-sm">Name: {signature.name}</p>
@@ -834,7 +1345,6 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
             )}
           </div>
 
-          {/* Action Buttons for Distributor and Maintenance */}
           {actorType === 'distributor' && selectedRequest?.status === 'PENDING' && (
             <div className="mt-8 flex space-x-4">
               <button
@@ -897,20 +1407,15 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
             </div>
           )}
 
-          {actorType === 'maintenance' && selectedRequest?.status === 'INSPECTION' && (
+          {actorType === 'inspector' && selectedRequest?.status === 'COMPLETED' && (
             <div className="mt-8">
               <button
                 type="button"
-                onClick={() => handleStatusChange(selectedRequest.id, 'COMPLETED')}
-                disabled={isApproving}
-                className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium transition-all ${
-                  isApproving
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700'
-                }`}
+                onClick={() => setShowReturnModal(true)}
+                className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium transition-all bg-green-600 hover:bg-green-700`}
               >
-                <FiCheckCircle className="mr-2" />
-                Mark as Completed
+                <FiArrowRight className="mr-2" />
+                Complete Vehicle Return
               </button>
             </div>
           )}
@@ -972,15 +1477,36 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
           </div>
 
           <div className="mb-6">
-            <h4 className="text-lg font-semibold mb-3">Upload Images</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Amount *</label>
+                <input
+                  type="number"
+                  name="fuelAmount"
+                  value={formData.fuelAmount}
+                  onChange={handleChange}
+                  className={`w-full p-2 border ${errors.fuelAmount ? 'border-red-500' : 'border-gray-300'} rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                  placeholder="Enter fuel amount"
+                  min="0"
+                  step="0.1"
+                />
+                {errors.fuelAmount && (
+                  <p className="mt-1 text-sm text-red-600">{errors.fuelAmount}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold mb-3">Upload Files</h4>
             <div className="flex flex-col items-start">
               <label className="mb-2 flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
                 <FiUpload className="w-5 h-5 mr-2" />
-                Upload Files
+                Upload Files (Images/PDFs)
                 <input
                   type="file"
                   accept="image/*,.pdf"
-                  onChange={handleCarFilesUpload}
+                  onChange={(e) => handleFilesUpload(e, false)}
                   className="hidden"
                   multiple
                 />
@@ -998,7 +1524,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                         />
                         <button
                           type="button"
-                          onClick={() => removeCarFile(index)}
+                          onClick={() => removeFile(index, false)}
                           className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <FiTrash2 className="w-4 h-4" />
@@ -1007,7 +1533,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                     ) : preview.type === 'pdf' ? (
                       <div className="h-48 flex flex-col items-center justify-center p-4">
                         <div className="bg-red-100 p-4 rounded-full mb-2">
-                          <FiDownload className="w-8 h-8 text-red-600" />
+                          <FiFile className="w-8 h-8 text-red-600" />
                         </div>
                         <span className="text-sm font-medium text-gray-700 text-center truncate w-full px-2">
                           {preview.url.split('/').pop()}
@@ -1030,7 +1556,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                           </a>
                           <button
                             type="button"
-                            onClick={() => removeCarFile(index)}
+                            onClick={() => removeFile(index, false)}
                             className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
                           >
                             <FiTrash2 className="w-4 h-4" />
@@ -1040,7 +1566,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                     ) : (
                       <div className="h-48 flex flex-col items-center justify-center p-4">
                         <div className="bg-gray-100 p-4 rounded-full mb-2">
-                          <FiDownload className="w-8 h-8 text-gray-600" />
+                          <FiFile className="w-8 h-8 text-gray-600" />
                         </div>
                         <span className="text-sm font-medium text-gray-700 text-center truncate w-full px-2">
                           {preview.url.split('/').pop()}
@@ -1055,7 +1581,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                           </a>
                           <button
                             type="button"
-                            onClick={() => removeCarFile(index)}
+                            onClick={() => removeFile(index, false)}
                             className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
                           >
                             <FiTrash2 className="w-4 h-4" />
@@ -1070,7 +1596,6 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            {/* Other Attachments */}
             <div className="mb-6">
               <h4 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Other Attachments</h4>
               <div className="space-y-3">
@@ -1115,7 +1640,6 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
               </div>
             </div>
 
-            {/* Physical Content */}
             <div className="mb-6">
               <h4 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Physical Content</h4>
               <div className="space-y-3">
@@ -1160,7 +1684,6 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
               </div>
             </div>
 
-            {/* Notes */}
             <div className="mb-6">
               <h4 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Notes</h4>
               <div className="space-y-3">
@@ -1206,36 +1729,11 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
             </div>
           </div>
 
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold mb-3">Requesting Personnel</h4>
-            <input
-              type="text"
-              name="requestingPersonnel"
-              value={formData.requestingPersonnel}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your name"
-            />
-          </div>
-
-          <div className="mb-6">
-            <h4 className="text-lg font-semibold mb-3">Authorizing Personnel</h4>
-            <input
-              type="text"
-              name="authorizingPersonnel"
-              value={formData.authorizingPersonnel}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter authorizing personnel name"
-            />
-          </div>
-
-          {/* Signatures Section */}
           <div className="mt-8 mb-10">
             <h4 className="text-xl font-semibold mb-6 text-gray-800">
               Vehicle Acceptance Signatures
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {formData.signatures.map((signature, index) => (
                 <div key={index} className="border p-4 rounded-lg">
                   <h5 className="text-lg font-semibold mb-4 text-gray-800">{signature.role}</h5>
@@ -1245,7 +1743,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                       <input
                         type="text"
                         value={signature.name}
-                        onChange={(e) => handleSignatureChange(index, 'name', e.target.value)}
+                        onChange={(e) => handleSignatureChange(index, 'name', e.target.value, false)}
                         className={`w-full p-2 border ${errors[`signatureName${index}`] ? 'border-red-500' : 'border-gray-300'} rounded`}
                         placeholder="Enter name"
                       />
@@ -1258,7 +1756,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                       <input
                         type="text"
                         value={signature.signature}
-                        onChange={(e) => handleSignatureChange(index, 'signature', e.target.value)}
+                        onChange={(e) => handleSignatureChange(index, 'signature', e.target.value, false)}
                         className={`w-full p-2 border ${errors[`signatureValue${index}`] ? 'border-red-500' : 'border-gray-300'} rounded`}
                         placeholder="Enter signature"
                       />
@@ -1271,7 +1769,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                       <input
                         type="date"
                         value={signature.date}
-                        onChange={(e) => handleSignatureChange(index, 'date', e.target.value)}
+                        onChange={(e) => handleSignatureChange(index, 'date', e.target.value, false)}
                         className={`w-full p-2 border ${errors[`signatureDate${index}`] ? 'border-red-500' : 'border-gray-300'} rounded`}
                       />
                       {errors[`signatureDate${index}`] && (
@@ -1292,18 +1790,427 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
             >
               Cancel
             </button>
+            {actorType !== 'driver' && (
+              <button
+                type="button"
+                onClick={handleAcceptanceSubmit}
+                disabled={isSubmitting}
+                className="px-6 py-2 border border-transparent rounded-md shadow-sm text-white bg-[#3c8dbc] hover:bg-[#367fa9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3c8dbc] transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center">
+                    <span className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2 animate-spin" />
+                    Submitting...
+                  </span>
+                ) : 'Submit Acceptance'}
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+
+
+ const renderReturnModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.2 }}
+        className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+              <FiTool className="mr-2" />
+              Vehicle Completion Form
+            </h3>
+            <button
+              onClick={closeModals}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <FiX className="text-gray-500" />
+            </button>
+          </div>
+
+          {/* Display existing acceptance data (read-only) */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="text-lg font-semibold mb-3">Acceptance Information</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Plate Number</label>
+                <div className="p-2 bg-white rounded-lg">{selectedRequest?.plateNumber}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Vehicle Type</label>
+                <div className="p-2 bg-white rounded-lg">{selectedRequest?.vehicleType}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Initial Kilometer Reading</label>
+                <div className="p-2 bg-white rounded-lg">{selectedRequest?.kilometerReading}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">Initial Fuel Amount</label>
+                <div className="p-2 bg-white rounded-lg">{selectedRequest?.fuelAmount}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Display existing defect details (read-only) */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold mb-3">Defect Details</h4>
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 whitespace-pre-line">
+              {selectedRequest?.defectDetails}
+            </div>
+          </div>
+
+          {/* Display existing files (read-only) */}
+          {selectedRequest?.carImages && selectedRequest.carImages.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-lg font-semibold mb-3">Initial Files</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 w-full">
+                {selectedRequest.carImages.map((file, index) => {
+                  const isImage = ['jpg', 'jpeg', 'png', 'gif'].some(ext => 
+                    file.toLowerCase().endsWith(ext));
+                  const isPDF = file.toLowerCase().endsWith('.pdf');
+                  
+                  return (
+                    <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50">
+                      {isImage ? (
+                        <>
+                          <img 
+                            src={`${API_BASE_URL}/files/${file}`}
+                            alt={`File ${index + 1}`}
+                            className="w-full h-48 object-cover"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = '/placeholder-image.jpg';
+                            }}
+                          />
+                          <div className="p-1 bg-gray-100 flex justify-between">
+                            <a 
+                              href={`${API_BASE_URL}/files/${file}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:text-blue-700 text-xs"
+                            >
+                              View
+                            </a>
+                            <a 
+                              href={`${API_BASE_URL}/files/${file}`}
+                              download
+                              className="text-green-500 hover:text-green-700 text-xs"
+                            >
+                              Download
+                            </a>
+                          </div>
+                        </>
+                      ) : isPDF ? (
+                        <div className="h-48 flex flex-col items-center justify-center p-2">
+                          <FiFile className="text-red-500 text-3xl mb-1" />
+                          <span className="text-xs text-center truncate w-full px-1">
+                            {file}
+                          </span>
+                          <div className="mt-2 flex space-x-2">
+                            <a 
+                              href={`${API_BASE_URL}/files/${file}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              <FiEye className="w-4 h-4" />
+                            </a>
+                            <a 
+                              href={`${API_BASE_URL}/files/${file}`}
+                              download
+                              className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+                            >
+                              <FiDownload className="w-4 h-4" />
+                            </a>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="h-48 flex flex-col items-center justify-center p-2">
+                          <FiFile className="text-gray-500 text-3xl mb-1" />
+                          <span className="text-xs text-center truncate w-full px-1">
+                            {file}
+                          </span>
+                          <div className="mt-2 flex space-x-2">
+                            <a 
+                              href={`${API_BASE_URL}/files/${file}`}
+                              download
+                              className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              <FiDownload className="w-4 h-4" />
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Display existing signatures (read-only) */}
+          {selectedRequest?.signatures && selectedRequest.signatures.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-lg font-semibold mb-3">Acceptance Signatures</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                {selectedRequest.signatures.map((signature, index) => (
+                  <div key={index} className="border p-3 rounded-lg">
+                    <h4 className="font-medium text-gray-700">{signature.role}</h4>
+                    <p className="text-sm">Name: {signature.name}</p>
+                    <p className="text-sm">Signature: {signature.signature}</p>
+                    <p className="text-sm">Date: {signature.date}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        
+
+          {/* Return-specific fields */}
+          <div className="mt-8 mb-10">
+            <h4 className="text-xl font-semibold mb-6 text-gray-800 border-b pb-2">
+              Return Information
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Return Kilometer Reading *</label>
+                <input
+                  type="number"
+                  name="returnKilometerReading"
+                  value={formData.returnKilometerReading}
+                  onChange={handleChange}
+                  className={`w-full p-2 border ${errors.returnKilometerReading ? 'border-red-500' : 'border-gray-300'} rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                  placeholder="Enter return kilometer reading"
+                  min="0"
+                  step="0.1"
+                />
+                {errors.returnKilometerReading && (
+                  <p className="mt-1 text-sm text-red-600">{errors.returnKilometerReading}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Return Fuel Amount *</label>
+                <input
+                  type="number"
+                  name="returnFuelAmount"
+                  value={formData.returnFuelAmount}
+                  onChange={handleChange}
+                  className={`w-full p-2 border ${errors.returnFuelAmount ? 'border-red-500' : 'border-gray-300'} rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                  placeholder="Enter return fuel amount"
+                  min="0"
+                  step="0.1"
+                />
+                {errors.returnFuelAmount && (
+                  <p className="mt-1 text-sm text-red-600">{errors.returnFuelAmount}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Return Notes</label>
+              <textarea
+                name="returnNotes"
+                value={formData.returnNotes}
+                onChange={handleChange}
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter any additional notes for the return"
+                rows={3}
+              />
+            </div>
+
+            {/* Return Files - Additional files specific to return */}
+            <div className="mb-6">
+              <h4 className="text-md font-semibold mb-2">Return Files</h4>
+              <div className="flex flex-col items-start">
+                <label className="mb-2 flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                  <FiUpload className="w-5 h-5 mr-2" />
+                  Upload Return Files (Images/PDFs)
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => handleFilesUpload(e, true)}
+                    className="hidden"
+                    multiple
+                  />
+                </label>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4 w-full">
+                  {returnFilePreviews.map((preview, index) => (
+                    <div key={index} className="relative group border rounded-lg overflow-hidden bg-gray-50">
+                      {preview.type === 'image' ? (
+                        <>
+                          <img 
+                            src={preview.url} 
+                            alt={`Return file preview ${index + 1}`} 
+                            className="w-full h-48 object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index, true)}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : preview.type === 'pdf' ? (
+                        <div className="h-48 flex flex-col items-center justify-center p-4">
+                          <div className="bg-red-100 p-4 rounded-full mb-2">
+                            <FiFile className="w-8 h-8 text-red-600" />
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 text-center truncate w-full px-2">
+                            {preview.url.split('/').pop()}
+                          </span>
+                          <div className="mt-2 flex space-x-2">
+                            <a 
+                              href={preview.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              <FiEye className="w-4 h-4" />
+                            </a>
+                            <a 
+                              href={preview.url} 
+                              download
+                              className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+                            >
+                              <FiDownload className="w-4 h-4" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index, true)}
+                              className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="h-48 flex flex-col items-center justify-center p-4">
+                          <div className="bg-gray-100 p-4 rounded-full mb-2">
+                            <FiFile className="w-8 h-8 text-gray-600" />
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 text-center truncate w-full px-2">
+                            {preview.url.split('/').pop()}
+                          </span>
+                          <div className="mt-2 flex space-x-2">
+                            <a 
+                              href={preview.url} 
+                              download
+                              className="p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              <FiDownload className="w-4 h-4" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index, true)}
+                              className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Return Signatures */}
+            <div className="mt-8">
+              <h4 className="text-xl font-semibold mb-6 text-gray-800">
+                Return Signatures
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {formData.returnSignatures.map((signature, index) => (
+                  <div key={index} className="border p-4 rounded-lg">
+                    <h5 className="text-lg font-semibold mb-4 text-gray-800">{signature.role}</h5>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                        <input
+                          type="text"
+                          value={signature.name}
+                          onChange={(e) => handleSignatureChange(index, 'name', e.target.value, true)}
+                          className={`w-full p-2 border ${errors[`signatureName${index}Return`] ? 'border-red-500' : 'border-gray-300'} rounded`}
+                          placeholder="Enter name"
+                        />
+                        {errors[`signatureName${index}Return`] && (
+                          <p className="mt-1 text-sm text-red-600">{errors[`signatureName${index}Return`]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Signature *</label>
+                        <input
+                          type="text"
+                          value={signature.signature}
+                          onChange={(e) => handleSignatureChange(index, 'signature', e.target.value, true)}
+                          className={`w-full p-2 border ${errors[`signatureValue${index}Return`] ? 'border-red-500' : 'border-gray-300'} rounded`}
+                          placeholder="Enter signature"
+                        />
+                        {errors[`signatureValue${index}Return`] && (
+                          <p className="mt-1 text-sm text-red-600">{errors[`signatureValue${index}Return`]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                        <input
+                          type="date"
+                          value={signature.date}
+                          onChange={(e) => handleSignatureChange(index, 'date', e.target.value, true)}
+                          className={`w-full p-2 border ${errors[`signatureDate${index}Return`] ? 'border-red-500' : 'border-gray-300'} rounded`}
+                        />
+                        {errors[`signatureDate${index}Return`] && (
+                          <p className="mt-1 text-sm text-red-600">{errors[`signatureDate${index}Return`]}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-4 mt-8">
             <button
               type="button"
-              onClick={handleAcceptanceSubmit}
+              onClick={closeModals}
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleReturnSubmit}
               disabled={isSubmitting}
-              className="px-6 py-2 border border-transparent rounded-md shadow-sm text-white bg-[#3c8dbc] hover:bg-[#367fa9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3c8dbc] transition-colors disabled:opacity-50"
+              className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
+                isSubmitting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+              }`}
             >
               {isSubmitting ? (
-                <span className="flex items-center">
+                <>
                   <span className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2 animate-spin" />
                   Submitting...
-                </span>
-              ) : 'Submit Acceptance'}
+                </>
+              ) : (
+                <>
+                  <FiCheckCircle className="mr-2" />
+                  Complete Return
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -1313,63 +2220,78 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
 
   const renderDriverView = () => (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
-      <div className="flex border-b mb-6">
-        <button
-          onClick={() => setActiveTab('add')}
-          className={`px-4 py-2 font-medium ${activeTab === 'add' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          <FiPlus className="inline mr-2" />
-          Add Request
-        </button>
-        <button
-          onClick={() => setActiveTab('view')}
-          className={`px-4 py-2 font-medium ${activeTab === 'view' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          <FiList className="inline mr-2" />
-          View Requests
-        </button>
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-800">My Maintenance Requests</h2>
+          <p className="text-gray-600 mt-1">
+            Search by your exact name to view your requests or add a new maintenance request
+          </p>
+        </div>
+        <div className="flex space-x-4">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <FiSearch className="text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by your exact name..."
+              value={searchQuery}
+              onChange={handleDriverSearch}
+              className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRequestForm(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white"
+          >
+            <FiPlusCircle
+              className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
+            />
+          </motion.button>
+        </div>
       </div>
 
-      {activeTab === 'add' ? (
-        renderRequestForm()
-      ) : (
-        <>
-          <div className="flex justify-between items-start mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">My Maintenance Requests</h2>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <FiSearch className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search requests..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {filteredRequests.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-gray-500 max-w-md mx-auto">
+      {filteredRequests.length === 0 ? (
+        <div className="text-center py-8">
+          <div className="text-gray-500 max-w-md mx-auto">
+            {searchQuery.trim() === '' ? (
+              <>
+                <FiFileText className="mx-auto text-3xl mb-4 text-blue-500" />
+                <h4 className="font-medium text-lg mb-2">No Search Performed</h4>
+                <p className="mb-4">
+                  Enter your exact name in the search bar to view your maintenance requests
+                </p>
+              </>
+            ) : (
+              <>
                 <FiFileText className="mx-auto text-3xl mb-4 text-blue-500" />
                 <h4 className="font-medium text-lg mb-2">No Requests Found</h4>
                 <p className="mb-4">
-                  {searchQuery.trim() === '' 
-                    ? "You haven't submitted any maintenance requests yet."
-                    : `No requests found matching "${searchQuery}"`}
+                  No maintenance requests found for "{searchQuery}". Make sure you've entered your exact name.
                 </p>
-              </div>
-            </div>
-          ) : (
-            <RequestsTable
-              requests={filteredRequests}
-              actorType={actorType}
-              onRowClick={handleRowClick}
-            />
-          )}
-        </>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowRequestForm(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white mx-auto"
+                >
+                  <FiPlusCircle
+                    className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
+                  />
+                  <span className="text-[#3c8dbc] font-semibold">Add New Request</span>
+                </motion.button>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <RequestsTable
+          requests={filteredRequests}
+          actorType={actorType}
+          onRowClick={handleRowClick}
+        />
       )}
     </div>
   );
@@ -1454,16 +2376,62 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     </div>
   );
 
+  const renderInspectorView = () => (
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
+      <div className="flex justify-between items-start mb-6">
+        <h2 className="text-2xl font-semibold text-gray-800">Vehicle Inspections</h2>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+            <FiSearch className="text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search approved requests..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      {filteredRequests.length === 0 ? (
+        <div className="text-center py-8">
+          <div className="text-gray-500 max-w-md mx-auto">
+            <FiClipboard className="mx-auto text-3xl mb-4 text-blue-500" />
+            <h4 className="font-medium text-lg mb-2">No Inspections Found</h4>
+            <p className="mb-4">
+              {searchQuery.trim() === '' 
+                ? "There are no approved requests to inspect."
+                : `No approved requests found matching "${searchQuery}"`}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <RequestsTable
+          requests={filteredRequests}
+          actorType={actorType}
+          onRowClick={handleRowClick}
+        />
+      )}
+    </div>
+  );
+
   return (
     <>
       {actorType === 'driver' ? renderDriverView() : 
        actorType === 'distributor' ? renderDistributorView() : 
-       renderMaintenanceView()}
+       actorType === 'maintenance' ? renderMaintenanceView() :
+       renderInspectorView()}
       
       <AnimatePresence>
+        {showRequestForm && renderRequestForm()}
         {showRequestModal && selectedRequest && renderRequestModal()}
         {showAcceptanceModal && selectedRequest && renderAcceptanceModal()}
+        {showReturnModal && selectedRequest && renderReturnModal()}
       </AnimatePresence>
     </>
   );
 }
+
+
+

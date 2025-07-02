@@ -1,151 +1,339 @@
 'use client';
 
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 import { DailyService, DailyServiceReportFilters } from '../types';
+import insaprofile from '../images/insaprofile.png';
 
+// Updated styles with increased margin between header and body
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Helvetica' },
-  header: { marginBottom: 20, textAlign: 'center', borderBottom: '1px solid #000', paddingBottom: 10 },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
-  subtitle: { fontSize: 12, color: '#333' },
-  section: { marginBottom: 15 },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, borderBottom: '1px solid #ddd', paddingBottom: 3 },
-  filterItem: { flexDirection: 'row', marginBottom: 5 },
-  filterLabel: { width: '30%', fontSize: 10, fontWeight: 'bold' },
-  filterValue: { width: '70%', fontSize: 10 },
-  serviceCard: { border: '1px solid #eee', borderRadius: 3, padding: 10, marginBottom: 10, backgroundColor: '#f9f9f9' },
-  serviceHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5, borderBottom: '1px solid #ddd', paddingBottom: 3 },
-  claimantName: { fontSize: 11, fontWeight: 'bold' },
-  serviceStatus: { fontSize: 10, color: '#555' },
-  serviceDetails: { flexDirection: 'column', marginTop: 5 },
-  detailRow: { flexDirection: 'row', marginBottom: 3 },
-  detailLabel: { width: '40%', fontSize: 9, fontWeight: 'bold', color: '#666' },
-  detailValue: { width: '60%', fontSize: 9 },
-  travelersSection: { marginTop: 5, borderTop: '1px solid #eee', paddingTop: 5 },
-  travelerItem: { flexDirection: 'row', marginBottom: 2 },
-  footer: { marginTop: 20, fontSize: 8, textAlign: 'center', color: '#666', borderTop: '1px solid #ddd', paddingTop: 10 }
+  page: {
+    paddingTop: 100,  // Increased from 80 to give more space
+    paddingBottom: 60,
+    paddingHorizontal: 40,
+    fontFamily: 'Helvetica',
+    position: 'relative',
+    fontSize: 10,
+    lineHeight: 1.4
+  },
+  header: {
+    position: 'absolute',
+    top: 20,
+    left: 40,
+    right: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    borderBottomStyle: 'solid',
+    paddingBottom: 15,  // Increased padding
+    marginBottom: 20,   // Increased margin
+    flexDirection: 'column'
+  },
+  headerTable: {
+    width: '100%',
+    flexDirection: 'row',
+    marginBottom: 5,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'solid'
+  },
+  headerTableCell: {
+    padding: 5,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'solid',
+    verticalAlign: 'top' as 'top'
+  },
+  headerLeft: {
+    width: '20%',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  headerCenter: {
+    width: '60%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center'
+  },
+  headerRight: {
+    width: '20%',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    textAlign: 'right'
+  },
+  headerTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 3
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    marginBottom: 3
+  },
+  headerInfo: {
+    fontSize: 8,
+    marginBottom: 3
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 40,
+    right: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#000',
+    borderTopStyle: 'solid',
+    paddingTop: 10,
+    flexDirection: 'column',
+    fontSize: 8,
+    textAlign: 'center'
+  },
+  section: {
+    marginBottom: 25,
+    breakInside: 'avoid'
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
+    paddingBottom: 3
+  },
+  filterItem: {
+    flexDirection: 'row',
+    marginBottom: 8
+  },
+  filterLabel: {
+    width: 100,
+    fontWeight: 'bold'
+  },
+  filterValue: {
+    flex: 1
+  },
+  serviceCard: {
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderStyle: 'solid',
+    borderRadius: 3,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#f9f9f9'
+  },
+  serviceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
+    paddingBottom: 3
+  },
+  claimantName: {
+    fontSize: 11,
+    fontWeight: 'bold'
+  },
+  serviceStatus: {
+    fontSize: 10,
+    color: '#555'
+  },
+  serviceDetails: {
+    flexDirection: 'column',
+    marginTop: 5
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 3
+  },
+  detailLabel: {
+    width: '40%',
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#666'
+  },
+  detailValue: {
+    width: '60%',
+    fontSize: 9
+  },
+  travelersSection: {
+    marginTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    borderTopStyle: 'solid',
+    paddingTop: 5
+  },
+  travelerItem: {
+    flexDirection: 'row',
+    marginBottom: 2
+  },
+  pageNumber: {
+    position: 'absolute',
+    fontSize: 10,
+    bottom: 30,
+    left: 0,
+    right: 0,
+    textAlign: 'center'
+  }
 });
 
 const DailyServiceReportPDF = ({ services, filters }: { services: DailyService[], filters: DailyServiceReportFilters }) => {
+  const currentDate = new Date().toLocaleDateString();
+  const letterNumber = `INS/REP/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`;
+
+  // Split services into pages (3 services per page)
+  const pages = [];
+  for (let i = 0; i < services.length; i += 3) {
+    pages.push(services.slice(i, i + 3));
+  }
+
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <Text style={styles.title}>DAILY SERVICE REPORT</Text>
-          <Text style={styles.subtitle}>Generated on {new Date().toLocaleDateString()}</Text>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>FILTER CRITERIA</Text>
-          <View style={styles.filterItem}>
-            <Text style={styles.filterLabel}>Date Range:</Text>
-            <Text style={styles.filterValue}>{filters.start || 'Not specified'} to {filters.end || 'Not specified'}</Text>
-          </View>
-          <View style={styles.filterItem}>
-            <Text style={styles.filterLabel}>Claimant Name:</Text>
-            <Text style={styles.filterValue}>{filters.claimantName || 'All'}</Text>
-          </View>
-          <View style={styles.filterItem}>
-            <Text style={styles.filterLabel}>Status:</Text>
-            <Text style={styles.filterValue}>{filters.status || 'All'}</Text>
-          </View>
-          {filters.plateNumber && (
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Plate Number:</Text>
-              <Text style={styles.filterValue}>{filters.plateNumber}</Text>
-            </View>
-          )}
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>SERVICE DETAILS ({services.length} records)</Text>
-          {services.map((service, index) => (
-            <View key={index} style={styles.serviceCard}>
-              <View style={styles.serviceHeader}>
-                <Text style={styles.claimantName}>{service.claimantName}</Text>
-                <Text style={styles.serviceStatus}>
-                  {service.status} (Distance: {service.kmDifference || 0}km)
+      {pages.map((pageServices, pageIndex) => (
+        <Page key={pageIndex} size="A4" style={styles.page} wrap>
+          {/* Header - appears on every page */}
+          <View fixed style={styles.header}>
+            <View style={styles.headerTable}>
+              <View style={[styles.headerTableCell, styles.headerLeft]}>
+                <Image src={insaprofile.src} style={{ width: 50, height: 50 }} />
+              </View>
+              
+              <View style={[styles.headerTableCell, styles.headerCenter]}>
+                <Text style={styles.headerTitle}>
+                  INFORMATION NETWORK SECURITY ADMINISTRATION
+                </Text>
+                
+                <Text style={styles.headerSubtitle}>
+                  DAILY SERVICE REPORT
                 </Text>
               </View>
               
-              <View style={styles.serviceDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Service ID:</Text>
-                  <Text style={styles.detailValue}>{service.id}</Text>
+              <View style={[styles.headerTableCell, styles.headerRight]}>
+                <Text style={styles.headerInfo}>Letter No: {letterNumber}</Text>
+                <Text style={styles.headerInfo}>Date: {currentDate}</Text>
+                <Text style={styles.headerInfo}>Page: {pageIndex + 1} of {pages.length}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Only show filter criteria on first page */}
+          {pageIndex === 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>_</Text>
+              <Text style={styles.sectionTitle}>FILTER CRITERIA</Text>
+              <View style={styles.filterItem}>
+                <Text style={styles.filterLabel}>Date Range:</Text>
+                <Text style={styles.filterValue}>{filters.start || 'Not specified'} to {filters.end || 'Not specified'}</Text>
+              </View>
+              <View style={styles.filterItem}>
+                <Text style={styles.filterLabel}>Claimant Name:</Text>
+                <Text style={styles.filterValue}>{filters.claimantName || 'All'}</Text>
+              </View>
+              <View style={styles.filterItem}>
+                <Text style={styles.filterLabel}>Status:</Text>
+                <Text style={styles.filterValue}>{filters.status || 'All'}</Text>
+              </View>
+              {filters.plateNumber && (
+                <View style={styles.filterItem}>
+                  <Text style={styles.filterLabel}>Plate Number:</Text>
+                  <Text style={styles.filterValue}>{filters.plateNumber}</Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Date & Time:</Text>
-                  <Text style={styles.detailValue}>
-                    {service.dateTime ? new Date(service.dateTime).toLocaleString() : 'N/A'}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Driver:</Text>
-                  <Text style={styles.detailValue}>{service.driverName || 'N/A'}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>From:</Text>
-                  <Text style={styles.detailValue}>{service.startingPlace || 'N/A'}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>To:</Text>
-                  <Text style={styles.detailValue}>{service.endingPlace || 'N/A'}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Car Type:</Text>
-                  <Text style={styles.detailValue}>{service.carType || 'N/A'}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Plate Number:</Text>
-                  <Text style={styles.detailValue}>{service.plateNumber || 'N/A'}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Start KM:</Text>
-                  <Text style={styles.detailValue}>{service.startKm ?? 'N/A'}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>End KM:</Text>
-                  <Text style={styles.detailValue}>{service.endKm ?? 'N/A'}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>KM Difference:</Text>
-                  <Text style={styles.detailValue}>{service.kmDifference ?? 'N/A'}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Created At:</Text>
-                  <Text style={styles.detailValue}>
-                    {service.createdAt ? new Date(service.createdAt).toLocaleString() : 'N/A'}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Completed At:</Text>
-                  <Text style={styles.detailValue}>
-                    {service.completedAt ? new Date(service.completedAt).toLocaleString() : 'N/A'}
+              )}
+            </View>
+          )}
+
+          {/* Service details */}
+          <View style={styles.section}>
+            {pageIndex === 0 && (
+              <Text style={styles.sectionTitle}>SERVICE DETAILS ({services.length} records)</Text>
+            )}
+            {pageServices.map((service, index) => (
+              <View key={index} style={styles.serviceCard}>
+                <View style={styles.serviceHeader}>
+                  <Text style={styles.claimantName}>{service.claimantName}</Text>
+                  <Text style={styles.serviceStatus}>
+                    {service.status} (Distance: {service.kmDifference || 0}km)
                   </Text>
                 </View>
                 
-                {service.travelers && service.travelers.length > 0 && (
-                  <View style={styles.travelersSection}>
-                    <Text style={[styles.detailLabel, { marginBottom: 3 }]}>Travelers:</Text>
-                    {service.travelers.map((traveler, idx) => (
-                      <View key={idx} style={styles.travelerItem}>
-                        <Text style={[styles.detailValue, { width: '100%' }]}>
-                          {idx + 1}. {traveler}
-                        </Text>
-                      </View>
-                    ))}
+                <View style={styles.serviceDetails}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Service ID:</Text>
+                    <Text style={styles.detailValue}>{service.id}</Text>
                   </View>
-                )}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Date & Time:</Text>
+                    <Text style={styles.detailValue}>
+                      {service.dateTime ? new Date(service.dateTime).toLocaleString() : 'N/A'}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Driver:</Text>
+                    <Text style={styles.detailValue}>{service.driverName || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>From:</Text>
+                    <Text style={styles.detailValue}>{service.startingPlace || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>To:</Text>
+                    <Text style={styles.detailValue}>{service.endingPlace || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Car Type:</Text>
+                    <Text style={styles.detailValue}>{service.carType || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Plate Number:</Text>
+                    <Text style={styles.detailValue}>{service.plateNumber || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Start KM:</Text>
+                    <Text style={styles.detailValue}>{service.startKm ?? 'N/A'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>End KM:</Text>
+                    <Text style={styles.detailValue}>{service.endKm ?? 'N/A'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>KM Difference:</Text>
+                    <Text style={styles.detailValue}>{service.kmDifference ?? 'N/A'}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Created At:</Text>
+                    <Text style={styles.detailValue}>
+                      {service.createdAt ? new Date(service.createdAt).toLocaleString() : 'N/A'}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Completed At:</Text>
+                    <Text style={styles.detailValue}>
+                      {service.completedAt ? new Date(service.completedAt).toLocaleString() : 'N/A'}
+                    </Text>
+                  </View>
+                  
+                  {service.travelers && service.travelers.length > 0 && (
+                    <View style={styles.travelersSection}>
+                      <Text style={[styles.detailLabel, { marginBottom: 3 }]}>Travelers:</Text>
+                      {service.travelers.map((traveler, idx) => (
+                        <View key={idx} style={styles.travelerItem}>
+                          <Text style={[styles.detailValue, { width: '100%' }]}>
+                            {idx + 1}. {traveler}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          ))}
-        </View>
-        
-        <View style={styles.footer}>
-          <Text>End of Report - Confidential</Text>
-        </View>
-      </Page>
+            ))}
+          </View>
+          
+          {/* Footer - appears on every page */}
+          <View fixed style={styles.footer}>
+            <Text>INFORMATION NETWORK SECURITY ADMINISTRATION</Text>
+            <Text>Make sure whether the letter is correct or not before use</Text>
+          </View>
+        </Page>
+      ))}
     </Document>
   );
 };

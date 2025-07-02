@@ -62,7 +62,7 @@ export type AssignmentAction =
   | { type: 'SHOW_ACCEPTANCE_FORM'; payload: any }
   | { type: 'HIDE_ACCEPTANCE_FORM' }
   | { type: 'UPDATE_CAR_STATUS'; payload: { carId: string; status: 'available' | 'assigned' | 'maintenance' | 'in_transfer' } }
-  | { type: 'UPDATE_REQUEST_STATUS'; payload: { requestId: string; status: 'pending' | 'in_transfer' | 'waiting' } };
+  | { type: 'UPDATE_REQUEST_STATUS'; payload: { requestId: string; status: 'pending' | 'in_transfer' | 'waiting' | 'semiassigned' } };
 
 export const initialAssignmentState: AssignmentState = {
   cars: [],
@@ -168,7 +168,7 @@ export default function ManualAssignmentView() {
       const [regularCarsResponse, rentCarsResponse, requestsResponse] = await Promise.all([
         axios.get('http://localhost:8080/auth/car/approved'),
         axios.get('http://localhost:8080/auth/rent-car/approved'),
-        axios.get('http://localhost:8080/auth/assignments/pending')
+        axios.get('http://localhost:8080/auth/assignments/pending-and-semipending')
       ]);
   
       // Process regular cars
@@ -211,7 +211,7 @@ export default function ManualAssignmentView() {
   
       // Process pending requests
       const pendingRequests: PendingRequest[] = requestsResponse.data?.assignmentHistoryList
-        ?.filter((request: any) => request.status === 'Pending' || request.status === 'In_transfer')
+        ?.filter((request: any) => request.status === 'Pending' || request.status === 'In_transfer' || request.status === 'SemiAssigned')
         .map((request: any) => ({
           id: request.id.toString(),
           requesterName: request.requesterName || 'Unknown Requester',

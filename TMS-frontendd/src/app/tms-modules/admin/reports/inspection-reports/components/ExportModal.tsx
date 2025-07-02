@@ -1,31 +1,184 @@
-// ExportModal.tsx
 'use client';
 
 import React from 'react';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 import { Inspection, InspectionReportFilters } from '../types';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import insaprofile from '../images/insaprofile.png';
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontFamily: 'Helvetica' },
-  header: { marginBottom: 20, textAlign: 'center', borderBottom: '1px solid #000', paddingBottom: 10 },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
-  subtitle: { fontSize: 12, color: '#333' },
-  section: { marginBottom: 15 },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, borderBottom: '1px solid #ddd', paddingBottom: 3 },
-  filterItem: { flexDirection: 'row', marginBottom: 5 },
-  filterLabel: { width: '30%', fontSize: 10, fontWeight: 'bold' },
-  filterValue: { width: '70%', fontSize: 10 },
-  inspectionCard: { border: '1px solid #eee', borderRadius: 3, padding: 10, marginBottom: 10, backgroundColor: '#f9f9f9' },
-  inspectionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5, borderBottom: '1px solid #ddd', paddingBottom: 3 },
-  plateNumber: { fontSize: 11, fontWeight: 'bold' },
-  inspectionStatus: { fontSize: 10, color: '#555' },
-  inspectionDetails: { flexDirection: 'column', marginTop: 5 },
-  detailRow: { flexDirection: 'row', marginBottom: 3 },
-  detailLabel: { width: '40%', fontSize: 9, fontWeight: 'bold', color: '#666' },
-  detailValue: { width: '60%', fontSize: 9 },
-  subSection: { marginLeft: 10, marginTop: 5 },
-  subSectionTitle: { fontSize: 10, fontWeight: 'bold', marginBottom: 3 },
-  footer: { marginTop: 20, fontSize: 8, textAlign: 'center', color: '#666', borderTop: '1px solid #ddd', paddingTop: 10 }
+  page: {
+    paddingTop: 100,  // Increased from 80 to 100 to give more space
+    paddingBottom: 60,
+    paddingHorizontal: 40,
+    fontFamily: 'Helvetica',
+    position: 'relative',
+    fontSize: 10,
+    lineHeight: 1.4
+  },
+  header: {
+    position: 'absolute',
+    top: 20,
+    left: 40,
+    right: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    borderBottomStyle: 'solid',
+    paddingBottom: 15,  // Increased from 10 to 15
+    marginBottom: 20,   // Added margin bottom
+    flexDirection: 'column'
+  },
+  headerTable: {
+    width: '100%',
+    flexDirection: 'row',
+    marginBottom: 5,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'solid'
+  },
+  headerTableCell: {
+    padding: 5,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'solid',
+    verticalAlign: 'top' as 'top'
+  },
+  headerLeft: {
+    width: '20%',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  headerCenter: {
+    width: '60%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center'
+  },
+  headerRight: {
+    width: '20%',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    textAlign: 'right'
+  },
+  headerTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 3
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    marginBottom: 3
+  },
+  headerInfo: {
+    fontSize: 8,
+    marginBottom: 3
+  },
+  headerWarning: {
+    fontSize: 8,
+    textAlign: 'center',
+    marginTop: 5
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 40,
+    right: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#000',
+    borderTopStyle: 'solid',
+    paddingTop: 10,
+    flexDirection: 'column',
+    fontSize: 8,
+    textAlign: 'center'
+  },
+  section: {
+    marginBottom: 25,
+    breakInside: 'avoid'
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
+    paddingBottom: 3
+  },
+  filterItem: {
+    flexDirection: 'row',
+    marginBottom: 8
+  },
+  filterLabel: {
+    width: 100,
+    fontWeight: 'bold'
+  },
+  filterValue: {
+    flex: 1
+  },
+  inspectionCard: {
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderStyle: 'solid',
+    borderRadius: 3,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#f9f9f9'
+  },
+  inspectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
+    paddingBottom: 3
+  },
+  plateNumber: {
+    fontSize: 11,
+    fontWeight: 'bold'
+  },
+  inspectionStatus: {
+    fontSize: 10,
+    color: '#555'
+  },
+  inspectionDetails: {
+    flexDirection: 'column',
+    marginTop: 5
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 3
+  },
+  detailLabel: {
+    width: '40%',
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#666'
+  },
+  detailValue: {
+    width: '60%',
+    fontSize: 9
+  },
+  subSection: {
+    marginLeft: 10,
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    borderTopStyle: 'solid',
+    paddingTop: 5
+  },
+  subSectionTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 5
+  },
+  pageNumber: {
+    position: 'absolute',
+    fontSize: 10,
+    bottom: 30,
+    left: 0,
+    right: 0,
+    textAlign: 'center'
+  }
 });
 
 const renderMechanicalDetails = (mechanical: any) => (
@@ -73,14 +226,38 @@ const renderInteriorDetails = (interior: any) => (
 );
 
 const InspectionReportPDF = ({ inspections, filters }: { inspections: Inspection[], filters: InspectionReportFilters }) => {
+  const currentDate = new Date().toLocaleDateString();
+  const letterNumber = `INS/REP/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <Text style={styles.title}>VEHICLE INSPECTION REPORT</Text>
-          <Text style={styles.subtitle}>Generated on {new Date().toLocaleDateString()}</Text>
+        {/* Header */}
+        <View fixed style={styles.header}>
+          <View style={styles.headerTable}>
+            <View style={[styles.headerTableCell, styles.headerLeft]}>
+              <Image src={insaprofile.src} style={{ width: 50, height: 50 }} />
+            </View>
+            
+            <View style={[styles.headerTableCell, styles.headerCenter]}>
+              <Text style={styles.headerTitle}>
+                INFORMATION NETWORK SECURITY ADMINISTRATION
+              </Text>
+              
+              <Text style={styles.headerSubtitle}>
+                VEHICLE INSPECTION REPORT
+              </Text>
+            </View>
+            
+            <View style={[styles.headerTableCell, styles.headerRight]}>
+              <Text style={styles.headerInfo}>Letter No: {letterNumber}</Text>
+              <Text style={styles.headerInfo}>Date: {currentDate}</Text>
+              <Text style={styles.headerInfo}>Page: 1 of 1</Text>
+            </View>
+          </View>
         </View>
-        
+
+        {/* Filter Criteria */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>FILTER CRITERIA</Text>
           <View style={styles.filterItem}>
@@ -96,7 +273,8 @@ const InspectionReportPDF = ({ inspections, filters }: { inspections: Inspection
             <Text style={styles.filterValue}>{filters.status || 'All'}</Text>
           </View>
         </View>
-        
+
+        {/* Inspection Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>INSPECTION DETAILS ({inspections.length} records)</Text>
           {inspections.map((inspection, index) => (
@@ -133,9 +311,11 @@ const InspectionReportPDF = ({ inspections, filters }: { inspections: Inspection
             </View>
           ))}
         </View>
-        
-        <View style={styles.footer}>
-          <Text>End of Report - Confidential</Text>
+
+        {/* Footer */}
+        <View fixed style={styles.footer}>
+          <Text>INFORMATION NETWORK SECURITY ADMINISTRATION</Text>
+          <Text>Make sure whether the letter is correct or not before use</Text>
         </View>
       </Page>
     </Document>
@@ -253,14 +433,14 @@ export default function ExportModal({
         <div className="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-end space-x-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Cancel
           </button>
           <PDFDownloadLink
             document={<InspectionReportPDF inspections={inspections} filters={filters} />}
             fileName={`inspection_report_${new Date().toISOString().slice(0, 10)}.pdf`}
-            className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+            className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
               hasData ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'
             }`}
             disabled={!hasData}
