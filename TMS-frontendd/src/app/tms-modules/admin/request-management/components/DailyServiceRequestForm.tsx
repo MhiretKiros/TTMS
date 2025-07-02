@@ -606,7 +606,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
           } 
           else if (vehicleType === 'organization') {
             response = await axios.put(
-              `http://localhost:8080/auth/organization-car/update/${formData.plateNumber}`,
+              `http://localhost:8080/auth/organization-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
