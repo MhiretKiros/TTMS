@@ -58,7 +58,7 @@ export default function RequestsTable({
   const filteredRequests = actorType === 'manager' 
     ? requests.filter(req => req.status === 'APPROVED')
     : actorType === 'driver'
-    ? requests.filter(req => req.status === 'COMPLETED')
+    ? requests.filter(req => req.status === 'ACCEPTED')
     : actorType === 'corporator'
     ? [...requests].sort((a, b) => {
         // Show PENDING first, others in their original order

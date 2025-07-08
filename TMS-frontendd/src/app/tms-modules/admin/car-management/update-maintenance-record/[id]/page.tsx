@@ -40,7 +40,7 @@ interface MaintenanceRecord {
   problemResolutionDetails?: string;
 }
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 
 const updateMaintenanceSchema = z.object({
   finalInspectionNotes: z.string().optional(),
@@ -125,7 +125,7 @@ export default function UpdateMaintenanceRecordPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/maintenance/records/${id}`);
+        const response = await fetch(`${API_BASE_URL}/api/maintenance-requests/${id}`);
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(errorText || `Failed to fetch record: ${response.status}`);
@@ -150,27 +150,33 @@ export default function UpdateMaintenanceRecordPage() {
   }, [id, reset]);
 
   const onSubmit = async (data: UpdateMaintenanceFormData) => {
-    if (!record) return;
-
     try {
-      const response = await fetch(`${API_BASE_URL}/api/maintenance/records/${record.id}`, {
-        method: 'PATCH', // Use PATCH for partial updates
+      const response = await fetch(`${API_BASE_URL}/api/maintenance/records`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...record,
+          ...data,
+          maintenanceRequestId: record.id, // <-- Add this line!
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || `Failed to update record: ${response.status}`);
+        throw new Error(errorText || `Failed to save record: ${response.status}`);
       }
 
-      toast.success('Maintenance record updated successfully!');
-      router.push(`/tms-modules/admin/car-management/maintenance-records/${record.id}`); // Navigate back to detail page
+      toast.success('Maintenance record saved!');
+      if (data.isProblemFixed) {
+        setTimeout(() => {
+          router.push(`/tms-modules/admin/car-management/add-maintenance-record?plateNumber=${record?.plateNumber}`);
+        }, 1500);
+      }
+      // If not fixed, do not redirect (stay on page)
     } catch (err: any) {
-      console.error('Error updating maintenance record:', err);
-      toast.error(`Failed to update record: ${err.message || 'Unknown error'}`);
+      toast.error(`Failed to save record: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -197,10 +203,10 @@ export default function UpdateMaintenanceRecordPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen">
-      <Toaster position="top-center" reverseOrder={false} />
-      <div className="bg-white p-6 sm:p-8 rounded-xl shadow-2xl">
-        <div className="flex justify-between items-center mb-6 border-b border-slate-300 pb-4">
+    <div className = "container mx-auto p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen">
+      <Toaster position = "top-center" reverseOrder={false} />
+      <div className = "bg-white p-6 sm:p-8 rounded-xl shadow-2xl">
+        <div className = "flex justify-between items-center mb-6 border-b border-slate-300 pb-4">
           <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
             Update Maintenance for <span className="text-blue-600">{record.plateNumber}</span>
           </h1>
@@ -217,22 +223,22 @@ export default function UpdateMaintenanceRecordPage() {
               Vehicle Information
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div><strong className="text-slate-600 font-medium">Vehicle Type:</strong> <span className="text-slate-800">{record.vehicleDetails.type}</span></div>
-              <div><strong className="text-slate-600 font-medium">Kilometers:</strong> <span className="text-slate-800">{record.vehicleDetails.km}</span></div>
-              <div><strong className="text-slate-600 font-medium">Chassis Number:</strong> <span className="text-slate-800">{record.vehicleDetails.chassisNumber}</span></div>
+              <div><strong className="text-slate-600 font-medium">Vehicle Type:</strong> <span className="text-slate-800">{record.vehicleDetails?.type || 'N/A'}</span></div>
+              <div><strong className="text-slate-600 font-medium">Kilometers:</strong> <span className="text-slate-800">{record.vehicleDetails?.km || 'N/A'}</span></div>
+              <div><strong className="text-slate-600 font-medium">Chassis Number:</strong> <span className="text-slate-800">{record.vehicleDetails?.chassisNumber || 'N/A'}</span></div>
               <div><strong className="text-slate-600 font-medium">Inspector:</strong> <span className="text-slate-800">{record.requestingPersonnel || 'N/A'}</span></div>
             </div>
           </section>
 
           {/* Existing Repair Details (Read-only) */}
-          <section className="space-y-6">
+          {/* <section className="space-y-6">
             <h2 className="text-2xl font-semibold text-slate-800 flex items-center border-t border-slate-300 pt-6">
               <FiTool className="mr-3 text-blue-600" />
               Initial Repair Details
             </h2>
             <RepairDetailView title="Mechanical Repair" details={record.mechanicalRepair} />
             <RepairDetailView title="Electrical Repair" details={record.electricalRepair} />
-          </section>
+          </section> */}
 
           {/* Follow-up Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="bg-slate-100 p-6 rounded-lg shadow-md border border-slate-200 space-y-6">
@@ -295,9 +301,14 @@ export default function UpdateMaintenanceRecordPage() {
             )}
             <button
               type="submit"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                isProblemFixed
+                  ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                  : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+              }`}
             >
-              <FiSave className="mr-2" /> Save Follow-up
+              {isProblemFixed ? <FiArrowLeft className="mr-2" /> : <FiSave className="mr-2" />}
+              {isProblemFixed ? 'Save & Go to Maintenance Record' : 'Save Follow-up'}
             </button>
           </form>
         </div>

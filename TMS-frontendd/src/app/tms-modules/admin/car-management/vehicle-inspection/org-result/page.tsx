@@ -5,6 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiLoader, FiCalendar, FiUser, FiClipboard, FiPercent, FiPrinter } from 'react-icons/fi';
 import { useReactToPrint } from 'react-to-print';
+import { apiFetch } from '@/lib/api';
+import toast, { Toaster } from 'react-hot-toast';
 
 // --- Enums ---
 enum InspectionStatus {
@@ -100,17 +102,9 @@ type InspectionResultData = {
     rejectionReason?: string | null;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
-
 const formatLabel = (key: string): string => {
     const result = key.replace(/([A-Z])/g, ' $1');
     return result.charAt(0).toUpperCase() + result.slice(1);
-};
-
-const isValidToken = (token: string | null): boolean => {
-    if (!token) return false;
-    if (token.includes('your_generated_token_here')) return false;
-    return token.split('.').length === 3;
 };
 
 // --- DetailItem Component ---
@@ -143,7 +137,6 @@ export default function CarInspectionResultPage() {
     const router = useRouter();
     const [inspectionResult, setInspectionResult] = useState<InspectionResultData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const inspectionId = searchParams.get('inspectionId');
     const componentRef = useRef<HTMLDivElement>(null);
 
@@ -167,60 +160,28 @@ export default function CarInspectionResultPage() {
 
     const fetchInspectionDetails = useCallback(async () => {
         if (!inspectionId) {
-            setError("Inspection ID is missing from the URL.");
+            toast.error("Inspection ID is missing from the URL.");
             setIsLoading(false);
             return;
         }
 
         setIsLoading(true);
-        setError(null);
 
-        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-        
         try {
-            const response = await fetch(`${API_BASE_URL}/org-inspections/get/${inspectionId}`, {
-                method: 'GET',
-                headers: {
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    'Content-Type': 'application/json',
-                },
-            });
+            const data = await apiFetch(`/org-inspections/get/${inspectionId}`);
 
-            if (!response.ok) {
-                let errorMessage = `Request failed with status ${response.status}`;
-                const responseClone = response.clone();
-                
-                try {
-                    const errorData = await responseClone.json();
-                    errorMessage = errorData.message || errorData.error || errorMessage;
-                } catch (jsonError) {
-                    const text = await response.text();
-                    errorMessage = text || errorMessage;
-                }
-
-                if (response.status === 401 || response.status === 403) {
-                    localStorage.removeItem('authToken');
-                    localStorage.removeItem('token');
-                    errorMessage = "Authentication required. Please log in again.";
-                }
-
-                throw new Error(errorMessage);
+            if (data) {
+                setInspectionResult(data as InspectionResultData);
+            } else {
+                console.log("Received non-JSON or empty response from org-inspections.");
+                toast.error(`Org inspection details not found or response was empty.`);
+                setInspectionResult(null);
             }
-
-            const contentType = response.headers.get("content-type");
-            if (response.status === 204 || !contentType || !contentType.includes("application/json")) {
-              console.log("Received non-JSON or empty response from org-inspections (Status:", response.status, ")");
-              setError(`Org inspection details not found or response was empty (Status: ${response.status}).`);
-              setInspectionResult(null);
-              setIsLoading(false);
-              return;
-            }
-
-            const data: InspectionResultData = await response.json();
-            setInspectionResult(data);
         } catch (err: any) {
             console.error("Fetch error:", err);
-            setError(err.message || "Failed to load inspection results.");
+            toast.error(err.message || "Failed to load inspection results.");
+            // The apiFetch helper will throw an error for 401/403, which might trigger a redirect or show a login modal in a more robust app.
+            // For now, just showing the error toast is sufficient based on the existing logic.
         } finally {
             setIsLoading(false);
         }
@@ -238,8 +199,10 @@ export default function CarInspectionResultPage() {
             return Object.values(mechanicalData).every(check => check === true);
         }
         if (section === 'body' || section === 'interior') {
-            return inspectionResult.inspectionStatus === InspectionStatus.Approved ||
-                   inspectionResult.inspectionStatus === InspectionStatus.ConditionallyApproved;
+            const sectionData = inspectionResult[section];
+            if (!sectionData) return false;
+            // A section passes if none of its items have a problem.
+            return Object.values(sectionData).every((item: ItemCondition) => !item.problem);
         }
         return false;
     }, [inspectionResult]);
@@ -365,22 +328,6 @@ export default function CarInspectionResultPage() {
         );
     }
 
-    if (error) {
-        return (
-            <div className="flex flex-col justify-center items-center min-h-screen bg-red-50 text-red-700 p-4">
-                <FiAlertTriangle className="h-12 w-12 mb-4" />
-                <h2 className="text-xl font-semibold mb-2">Error Loading Results</h2>
-                <p className="text-center">{error}</p>
-                <button
-                    onClick={() => router.back()}
-                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                >
-                    Go Back
-                </button>
-            </div>
-        );
-    }
-
     if (!inspectionResult) {
         return (
             <div className="flex flex-col justify-center items-center min-h-screen bg-gray-100 text-gray-600 p-4">
@@ -399,6 +346,7 @@ export default function CarInspectionResultPage() {
 
     return (
         <div className="min-h-screen bg-gray-100 py-8">
+            <Toaster position="top-center" />
             <div className="container max-w-5xl mx-auto px-4">
                 {/* Print Button */}
                 <div className="flex justify-end mb-4">

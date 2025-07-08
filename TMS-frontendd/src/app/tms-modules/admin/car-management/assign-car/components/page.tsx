@@ -136,8 +136,8 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
     const fetchAvailableCars = async () => {
       try {
         const [regularCarsResponse, rentCarsResponse] = await Promise.all([
-          axios.get('http://localhost:8080/auth/car/approved'),
-          axios.get('http://localhost:8080/auth/rent-car/approved')
+          axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved'),
+          axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved')
         ]);
 
         const regularCars: Car[] = regularCarsResponse.data?.carList?.map((car: any) => ({
@@ -224,8 +224,8 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
 
   const updateCarStatus = async (plateNumber: string, status: string, isRentCar: boolean = false) => {
     const endpoint = isRentCar 
-      ? `http://localhost:8080/auth/rent-car/status/${plateNumber}`
-      : `http://localhost:8080/auth/car/status/${plateNumber}`;
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${plateNumber}`
+      : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${plateNumber}`;
     
     try {
       await axios.put(endpoint, { status });
@@ -244,7 +244,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
       }
 
       await axios.put(
-        `http://localhost:8080/auth/car/assignments/update/${formData.assignmentHistoryId}`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assignments/update/${formData.assignmentHistoryId}`,
         { 
           status: 'Completed', // Or 'Transferred' if that's more appropriate
           carIds: [newCar.id], 
@@ -288,7 +288,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
         assignmentHistoryId: parseInt(formData.assignmentHistoryId) 
       };
       
-      const transferResponse = await axios.post('http://localhost:8080/api/transfers', transferPayload, {
+      const transferResponse = await axios.post('${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers', transferPayload, {
         headers: {
           'Content-Type': 'application/json',
         }

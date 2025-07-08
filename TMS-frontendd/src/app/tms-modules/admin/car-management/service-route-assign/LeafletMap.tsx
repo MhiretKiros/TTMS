@@ -1,6 +1,7 @@
 'use client';
 import axios from 'axios';
 import L from 'leaflet'; // Import L for custom icons if needed
+import { Toaster, toast } from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap, Popup } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
@@ -21,16 +22,48 @@ import { useRouter } from 'next/navigation';
 const welloSefer: LatLngTuple = [8.992820, 38.773790];
 
 async function fetchInspectedBuses() {
-  const res = await fetch('http://localhost:8080/auth/organization-car/service-buses');
-  if (!res.ok) throw new Error('Failed to fetch vehicles');
-  const data = await res.json();
-  // Ensure organizationCar exists and has a plateNumber for valid buses
-  return (data.cars || data.organizationCarList || []).filter(
-    (bus: any) => bus.organizationCar && bus.organizationCar.plateNumber
-  );
+  try {
+    const [orgRes, rentRes] = await Promise.all([
+      fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/service-buses'),
+      fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/bus-minibus'),
+    ]);
+
+    if (!orgRes.ok || !rentRes.ok) throw new Error("Failed to fetch one or more vehicle sources");
+
+    const orgData = await orgRes.json();
+    const rentData = await rentRes.json();
+    const rentCarList = rentData?.rentCarList || [];
+
+    const orgCars = (orgData.cars || orgData.organizationCarList || []).map((car: any) => ({
+      source: 'organization',
+      id: car.id || car.organizationCar?.id,
+      plateNumber: car.organizationCar?.plateNumber,
+      model: car.organizationCar?.model,
+      lat: Number(car.organizationCar?.lat),
+      lng: Number(car.organizationCar?.lng),
+      original: car,
+    })).filter(car => car.plateNumber);
+
+    const rentCars = rentCarList.map((car: any) => ({
+      source: 'rented',
+      id: car.id,
+      plateNumber: car.plateNumber,
+      model: car.model,
+      lat: Number(car.lat),
+      lng: Number(car.lng),
+      original: car,
+    })).filter(car => car.plateNumber);
+
+    return [...orgCars, ...rentCars];
+
+  } catch (error) {
+    console.error("Error fetching service vehicles:", error);
+    return [];
+  }
 }
 
-const API_BASE_URL = 'http://localhost:8080'; // Assuming Spring Boot runs on port 8080
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL // Assuming Spring Boot runs on port 8080
 
 type Waypoint = {
   destinationLat: number;
@@ -90,7 +123,6 @@ function DestinationSetter({ onSet }: { onSet: (latlng: [number, number]) => voi
   });
   return null;
 }
-
 
 function MapSearchBar({ onSelect }: { onSelect: (latlng: [number, number]) => void }) {
   const [query, setQuery] = useState('');
@@ -153,7 +185,6 @@ function MapSearchBar({ onSelect }: { onSelect: (latlng: [number, number]) => vo
   );
 }
 
-// New component for map view updates
 function MapViewUpdater({
   routeCoords,
   busPosition,
@@ -164,7 +195,8 @@ function MapViewUpdater({
   busPosition: LatLngTuple | null;
   activeWaypoints: LatLngTuple[];
   selectedBus: any | null;
-}) {
+}) 
+{
   const map = useMap(); 
 
   useEffect(() => {
@@ -202,52 +234,54 @@ export default function LeafletMap() {
   const router = useRouter();
 
   useEffect(() => {
-    fetchInspectedBuses().then(setBuses).catch(console.error);
-
-    setIsLoadingAssignedRoutes(true);
-    fetch(`${API_BASE_URL}/api/routes`) // Updated URL
-      .then(res => {
-        if (!res.ok) {
-          throw new Error('Failed to fetch assigned routes');
-        }
-        return res.json();
-      })
-      .then(async (data) => {
-        const rawRoutes: any[] = data || []; // Assuming API returns the list directly
-        const routesWithNames: ExistingAssignedRoute[] = await Promise.all(
-          rawRoutes.map(async (route) => {
-            const waypointsWithNames: Waypoint[] = route.waypoints && Array.isArray(route.waypoints)
-              ? await Promise.all(
-                  route.waypoints.map(async (wp: any) => ({
-                    // Assuming backend DTO for waypoint provides 'latitude' and 'longitude' as numbers
-                    destinationLat: Number(wp.latitude),
-                    destinationLng: Number(wp.longitude),
-                    destinationName: await fetchLocationName(
-                      Number(wp.latitude),
-                      Number(wp.longitude)
-                    ),
-                  }))
-                )
-              : []; // Handle cases where waypoints might be missing or not an array
-            return {
-              plateNumber: route.plateNumber,
-              id: route.id,
-              waypoints: waypointsWithNames,
-            };
-          })
-        );
-        setExistingAssignedRoutes(routesWithNames);
-      })
-      .catch(error => console.error("Error fetching assigned routes:", error))
-      .finally(() => setIsLoadingAssignedRoutes(false));
+    // Fetch the list of available buses when the component mounts
+    fetchInspectedBuses().then(setBuses);
   }, []);
 
+useEffect(() => {
+  setIsLoadingAssignedRoutes(true);
+  Promise.all([
+    fetch(`${API_BASE_URL}/api/routes`),                // Organization cars
+    fetch(`${API_BASE_URL}/auth/rent-car-routes`)       // Rent cars
+  ])
+    .then(async ([orgRes, rentRes]) => {
+      if (!orgRes.ok || !rentRes.ok) throw new Error("Failed to fetch one or more route types");
+
+      const orgData = await orgRes.json();
+      const rentData = await rentRes.json();
+
+      const allRoutes = [...orgData, ...rentData];
+
+      const routesWithNames: ExistingAssignedRoute[] = await Promise.all(
+        allRoutes.map(async (route: any) => {
+          const waypoints = route.waypoints || [];
+          const waypointsWithNames: Waypoint[] = await Promise.all(
+            waypoints.map(async (wp: any) => ({
+              destinationLat: Number(wp.latitude),
+              destinationLng: Number(wp.longitude),
+              destinationName: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+            }))
+          );
+          return {
+            plateNumber: route.plateNumber,
+            id: route.id,
+            waypoints: waypointsWithNames,
+          };
+        })
+      );
+      setExistingAssignedRoutes(routesWithNames);
+    })
+    .catch(error => console.error("Error fetching assigned routes:", error))
+    .finally(() => setIsLoadingAssignedRoutes(false));
+}, []);
+
+
   const busPosition: LatLngTuple | null =
-    selectedBus?.organizationCar?.lat && selectedBus?.organizationCar?.lng
-      ? [Number(selectedBus.organizationCar.lat), Number(selectedBus.organizationCar.lng)]
-      : selectedBus
-        ? welloSefer 
-        : null; 
+    selectedBus?.lat && selectedBus?.lng
+      ? [Number(selectedBus.lat), Number(selectedBus.lng)]
+      : selectedBus // If a bus is selected but has no coordinates, default to Wello Sefer
+        ? welloSefer
+        : null;
 
   const mapInitialCenter = welloSefer; 
 
@@ -285,7 +319,7 @@ export default function LeafletMap() {
 
   const handlePointSelected = (latlng: LatLngTuple) => {
     if (!selectedBus) {
-      alert("Please select a bus first.");
+      toast.error("Please select a bus first.");
       return;
     }
     setActiveRouteWaypoints(prevPoints => [...prevPoints, latlng]);
@@ -293,9 +327,9 @@ export default function LeafletMap() {
 
   const handleAssignRoute = async () => {
     if (selectedBus && activeRouteWaypoints.length > 0) {
-      const plateNumber = selectedBus.organizationCar?.plateNumber;
+       const plateNumber = selectedBus.plateNumber;
       if (!plateNumber) {
-        alert("Selected bus has no plate number.");
+        toast.error("Selected bus has no plate number.");
         return;
       }
 
@@ -305,7 +339,12 @@ export default function LeafletMap() {
           longitude: wp[1],
         }));
 
-        const response = await fetch(`${API_BASE_URL}/api/routes/assign`, { // Updated URL
+        const endpoint = selectedBus.source === 'rented'
+  ? `${API_BASE_URL}/auth/rent-car-routes/assign`
+  : `${API_BASE_URL}/api/routes/assign`;
+
+const response = await fetch(endpoint, {
+ // Updated URL
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -324,8 +363,8 @@ export default function LeafletMap() {
           activeRouteWaypoints.map(wp => fetchLocationName(wp[0], wp[1]))
         );
 
-        alert(
-          `Route successfully assigned/updated for ${plateNumber}!\nWaypoints: ${assignedWaypointNames.join(' -> ')}`
+        toast.success(
+          `Route for ${plateNumber} assigned: ${assignedWaypointNames.join(' -> ')}`
         );
 
         setExistingAssignedRoutes(prevRoutes => {
@@ -347,10 +386,10 @@ export default function LeafletMap() {
         setRouteCoords([]);   
       } catch (error) {
         console.error("Error assigning route:", error);
-        alert(`Error assigning route: ${error instanceof Error ? error.message : String(error)}`);
+        toast.error(`Error assigning route: ${error instanceof Error ? error.message : String(error)}`);
       }
     } else { 
-      alert("Please select a bus and add at least one waypoint."); 
+      toast.error("Please select a bus and add at least one waypoint."); 
     }
   };
 
@@ -366,13 +405,39 @@ export default function LeafletMap() {
   };
 
   const filteredBuses = buses.filter(bus =>
-    bus.organizationCar?.plateNumber?.toLowerCase().includes(busSearchQuery.toLowerCase())
+    bus.plateNumber?.toLowerCase().includes(busSearchQuery.toLowerCase())
   );
 
   const handleClearEntireRoute = () => {
-    setActiveRouteWaypoints([]);
-    setActiveRouteWaypointNames([]);
-    setRouteCoords([]);
+    toast(
+      (t) => (
+        <div className="flex flex-col gap-2 p-2 bg-white rounded-lg shadow-md">
+          <p className="font-semibold">Confirm Clear</p>
+          <p className="text-sm text-gray-600">Are you sure you want to clear all waypoints for the current route?</p>
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              className="px-3 py-1 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              onClick={() => {
+                setActiveRouteWaypoints([]);
+                setActiveRouteWaypointNames([]);
+                setRouteCoords([]);
+                toast.dismiss(t.id);
+                toast.success("Waypoints cleared.");
+              }}
+            >
+              Yes, Clear
+            </button>
+            <button
+              className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              onClick={() => toast.dismiss(t.id)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: Infinity } // This toast will not auto-dismiss
+    );
   };
 
   const intermediateWaypointIcon = new L.Icon({
@@ -387,6 +452,7 @@ export default function LeafletMap() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow">
+      <Toaster position="top-center" />
       <div className="flex justify-between items-center mb-4 border-b pb-3">
         <div>
           <h1 className="text-2xl font-bold">Assign Route to Inspected Buses</h1>
@@ -427,17 +493,13 @@ export default function LeafletMap() {
               : (
                 <ul className="max-h-80 overflow-y-auto border rounded-md">
                   {filteredBuses.map((bus, index) => {
-                    const plate = bus.organizationCar?.plateNumber;
+                    const plate = bus.plateNumber;
                     const assignment = getBusAssignmentDetails(plate);
                     return (
                       <li
-                        key={
-                          bus.organizationCar?.id ??
-                          plate ??
-                          `${bus.organizationCar?.model ?? 'bus'}-${index}`
-                        }
+                        key={bus.id ?? plate ?? `${bus.model ?? 'bus'}-${index}`}
                         className={`p-3 border-b last:border-b-0 cursor-pointer transition-colors ${
-                          selectedBus?.organizationCar?.plateNumber === plate
+                          selectedBus?.plateNumber === plate
                             ? 'bg-blue-500 text-white'
                             : (assignment && assignment.waypoints && assignment.waypoints.length > 0)
                               ? 'bg-green-50 hover:bg-green-100'
@@ -487,7 +549,7 @@ export default function LeafletMap() {
             />
             {busPosition && selectedBus && (
               <Marker position={busPosition} icon={intermediateWaypointIcon}>
-                <Popup>Bus: {selectedBus.organizationCar.plateNumber}<br/>Current Location (or Wello Sefer)</Popup>
+                <Popup>Bus: {selectedBus.plateNumber}<br/>Current Location (or Wello Sefer)</Popup>
               </Marker>
             )}
 
@@ -516,12 +578,12 @@ export default function LeafletMap() {
               )}
             </div>
             {selectedBus && (() => {
-              const assignment = getBusAssignmentDetails(selectedBus.organizationCar?.plateNumber);
+              const assignment = getBusAssignmentDetails(selectedBus.plateNumber);
               if (assignment && assignment.waypoints && assignment.waypoints.length > 0) {
                 const assignedWaypointsText = assignment.waypoints.map(wp => wp.destinationName || `${wp.destinationLat.toFixed(2)},${wp.destinationLng.toFixed(2)}`).join(' -> ');
                 return (
                   <p className="text-orange-600 font-semibold p-2 bg-orange-100 rounded">
-                    Car {selectedBus.organizationCar.plateNumber} is currently assigned to: {assignedWaypointsText}.
+                    Car {selectedBus.plateNumber} is currently assigned to: {assignedWaypointsText}.
                     {activeRouteWaypoints.length > 0 && " Modifying points below will update this assignment."}
                   </p>
                 );
@@ -535,8 +597,8 @@ export default function LeafletMap() {
                 activeRouteWaypoints.length === 0 || 
                 isLoadingAssignedRoutes ||
                 (() => { 
-                  if (isBusCurrentlyAssigned(selectedBus?.organizationCar?.plateNumber)) {
-                    const currentAssignment = getBusAssignmentDetails(selectedBus.organizationCar.plateNumber);
+                  if (isBusCurrentlyAssigned(selectedBus?.plateNumber)) {
+                    const currentAssignment = getBusAssignmentDetails(selectedBus.plateNumber);
                     if (currentAssignment && currentAssignment.waypoints.length === activeRouteWaypoints.length) {
                       return currentAssignment.waypoints.every((cw, i) => 
                         cw.destinationLat === activeRouteWaypoints[i][0] && cw.destinationLng === activeRouteWaypoints[i][1]
@@ -548,24 +610,24 @@ export default function LeafletMap() {
               }
               onClick={handleAssignRoute}
             >
-              Assign Route to {selectedBus?.organizationCar?.plateNumber || "Bus"}
+              Assign Route to {selectedBus?.plateNumber || "Bus"}
             </button>
             {/* Navigation buttons moved to the top */}
           </div>
           
           {selectedBus && activeRouteWaypoints.length === 0 && (
             <p className="mt-2 text-sm text-gray-500">
-              Click on the map or use search to add waypoints for {selectedBus.organizationCar.plateNumber}. Route will start from Wello Sefer.
+              Click on the map or use search to add waypoints for {selectedBus.plateNumber}. Route will start from Wello Sefer.
             </p>
           )}
           {selectedBus && activeRouteWaypoints.length > 0 && (() => {
-            const currentAssignment = getBusAssignmentDetails(selectedBus.organizationCar.plateNumber);
+            const currentAssignment = getBusAssignmentDetails(selectedBus.plateNumber);
             if (currentAssignment && currentAssignment.waypoints.length === activeRouteWaypoints.length && currentAssignment.waypoints.every((cw, i) => cw.destinationLat === activeRouteWaypoints[i][0] && cw.destinationLng === activeRouteWaypoints[i][1])) {
-                return <p className="mt-2 text-sm text-green-700">These waypoints match the current assignment for {selectedBus.organizationCar.plateNumber}.</p>;
+                return <p className="mt-2 text-sm text-green-700">These waypoints match the current assignment for {selectedBus.plateNumber}.</p>;
             } else if (currentAssignment && currentAssignment.waypoints && currentAssignment.waypoints.length > 0) {
-                return <p className="mt-2 text-sm text-blue-700">Previewing new route for {selectedBus.organizationCar.plateNumber} via {activeRouteWaypoints.length} waypoint(s). This will update the current assignment.</p>;
+                return <p className="mt-2 text-sm text-blue-700">Previewing new route for {selectedBus.plateNumber} via {activeRouteWaypoints.length} waypoint(s). This will update the current assignment.</p>;
             } else {
-                 return <p className="mt-2 text-sm text-blue-700">Previewing new route for {selectedBus.organizationCar.plateNumber} via {activeRouteWaypoints.length} waypoint(s). This will be a new assignment.</p>;
+                 return <p className="mt-2 text-sm text-blue-700">Previewing new route for {selectedBus.plateNumber} via {activeRouteWaypoints.length} waypoint(s). This will be a new assignment.</p>;
             }
           })()}
         </div>

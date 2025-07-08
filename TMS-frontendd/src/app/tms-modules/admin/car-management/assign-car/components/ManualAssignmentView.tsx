@@ -166,9 +166,9 @@ export default function ManualAssignmentView() {
     try {
       // Fetch approved cars (both regular and rent cars)
       const [regularCarsResponse, rentCarsResponse, requestsResponse] = await Promise.all([
-        axios.get('http://localhost:8080/auth/car/approved'),
-        axios.get('http://localhost:8080/auth/rent-car/approved'),
-        axios.get('http://localhost:8080/auth/assignments/pending-and-semipending')
+        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved'),
+        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved'),
+        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending-and-semipending')
       ]);
   
       // Process regular cars
@@ -318,137 +318,158 @@ export default function ManualAssignmentView() {
   const handleCloseAcceptanceForm = () => {
     dispatch({ type: 'HIDE_ACCEPTANCE_FORM' });
   };
-const handleAssignCar = async () => {
-  if (assignmentState.selectedCars.length === 0 || !assignmentState.selectedRequest) {
-    Swal.fire({
-      title: 'Selection Missing',
-      text: 'Please select at least one car and a pending request.',
-      icon: 'warning',
-    });
-    return;
-  }
 
-  // Get selected request and car data
-  const selectedRequest = assignmentState.pendingRequests.find(
-    req => req.id === assignmentState.selectedRequest
-  );
-  const selectedCarsData = assignmentState.selectedCars.map(carId => {
-    const car = assignmentState.cars.find(c => c.id === carId);
-    if (!car) throw new Error(`Car with ID ${carId} not found`);
-    return car;
-  });
-
-  if (!selectedRequest) {
-    Swal.fire({
-      title: 'Error!',
-      text: 'Selected request not found.',
-      icon: 'error',
-    });
-    return;
-  }
-
-  const isInTransferRequest = selectedRequest?.status === 'in_transfer';
-
-  try {
-    setIsLoading(true);
-
-    // --- Common Logic: Update car status based on type ---
-    await Promise.all(
-      selectedCarsData.map(async car => {
-        const isRentCar = car.id.startsWith('rent-');
-        const endpoint = isRentCar
-          ? `http://localhost:8080/auth/rent-car/status/${car.licensePlate}`
-          : `http://localhost:8080/auth/car/status/${car.licensePlate}`;
-
-        // Set different statuses depending on request type
-        const carStatus = isInTransferRequest ? 'In_transfer' : 'Assigned';
-        await axios.put(endpoint, {
-          status: carStatus,
-          assignmentDate: new Date().toISOString().split('T')[0],
-        });
-
-        dispatch({
-          type: 'UPDATE_CAR_STATUS',
-          payload: { carId: car.id, status: isInTransferRequest ? 'in_transfer' : 'assigned' },
-        });
-      })
+  const handleToggleCarSelection = (carId: string) => {
+    const selectedRequest = assignmentState.pendingRequests.find(
+      req => req.id === assignmentState.selectedRequest
     );
-
-    // --- Shared Request Data Preparation ---
-    const plateNumbers = [
-      ...(selectedRequest.plateNumbers?.split(', ') || []),
-      ...selectedCarsData.map(car => car.licensePlate),
-    ].join(', ');
-
-    const allCarModels = [
-      ...(selectedRequest.allCarModels?.split(', ') || []),
-      ...selectedCarsData.map(car => car.model),
-    ].join(', ');
-
-    const carIds = [...(selectedRequest.carIds || []), ...assignmentState.selectedCars];
-
-    // --- Determine request status based on type ---
-    const requestStatus = isInTransferRequest ? 'Waiting' : 'Assigned';
-
-    // --- Common Logic: Update request status and metadata ---
-    const updateResponse = await axios.put(
-      `http://localhost:8080/auth/car/assignments/update/${assignmentState.selectedRequest}`,
-      {
-        status: requestStatus,
-        carIds,
-        plateNumbers,
-        allCarModels,
-        numberOfCar: `${assignmentState.selectedCars.length}/${assignmentState.selectedCars.length}`,
-      }
-    );
-
-    if (updateResponse.data.codStatus === 200) {
-      if (!isInTransferRequest) {
-        // Only complete assignment for non-in_transfer
-        dispatch({
-          type: 'ASSIGN_CAR_SUCCESS',
-          payload: {
-            carIds: assignmentState.selectedCars,
-            requestId: assignmentState.selectedRequest,
-          },
-        });
-
-        Swal.fire({
-          title: 'Success!',
-          text: `${assignmentState.selectedCars.length} car(s) assigned successfully.`,
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      } else {
-        // For In_transfer, just update UI and prompt for acceptance form
-        dispatch({
-          type: 'UPDATE_REQUEST_STATUS',
-          payload: { requestId: assignmentState.selectedRequest, status: 'waiting' },
-        });
-
-        Swal.fire({
-          title: 'Success!',
-          text: `The car has been marked as "In_transfer" and ready for acceptance. The request status has been updated to "Waiting". You can proceed to the vehicle acceptance form.`,
-          icon: 'success',
-        });
-
-        dispatch({ type: 'RESET_SELECTION' });
-      }
-    } else {
-      throw new Error(updateResponse.data.message || 'Failed to update request');
+    
+    // If the selected request is in_transfer and user is trying to select more than one car
+    if (selectedRequest?.status === 'in_transfer' && 
+        !assignmentState.selectedCars.includes(carId) && 
+        assignmentState.selectedCars.length >= 1) {
+      Swal.fire({
+        title: 'Selection Limit',
+        text: 'For in_transfer requests, you can only select one car.',
+        icon: 'warning',
+      });
+      return;
     }
-  } catch (error) {
-    console.error('Assignment error:', error);
-    Swal.fire({
-      title: 'Error!',
-      text: error instanceof Error ? error.message : 'Could not assign car(s).',
-      icon: 'error',
+    
+    dispatch({ type: 'TOGGLE_SELECT_CAR', payload: carId });
+  };
+
+  const handleAssignCar = async () => {
+    if (assignmentState.selectedCars.length === 0 || !assignmentState.selectedRequest) {
+      Swal.fire({
+        title: 'Selection Missing',
+        text: 'Please select at least one car and a pending request.',
+        icon: 'warning',
+      });
+      return;
+    }
+
+    // Get selected request and car data
+    const selectedRequest = assignmentState.pendingRequests.find(
+      req => req.id === assignmentState.selectedRequest
+    );
+    const selectedCarsData = assignmentState.selectedCars.map(carId => {
+      const car = assignmentState.cars.find(c => c.id === carId);
+      if (!car) throw new Error(`Car with ID ${carId} not found`);
+      return car;
     });
-  } finally {
-    setIsLoading(false);
-  }
-};
+
+    if (!selectedRequest) {
+      Swal.fire({
+        title: 'Error!',
+        text: 'Selected request not found.',
+        icon: 'error',
+      });
+      return;
+    }
+
+    const isInTransferRequest = selectedRequest?.status === 'in_transfer';
+
+    try {
+      setIsLoading(true);
+
+      // --- Common Logic: Update car status based on type ---
+      await Promise.all(
+        selectedCarsData.map(async car => {
+          const isRentCar = car.id.startsWith('rent-');
+          const endpoint = isRentCar
+            ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${car.licensePlate}`
+            : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${car.licensePlate}`;
+
+          // Set different statuses depending on request type
+          const carStatus = isInTransferRequest ? 'In_transfer' : 'Assigned';
+          await axios.put(endpoint, {
+            status: carStatus,
+            assignmentDate: new Date().toISOString().split('T')[0],
+          });
+
+          dispatch({
+            type: 'UPDATE_CAR_STATUS',
+            payload: { carId: car.id, status: isInTransferRequest ? 'in_transfer' : 'assigned' },
+          });
+        })
+      );
+
+      // --- Shared Request Data Preparation ---
+      const plateNumbers = [
+        ...(selectedRequest.plateNumbers?.split(', ') || []),
+        ...selectedCarsData.map(car => car.licensePlate),
+      ].join(', ');
+
+      const allCarModels = [
+        ...(selectedRequest.allCarModels?.split(', ') || []),
+        ...selectedCarsData.map(car => car.model),
+      ].join(', ');
+
+      const carIds = [...(selectedRequest.carIds || []), ...assignmentState.selectedCars];
+
+      // --- Determine request status based on type ---
+      const requestStatus = isInTransferRequest ? 'Waiting' : 'Assigned';
+
+      // --- Common Logic: Update request status and metadata ---
+      const updateResponse = await axios.put(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assignments/update/${assignmentState.selectedRequest}`,
+        {
+          status: requestStatus,
+          carIds,
+          plateNumbers,
+          allCarModels,
+          numberOfCar: `${assignmentState.selectedCars.length}/${assignmentState.selectedCars.length}`,
+        }
+      );
+
+      if (updateResponse.data.codStatus === 200) {
+        if (!isInTransferRequest) {
+          // Only complete assignment for non-in_transfer
+          dispatch({
+            type: 'ASSIGN_CAR_SUCCESS',
+            payload: {
+              carIds: assignmentState.selectedCars,
+              requestId: assignmentState.selectedRequest,
+            },
+          });
+
+          Swal.fire({
+            title: 'Success!',
+            text: `${assignmentState.selectedCars.length} car(s) assigned successfully.`,
+            icon: 'success',
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } else {
+          // For In_transfer, just update UI and prompt for acceptance form
+          dispatch({
+            type: 'UPDATE_REQUEST_STATUS',
+            payload: { requestId: assignmentState.selectedRequest, status: 'waiting' },
+          });
+
+          Swal.fire({
+            title: 'Success!',
+            text: `The car has been marked as "In_transfer" and ready for acceptance. The request status has been updated to "Waiting". You can proceed to the vehicle acceptance form.`,
+            icon: 'success',
+          });
+
+          dispatch({ type: 'RESET_SELECTION' });
+        }
+      } else {
+        throw new Error(updateResponse.data.message || 'Failed to update request');
+      }
+    } catch (error) {
+      console.error('Assignment error:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: error instanceof Error ? error.message : 'Could not assign car(s).',
+        icon: 'error',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -605,7 +626,7 @@ const handleAssignCar = async () => {
                           <input
                             type="checkbox"
                             checked={assignmentState.selectedCars.includes(car.id)}
-                            onChange={() => dispatch({ type: 'TOGGLE_SELECT_CAR', payload: car.id })}
+                            onChange={() => handleToggleCarSelection(car.id)}
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
                         </td>

@@ -1,10 +1,9 @@
 // api/assignmentServices.ts
 import axios from 'axios';
-
+import { API_BASE_URL } from 'D:/my git projects/TMS/TMS-frontendd/src/config';
 import { AssignmentHistory, ApiResponse } from '../types';
 
-// assignmentServices.ts
-const BASE_URL = 'http://localhost:8080/auth/assignment';
+const BASE_URL = `${API_BASE_URL}/auth/assignment`;
 
 export const fetchAllAssignments = async (): Promise<ApiResponse<AssignmentHistory[]>> => {
   try {
@@ -18,7 +17,7 @@ export const fetchAllAssignments = async (): Promise<ApiResponse<AssignmentHisto
       };
     }
     
-    // Handle backend-defined errors
+    // Handle backend-defined errorsa
     return {
       success: false,
       message: response.data.message || 'Request failed'

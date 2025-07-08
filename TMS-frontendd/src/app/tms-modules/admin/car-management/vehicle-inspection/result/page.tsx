@@ -5,7 +5,8 @@ import { useRef } from 'react'; // Added useRef
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiLoader, FiCalendar, FiUser, FiClipboard, FiPercent, FiPrinter } from 'react-icons/fi'; // Added FiPrinter
-import { useReactToPrint } from 'react-to-print'; // Added useReactToPrint
+import { useReactToPrint } from 'react-to-print';
+import toast, { Toaster } from 'react-hot-toast';
 
 enum InspectionStatus {
     Approved = 'Approved',
@@ -99,7 +100,7 @@ type InspectionResultData = {
     rejectionReason?: string | null;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '${process.env.NEXT_PUBLIC_API_BASE_URL}/api';
 
 const formatLabel = (key: string): string => {
     const result = key.replace(/([A-Z])/g, ' $1');
@@ -142,7 +143,6 @@ export default function CarInspectionResultPage() {
     const router = useRouter();
     const [inspectionResult, setInspectionResult] = useState<InspectionResultData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const inspectionId = searchParams.get('inspectionId');
     const componentRef = useRef<HTMLDivElement>(null);
 
@@ -159,21 +159,19 @@ export default function CarInspectionResultPage() {
     `;
 
     const handlePrint = useReactToPrint({
-        content: () => componentRef.current,
+        content: () => componentRef.current, // Correct way to pass the ref's content
         documentTitle: `InspectionReport-${inspectionResult?.plateNumber || 'UnknownPlate'}`,
         pageStyle: pageStyle,
-        contentRef: componentRef, // Add this line to fix the error
     });
 
     const fetchInspectionDetails = useCallback(async () => {
         if (!inspectionId) {
-            setError("Inspection ID is missing from the URL.");
+            toast.error("Inspection ID is missing from the URL.");
             setIsLoading(false);
             return;
         }
 
         setIsLoading(true);
-        setError(null);
 
         const token = localStorage.getItem('authToken') || localStorage.getItem('token');
         
@@ -211,7 +209,7 @@ export default function CarInspectionResultPage() {
             setInspectionResult(data);
         } catch (err: any) {
             console.error("Fetch error:", err);
-            setError(err.message || "Failed to load inspection results.");
+            toast.error(err.message || "Failed to load inspection results.");
         } finally {
             setIsLoading(false);
         }
@@ -224,7 +222,9 @@ export default function CarInspectionResultPage() {
     const getSectionPassStatus = useCallback((section: 'mechanical' | 'body' | 'interior'): boolean => {
         if (!inspectionResult) return false;
         if (section === 'mechanical') {
-            return inspectionResult.inspectionStatus !== InspectionStatus.Rejected;
+            const mechanicalData = inspectionResult.mechanical;
+            if (!mechanicalData) return false;
+            return Object.values(mechanicalData).every(check => check === true);
         }
         if (section === 'body' || section === 'interior') {
             return inspectionResult.inspectionStatus === InspectionStatus.Approved ||
@@ -354,22 +354,6 @@ export default function CarInspectionResultPage() {
         );
     }
 
-    if (error) {
-        return (
-            <div className="flex flex-col justify-center items-center min-h-screen bg-red-50 text-red-700 p-4">
-                <FiAlertTriangle className="h-12 w-12 mb-4" />
-                <h2 className="text-xl font-semibold mb-2">Error Loading Results</h2>
-                <p className="text-center">{error}</p>
-                <button
-                    onClick={() => router.back()}
-                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                >
-                    Go Back
-                </button>
-            </div>
-        );
-    }
-
     if (!inspectionResult) {
         return (
             <div className="flex flex-col justify-center items-center min-h-screen bg-gray-100 text-gray-600 p-4">
@@ -388,6 +372,7 @@ export default function CarInspectionResultPage() {
 
     return (
         <div className="min-h-screen bg-gray-100 py-8">
+            <Toaster position="top-center" />
             <div className="container max-w-5xl mx-auto px-4" >
 <div className="flex justify-end mb-4">
                     <button

@@ -39,7 +39,7 @@ interface MaintenanceRecord {
   problemResolutionDetails?: string;
 }
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 
 export default function MaintenanceRecordsPage() {
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
@@ -144,8 +144,8 @@ export default function MaintenanceRecordsPage() {
                       <FiEye className="mr-1" /> View Details
                   </Link>
                   <Link href={`/tms-modules/admin/car-management/update-maintenance-record/${record.id}`} className="ml-4 text-green-600 hover:text-green-800 flex items-center justify-end">
-                      <FiEdit className="mr-1" /> Update Status
-                  </Link>
+  <FiEdit className="mr-1" /> Update Status
+</Link>
 
                 </td>
               </tr>

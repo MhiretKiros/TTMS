@@ -23,7 +23,7 @@ interface MaintenanceRequest {
   updatedBy: string | null;
 }
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 
 export default function ApprovedMaintenanceRequestsPage() {
   const [allRequests, setAllRequests] = useState<MaintenanceRequest[]>([]);

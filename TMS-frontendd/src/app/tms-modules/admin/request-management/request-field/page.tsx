@@ -44,8 +44,8 @@ export default function ServiceRequestPage() {
         {/* Tab Navigation */}
         <motion.div className="flex flex-wrap mb-6 border-b border-gray-200">
           {[
-            { id: 'field', icon: <FiTool className="mr-2" />, label: 'Field Service Request' },
-            { id: 'daily', icon: <FiTruck className="mr-2" />, label: 'Daily Service Request' },
+            { id: 'field', icon: <FiTool className="mr-2" />, label: 'Field Vehicle Request' },
+            { id: 'daily', icon: <FiTruck className="mr-2" />, label: 'Daily Vehicle Request' },
             { id: 'service', icon: <FiTruck className="mr-2" />, label: 'Car Service' },
             { id: 'comment', icon: <FiMessageSquare className="mr-2" />, label: 'Send Complaint' }
           ].map((tab) => (
@@ -82,7 +82,7 @@ export default function ServiceRequestPage() {
             >
               <option value="user">User</option>
               <option value="driver">Driver</option>
-              <option value="manager">Manager</option>
+              <option value="manager">Distributor</option>
               <option value="corporator">Corporator</option>
             </select>
           </div>

@@ -2,7 +2,7 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
-const API_BASE_URLS = 'http://localhost:8080'; // Replace with env var in production
+const API_ROOT_URL = process.env.NEXT_PUBLIC_API_ROOT || 'http://localhost:8080';
 interface ApiResponseError {
   message?: string;
   [key: string]: any;

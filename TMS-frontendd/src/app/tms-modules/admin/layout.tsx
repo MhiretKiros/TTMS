@@ -19,16 +19,14 @@ const sidebarItems = [
     link: '/tms-modules/admin/car-management',
     subItems: [
       { title: 'Manage Cars', link: '/tms-modules/admin/car-management/manage-cars', icon: <FiTruck /> },
-
-       { title: 'Mantaine Cars', link: '/tms-modules/admin/car-management/maintenance', icon: <FiSettings /> },
-
+      { title: 'Vehicle Inspection', link: '/tms-modules/admin/car-management/vehicle-inspection', icon: <FiSettings /> },
+      { title: 'Assign Cars', link: '/tms-modules/admin/car-management/assign-car', icon: <FiUser /> },
+      { title: 'Assign Routes', link: '/tms-modules/admin/car-management/service-route-assign', icon: <FiBox /> },
+      { title: 'Avaliable seats', link: '/tms-modules/admin/car-management/Avaliable-seats', icon: <FiAlertTriangle /> },
+      { title: 'Car Attendance', link: '/tms-modules/admin/car-management/car-attendance', icon: <FiClipboard /> },
+      { title: 'Mantaine Cars', link: '/tms-modules/admin/car-management/maintenance', icon: <FiSettings /> },
       { title: 'Maintain Cars Log', link: '/tms-modules/admin/car-management/approved-maintenance-requests', icon: <FiSettings /> }, // Corrected typo and clarified
       { title: 'ነ.ዘ.ቅ', link: '/tms-modules/admin/car-management/fuel-oil-grease-request', icon: <FiTool /> }, // New page
-      { title: 'Assign Routes', link: '/tms-modules/admin/car-management/service-route-assign', icon: <FiBox /> },
-      { title: 'Assign Cars', link: '/tms-modules/admin/car-management/assign-car', icon: <FiUser /> },
-      { title: 'Car Attendance', link: '/tms-modules/admin/car-management/car-attendance', icon: <FiClipboard /> },
-      { title: 'Vehicle Inspection', link: '/tms-modules/admin/car-management/vehicle-inspection', icon: <FiSettings /> },
-      { title: 'Avaliable seats', link: '/tms-modules/admin/car-management/Avaliable-seats', icon: <FiAlertTriangle /> },
      { title: 'NEZEKE Notification', link: '/tms-modules/admin/car-management/foc-form', icon: <FiClipboard /> },
   
     ],

@@ -121,46 +121,48 @@ export default function RentalRequestForm() {
       formData.mobilityIssue, formData.gender]);
 
   // Enhanced filterAndSortCars function
-  const filterAndSortCars = useCallback((cars: Car[], position: string, isHighPriorityReq: boolean) => {
-    console.log('Filtering cars for position:', position);
-    const filtered = cars.filter(car => {
-      // Case-insensitive car type check
-      const carType = car.carType?.toLowerCase() || '';
-      const isAutomobile = carType.includes('auto') || carType.includes('autho');
-      
-      if (!isAutomobile) {
-        console.log('Skipping non-automobile:', car.plateNumber, car.carType);
-        return false;
-      }
-
+  const filterAndSortCars = (cars: Car[], position: string, isHighPriorityReq: boolean) => {
+    const currentPosition = position;
+    const isElectric = (car: Car) => car.fuelType.toLowerCase() === 'electric';
+  
+    return cars.filter(car => {
       const cc = parseMotorCapacity(car.motorCapacity);
       const year = car.manufactureYear;
-
-      // Simplified eligibility criteria
-      if (position === 'Level 5') {
-        return cc <= 1200 && year >= 2001;
-      }
-
+  
       if (isHighPriorityReq) {
-        return true; // Accept all automobiles for high priority requests
+        if (currentPosition === 'Level 5') {
+          if (cc === 1200) return year >= 2001 && year < 2018;
+          if (cc < 1200) return year >= 2001;
+          return false;
+        }
+        return true;
       }
-
-      return cc >= 1200 || year >= 2010;
-    });
-
-    console.log('Filtered cars count:', filtered.length);
-    
-    return filtered.sort((a, b) => {
+  
+      if (currentPosition === 'Level 5') {
+        if (cc === 1200) return year >= 2001 && year < 2018;
+        if (cc < 1200) return year >= 2001;
+        return false;
+      }
+  
+      if (isElectric(car)) {
+        return cc >= 120 && cc <= 130 && year >= 2020;
+      }
+  
+      return (
+        (cc >= 1200 && cc < 1300 && year >= 2018) ||
+        (cc >= 1300 && year >= 2010)
+      );
+    }).sort((a, b) => {
       const aCC = parseMotorCapacity(a.motorCapacity);
       const bCC = parseMotorCapacity(b.motorCapacity);
       const ccCompare = bCC - aCC;
-
+  
       if (ccCompare === 0) {
         return b.manufactureYear - a.manufactureYear;
       }
       return ccCompare;
     });
-  }, []);
+  };
 
   // Enhanced request sorting with Level 5 percentage priority
   const sortRequests = useCallback((requests: PendingRequest[]) => {
@@ -209,8 +211,8 @@ export default function RentalRequestForm() {
   const fetchApprovedCars = async (rentalType: string): Promise<Car[]> => {
     try {
       const endpoint = rentalType === 'organizational' 
-        ? 'http://localhost:8080/auth/rent-car/approved' 
-        : 'http://localhost:8080/auth/car/approved';
+        ? '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved' 
+        : '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved';
       
       const response = await axios.get(endpoint);
       const data = response.data;
@@ -246,26 +248,28 @@ export default function RentalRequestForm() {
     }
   };
 
-  const fetchPendingRequests = async (): Promise<PendingRequest[]> => {
-    try {
-      const response = await axios.get('http://localhost:8080/auth/assignments/pending');
+const fetchPendingRequests = async (): Promise<PendingRequest[]> => {
+  try {
+    const response = await axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending');
+    
+    if (!response.data) {
+      console.error('No data received in response');
+      return [];
+    }
+
+    if (response.data.codStatus === 200) {
+      const requests = response.data.assignmentHistoryList || [];
       
-      if (!response.data) {
-        console.error('No data received in response');
-        return [];
-      }
-  
-      if (response.data.codStatus === 200) {
-        const requests = response.data.assignmentHistoryList || [];
-        
-        return requests.map((req: any) => ({
+      return requests
+        .filter((req: any) => req.position !== 'Level 1') // Exclude Level 1 requests
+        .map((req: any) => ({
           id: req.id.toString(),
           formData: {
             requestLetterNo: req.requestLetterNo,
             requestDate: req.requestDate.split('T')[0],
             requesterName: req.requesterName,
             rentalType: req.rentalType.toLowerCase() as 'standard' | 'project' | 'organizational',
-            position: req.position as  'Level 2' | 'Level 3' | 'Level 4' | 'Level 5',
+            position: req.position as 'Level 2' | 'Level 3' | 'Level 4' | 'Level 5',
             department: req.department,
             phoneNumber: req.phoneNumber,
             travelWorkPercentage: req.travelWorkPercentage.toLowerCase() as 'low' | 'medium' | 'high',
@@ -277,84 +281,90 @@ export default function RentalRequestForm() {
           createdAt: req.assignedDate,
           status: req.status as 'Pending' | 'Assigned' | 'Not Assigned'
         }));
-      }
-      
-      console.error('Unexpected response structure:', response.data);
-      return [];
-    } catch (error) {
-      console.error('Error fetching pending requests:', error);
-      return [];
     }
-  };
+    
+    console.error('Unexpected response structure:', response.data);
+    return [];
+  } catch (error) {
+    console.error('Error fetching pending requests:', error);
+    return [];
+  }
+};
 
   // Enhanced automatic assignment with proper modal handling
-  const checkForAutoAssignments = useCallback(async () => {
-    // Skip if any modal is already open
-    if (showAutoConfirmation || showConfirmation || showSuccessModal) {
-      console.log('Skipping auto-assignment - modal already open');
+const checkForAutoAssignments = useCallback(async () => {
+  // Skip if any modal is already open
+  if (showAutoConfirmation || showConfirmation || showSuccessModal) {
+    console.log('Skipping auto-assignment - modal already open');
+    return;
+  }
+
+  try {
+    console.log('Starting auto-assignment check...');
+    
+    // Get all approved automobiles from both sources
+    const allApprovedAutomobiles = [...approvedStandardCars, ...approvedOrgCars]
+      .filter(car => {
+        const carType = car.carType?.toLowerCase() || '';
+        const isAutomobile = carType.includes('auto') || carType.includes('autho');
+        return isAutomobile && car.status === 'InspectedAndReady';
+      });
+
+    console.log('Total approved automobiles:', allApprovedAutomobiles.length);
+    
+    if (allApprovedAutomobiles.length === 0 || pendingRequests.length === 0) {
+      console.log('No cars or requests available for auto-assignment');
       return;
     }
 
-    try {
-      console.log('Starting auto-assignment check...');
+    // Sort requests by priority (already excludes Level 1 from fetch)
+    const sortedRequests = sortRequests(pendingRequests);
+    console.log('Pending requests to process:', sortedRequests.length);
+
+    // Process requests in priority order
+    for (const request of sortedRequests) {
+      // Additional safeguard (though fetch should have filtered already)
+      if (request.formData.position === 'Level 1') {
+        console.log('Skipping Level 1 request:', request.id);
+        continue;
+      }
       
-      // Get all approved automobiles from both sources
-      const allApprovedAutomobiles = [...approvedStandardCars, ...approvedOrgCars]
-        .filter(car => {
-          const carType = car.carType?.toLowerCase() || '';
-          const isAutomobile = carType.includes('auto') || carType.includes('autho');
-          return isAutomobile && car.status === 'InspectedAndReady';
+      console.log(`Processing request ${request.id} (${request.formData.position})`);
+      
+      const isHighPriority = request.totalPercentage >= 70;
+      const eligibleCars = filterAndSortCars(
+        allApprovedAutomobiles,
+        request.formData.position,
+        isHighPriority
+      );
+
+      console.log(`Found ${eligibleCars.length} eligible cars for request ${request.id}`);
+      
+      if (eligibleCars.length > 0) {
+        const bestCar = eligibleCars[0];
+        console.log('Found matching car:', bestCar.plateNumber);
+        
+        // Set the assignment and show confirmation
+        setAutoAssignment({
+          car: bestCar,
+          request: request
         });
-
-      console.log('Total approved automobiles:', allApprovedAutomobiles.length);
-      
-      if (allApprovedAutomobiles.length === 0 || pendingRequests.length === 0) {
-        console.log('No cars or requests available for auto-assignment');
-        return;
+        setShowAutoConfirmation(true);
+        console.log('Showing auto-assignment confirmation');
+        return; // Stop after first match
       }
-
-      // Sort requests by priority
-      const sortedRequests = sortRequests(pendingRequests);
-      console.log('Pending requests to process:', sortedRequests.length);
-
-      // Process requests in priority order
-      for (const request of sortedRequests) {
-        console.log(`Processing request ${request.id} (${request.formData.position})`);
-        
-        const isHighPriority = request.totalPercentage >= 70;
-        const eligibleCars = filterAndSortCars(
-          allApprovedAutomobiles,
-          request.formData.position,
-          isHighPriority
-        );
-
-        console.log(`Found ${eligibleCars.length} eligible cars for request ${request.id}`);
-        
-        if (eligibleCars.length > 0) {
-          const bestCar = eligibleCars[0];
-          console.log('Found matching car:', bestCar.plateNumber);
-          
-          // Set the assignment and show confirmation
-          setAutoAssignment({
-            car: bestCar,
-            request: request
-          });
-          setShowAutoConfirmation(true);
-          console.log('Showing auto-assignment confirmation');
-          return; // Stop after first match
-        }
-      }
-    } catch (error) {
-      console.error('Auto assignment error:', error);
     }
-  }, [
-    approvedStandardCars, 
-    approvedOrgCars, 
-    pendingRequests, 
-    showAutoConfirmation, 
-    showConfirmation,
-    showSuccessModal
-  ]);
+  } catch (error) {
+    console.error('Auto assignment error:', error);
+  }
+}, [
+  approvedStandardCars, 
+  approvedOrgCars, 
+  pendingRequests, 
+  showAutoConfirmation, 
+  showConfirmation,
+  showSuccessModal
+]);
 
   // Enhanced useEffect for data loading and auto-assignment
   useEffect(() => {
@@ -435,8 +445,8 @@ export default function RentalRequestForm() {
         };
   
         const endpoint = formData.rentalType === 'organizational' 
-          ? 'http://localhost:8080/auth/rent-car/assign' 
-          : 'http://localhost:8080/auth/car/assign';
+          ? '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/assign' 
+          : '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign';
   
         const response = await axios.post(endpoint, payload);
   
@@ -453,7 +463,7 @@ export default function RentalRequestForm() {
             requestDate: new Date().toISOString().split('T')[0],
             requesterName: '',
             rentalType: 'standard',
-            position: 'Level 1',
+            position: 'Level 2',
             department: '',
             phoneNumber: '',
             travelWorkPercentage: 'low',
@@ -515,8 +525,8 @@ export default function RentalRequestForm() {
   
       // Determine the correct endpoint based on car type
       const endpoint = isOrgCar 
-        ? `http://localhost:8080/auth/rent-car/assignments/update/${request.id}`
-        : `http://localhost:8080/auth/car/assignments/update/${request.id}`;
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/assignments/update/${request.id}`
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assignments/update/${request.id}`;
   
       // Make the API call to update assignment history
       const updateResponse = await axios.put(endpoint, updatePayload, {
@@ -536,8 +546,8 @@ export default function RentalRequestForm() {
   
       // Update the car status separately
       const statusEndpoint = isOrgCar
-        ? `http://localhost:8080/auth/rent-car/status/${car.plateNumber}`
-        : `http://localhost:8080/auth/car/status/${car.plateNumber}`;
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${car.plateNumber}`
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${car.plateNumber}`;
   
       const statusResponse = await axios.put(statusEndpoint, { 
         status: 'Assigned',
@@ -591,12 +601,12 @@ export default function RentalRequestForm() {
     try {
       const isOrgCar = rentalType === 'organizational';
       const endpoint = isOrgCar 
-        ? 'http://localhost:8080/auth/rent-car/assign' 
-        : 'http://localhost:8080/auth/car/assign';
+        ? '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/assign' 
+        : '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign';
   
       const statusEndpoint = isOrgCar
-        ? `http://localhost:8080/auth/rent-car/status/${proposedCar.plateNumber}`
-        : `http://localhost:8080/auth/car/status/${proposedCar.plateNumber}`;
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${proposedCar.plateNumber}`
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${proposedCar.plateNumber}`;
   
       const payload = {
         requestLetterNo: formData.requestLetterNo,

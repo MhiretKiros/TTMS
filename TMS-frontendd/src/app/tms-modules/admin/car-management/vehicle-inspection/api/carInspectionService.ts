@@ -1,7 +1,7 @@
 // src/app/tms-modules/vehicle-inspection/api/carInspectionService.ts
 import { CarInspectionResultPage } from '../result/page';
 
-const API_BASE_URL = 'http://localhost:8080/api/inspections';
+const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/inspections';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -208,7 +208,7 @@ export const updateCarInspectionStatus = async (
   result: 'Approved' | 'Rejected'
 ): Promise<ApiResponse<null>> => {
   try {
-    const response = await fetch(`http://localhost:8080/auth/car/update-status`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/update-status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plateNumber, inspected, result })

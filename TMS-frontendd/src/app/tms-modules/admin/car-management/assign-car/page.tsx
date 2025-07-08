@@ -253,7 +253,7 @@ const handleStatusChange = async (status: 'Approved' | 'Rejected') => {
 
     // 1. Update assignment status directly
     const assignmentResponse = await axios.put(
-      `http://localhost:8080/auth/assignment/status/${selectedRequest.id}`,
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignment/status/${selectedRequest.id}`,
       { status: status === 'Approved' ? 'Approved' : 'Pending' }
     );
 
@@ -265,18 +265,18 @@ const handleStatusChange = async (status: 'Approved' | 'Rejected') => {
     if (status === 'Rejected') {
       if (selectedRequest.car) {
         await axios.put(
-          `http://localhost:8080/auth/car/status/${selectedRequest.car.plateNumber}`,
-          { status: 'Approved' } // Changed to 'Assigned' to match typical workflow
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${selectedRequest.car.plateNumber}`,
+          { status: 'InspectedAndReady' } // Changed to 'Assigned' to match typical workflow
         );
       } else if (selectedRequest.rentCar) {
         await axios.put(
-          `http://localhost:8080/auth/rent-car/status/${selectedRequest.rentCar.plateNumber}`,
-          { status: 'Approved' }
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${selectedRequest.rentCar.plateNumber}`,
+          { status: 'InspectedAndReady' }
         );
       } else if (selectedRequest.carIds?.length) {
         await Promise.all(
           selectedRequest.carIds.map((carId) =>
-            axios.put(`http://localhost:8080/auth/car/status/${carId}`, { status: 'Approved' })
+            axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${carId}`, { status: 'InspectedAndReady' })
           )
         );
       }

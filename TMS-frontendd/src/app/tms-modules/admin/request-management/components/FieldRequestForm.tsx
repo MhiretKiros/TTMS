@@ -84,7 +84,7 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     cargoType: '',
     cargoWeight: '',
     numberOfPassengers: '',
-    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED'| 'InspectedAndRead',
+    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED'| 'InspectedAndRead'| 'ACCEPTED',
   });
 
   const [showCargoDropdown, setShowCargoDropdown] = useState(false);
@@ -245,9 +245,9 @@ useEffect(() => {
       try {
         let data;
         if (actorType === 'driver') {
-          // Load all COMPLETED requests but don't show them initially
+          // Load all ACCEPTED requests but don't show them initially
           data = await TravelApi.getDriverRequests();
-          data = data.filter(request => request.status === 'COMPLETED');
+          data = data.filter(request => request.status === 'ACCEPTED');
         } else {
           data = await TravelApi.getRequests(actorType);
         }
@@ -752,19 +752,19 @@ if (!validVehicleTypes.includes(vehicleType)) {
     
         if (vehicleType === 'car') {
           response = await axios.put(
-            `http://localhost:8080/auth/car/status/${formData.vehicleDetails}`,
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         } 
         else if (vehicleType === 'organization') {
           response = await axios.put(
-            `http://localhost:8080/auth/organization-car/status/${formData.vehicleDetails}`,
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         } 
         else if (vehicleType === 'rent') { // Changed from your second 'organization' check
           response = await axios.put(
-            `http://localhost:8080/auth/rent-car/status/${formData.vehicleDetails}`,
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         }
@@ -864,19 +864,19 @@ if (!validVehicleTypes.includes(vehicleType)) {
     
         if (vehicleType === 'car') {
           response = await axios.put(
-            `http://localhost:8080/auth/car/status/${formData.vehicleDetails}`,
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         } 
         else if (vehicleType === 'organization') {
           response = await axios.put(
-            `http://localhost:8080/auth/organization-car/status/${formData.vehicleDetails}`,
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         } 
         else if (vehicleType === 'rent') { // Changed from your second 'organization' check
           response = await axios.put(
-            `http://localhost:8080/auth/rent-car/status/${formData.vehicleDetails}`,
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.vehicleDetails}`,
             statusUpdate
           );
         }
@@ -911,7 +911,7 @@ if (!validVehicleTypes.includes(vehicleType)) {
     // Refresh the requests
     let finishedRequests;
     const data = await TravelApi.getDriverRequests();
-    finishedRequests = data.filter(request => request.status === 'COMPLETED');
+    finishedRequests = data.filter(request => request.status === 'ACCEPTED');
     setRequests(finishedRequests);
     setFilteredRequests(finishedRequests);
     
@@ -1629,7 +1629,7 @@ const renderDriverModal = () => (
       ) : actorType === 'driver' ? (
         <motion.div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
           <div className="flex justify-between items-start mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">My Completed Trips</h2>
+            <h2 className="text-2xl font-semibold text-gray-800">My ACCEPTED Trips</h2>
             <div className="relative">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <FiSearch className="text-gray-400" />
@@ -1649,7 +1649,7 @@ const renderDriverModal = () => (
               {driverSearchQuery.trim() === '' ? (
                 <div className="text-gray-500 max-w-md mx-auto">
                   <FiSearch className="mx-auto text-3xl mb-4 text-blue-500" />
-                  <h4 className="font-medium text-lg mb-2">Find Your Completed Trips</h4>
+                  <h4 className="font-medium text-lg mb-2">Find Your ACCEPTED Trips</h4>
                   <p className="mb-4">
                     Enter your exact registered driver name to view your trips.
                   </p>
@@ -1659,7 +1659,7 @@ const renderDriverModal = () => (
                   <FiAlertCircle className="mx-auto text-3xl mb-4 text-yellow-500" />
                   <h4 className="font-medium text-lg mb-2">No Trips Found</h4>
                   <p className="mb-3">
-                    No completed trips found for: <span className="font-semibold">"{driverSearchQuery}"</span>
+                    No ACCEPTED trips found for: <span className="font-semibold">"{driverSearchQuery}"</span>
                   </p>
                   <p className="text-sm text-gray-400">
                     Make sure you entered your name exactly as registered
@@ -2082,7 +2082,7 @@ const renderDriverModal = () => (
                           </motion.button>
                         </div>
                       )}
-                    </form>
+                    </form> 
                   </div>
                 </motion.div>
               </div>
@@ -2238,7 +2238,8 @@ const renderDriverModal = () => (
         name="assignedDriver"
         placeholder="Auto-filled from plate selection"
         value={formData.assignedDriver}
-        readOnly
+     onChange={handleChange}
+
         className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
       />
       {errors.assignedDriver && (
@@ -2259,7 +2260,7 @@ const renderDriverModal = () => (
         className={`w-full px-4 py-2 rounded-lg border ${
           errors.serviceProviderName ? 'border-red-500' : 'border-gray-300'
         } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-        placeholder="Company name"
+        placeholder="Distributor manager name"
       />
       {errors.serviceProviderName && (
         <p className="mt-1 text-sm text-red-500">{errors.serviceProviderName}</p>

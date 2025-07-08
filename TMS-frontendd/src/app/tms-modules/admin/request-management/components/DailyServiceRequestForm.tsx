@@ -520,19 +520,19 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       
           if (vehicleType === 'car') {
             response = await axios.put(
-              `http://localhost:8080/auth/car/status/${formData.plateNumber}`,
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
           else if (vehicleType === 'organization') {
             response = await axios.put(
-              `http://localhost:8080/auth/organization-car/status/${formData.plateNumber}`,
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
           else if (vehicleType === 'rent') {
             response = await axios.put(
-              `http://localhost:8080/auth/rent-car/status/${formData.plateNumber}`,
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           }
@@ -600,19 +600,19 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       
           if (vehicleType === 'car') {
             response = await axios.put(
-              `http://localhost:8080/auth/car/status/${formData.plateNumber}`,
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
           else if (vehicleType === 'organization') {
             response = await axios.put(
-              `http://localhost:8080/auth/organization-car/status/${formData.plateNumber}`,
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
           else if (vehicleType === 'rent') {
             response = await axios.put(
-              `http://localhost:8080/auth/rent-car/status/${formData.plateNumber}`,
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           }

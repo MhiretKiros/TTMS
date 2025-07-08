@@ -37,7 +37,7 @@ interface MaintenanceRecord {
   problemResolutionDetails?: string;
 }
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 
 // A reusable component to display repair details in a structured card format
 const RepairDetailView = ({ title, details }: { title:string; details: RepairDetails | null }) => {

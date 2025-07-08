@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX } from 'react-icons/fi';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 
 type CarSeatInfo = {
   id: string | number;

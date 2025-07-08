@@ -66,7 +66,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     if (!formData.motorCapacity) newErrors.motorCapacity = 'Motor capacity is required';
     if (!formData.kmPerLiter) newErrors.kmPerLiter = 'KM per liter is required';
     if (!formData.totalKm) newErrors.totalKm = 'Total KM is required';
-    if (!formData.parkingLocation) newErrors.parkingLocation = 'Parking location is required';
+    
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

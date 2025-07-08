@@ -1,7 +1,7 @@
 // src/api/handlers.ts
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api/travel-requests';
+const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/travel-requests';
 
 export interface TravelRequest {
   id?: number;
@@ -99,7 +99,7 @@ export const TravelApi = {
 
   completeTravelRequest: async (data: any) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/travel-requests/${data.id}/complete`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/travel-requests/${data.id}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

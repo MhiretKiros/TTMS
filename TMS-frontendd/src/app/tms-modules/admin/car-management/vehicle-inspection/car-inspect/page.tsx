@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheck, FiX, FiAlertTriangle, FiChevronRight, FiInfo } from 'react-icons/fi';
 // Consider using a toast library for better user feedback
-// import { toast } from 'react-toastify';
+import { Toaster, toast } from 'react-hot-toast';
 
 // Enums (InspectionStatus, ServiceStatus, SeverityLevel) remain the same
 enum InspectionStatus {
@@ -32,7 +32,7 @@ const CRITICAL_MECHANICAL_CHECKS: (keyof MechanicalInspection)[] = [
 ];
 
 // API Base URL (Consider moving to .env.local)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '${process.env.NEXT_PUBLIC_API_BASE_URL}/api';
 
 // --- Types --- (CarType, Car, ItemCondition, MechanicalInspection, BodyInspection, InteriorInspection, InspectionResultState, InspectionPayload) remain the same
 type CarType = 'personal' | 'organization' | 'rented';
@@ -372,7 +372,7 @@ const Phase1MechanicalInspection = React.memo(({
   // --- MODIFIED SUBMIT HANDLER ---
   const handlePhase1SubmitInternal = useCallback(async () => {
     if (!localInspectorName.trim()) {
-        alert("Please enter the inspector's name.");
+        toast.error("Please enter the inspector's name.");
         return;
     }
     onNameFinalized(localInspectorName);
@@ -699,7 +699,7 @@ export default function CarInspectPage() {
     // // Check for token existence and basic JWT format (at least two dots)
     // if (!token || token.trim() === '' || token.split('.').length < 3) {
     //   console.error('No valid authentication token found.');
-    //   alert('Authentication error. Please log in again.'); // Keep alert for critical auth errors
+    //   toast.error('Authentication error. Please log in again.');
     //   setIsLoading(false);
     //   // Consider redirecting to login if applicable:
     //   // router.push('/login');
@@ -763,7 +763,7 @@ export default function CarInspectPage() {
       console.log('Submission successful:', result);
 
       if (result && result.id && payload.plateNumber) { // Ensure ID and plateNumber exist
-        alert('Inspection submitted successfully!'); // Keep alert for primary success
+        toast.success('Inspection submitted successfully!');
 
         // 2. Update the car's status - NOW WE WAIT for this to finish
         console.log("Waiting for car status update...");
@@ -785,7 +785,7 @@ export default function CarInspectPage() {
 
       } else {
         console.warn("Submission successful, but missing ID or PlateNumber for status update:", result, payload.plateNumber);
-        alert('Inspection submitted, but could not retrieve necessary info for car status update. Redirecting to list.'); // Keep alert for this edge case
+        toast.warn('Inspection submitted, but could not retrieve necessary info for car status update. Redirecting to list.');
         router.push('/tms-modules/admin/car-management/vehicle-inspection');
         return null;
       }
@@ -799,7 +799,7 @@ export default function CarInspectPage() {
 
     } catch (error: any) {
       console.error('Submission error:', error);
-      alert(`Submission failed: ${error.message || 'An unknown error occurred.'}`); // Keep alert for submission failure
+      toast.error(`Submission failed: ${error.message || 'An unknown error occurred.'}`);
       return null;
     } finally {
       setIsLoading(false);
@@ -811,7 +811,7 @@ export default function CarInspectPage() {
   // --- Final Submission Logic ---
   const handleSubmit = useCallback(async () => {
     if (!inspectorName.trim()) {
-        alert("Inspector name cannot be empty for final submission.");
+        toast.error("Inspector name cannot be empty for final submission.");
         return;
     }
 
@@ -1046,6 +1046,7 @@ export default function CarInspectPage() {
   // --- Main Render ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
+      <Toaster position="top-center" />
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Top Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}

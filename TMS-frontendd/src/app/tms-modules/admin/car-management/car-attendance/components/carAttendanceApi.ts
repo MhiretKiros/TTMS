@@ -1,8 +1,8 @@
 // c:\Users\biruk\Desktop\TMS\TMS-frontendd\src\app\tms-modules\admin\car-management\car-attendance\components\carAttendanceApi.ts
 
 // --- Constants ---
-const API_ATTENDANCE_BASE_URL = 'http://localhost:8080/api/car-attendance'; // For attendance specific endpoints
-const API_VEHICLES_BASE_URL = 'http://localhost:8080/api/vehicles'; // For vehicle specific endpoints
+const API_ATTENDANCE_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/car-attendance'; // For attendance specific endpoints
+const API_VEHICLES_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/vehicles'; // For vehicle specific endpoints
 
 // --- Frontend-specific Interfaces (mostly for mock functions or component state) ---
 export interface CarDetails {

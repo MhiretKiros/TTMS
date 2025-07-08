@@ -40,7 +40,7 @@ export const useNotification = (): NotificationContextType => {
 
 async function fetchAllInspectedBuses(): Promise<InspectedBus[]> {
   // Ensure this URL is correct and your backend is running
-  const res = await fetch('http://localhost:8080/auth/organization-car/service-buses');
+  const res = await fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/service-buses');
   if (!res.ok) throw new Error('Failed to fetch inspected vehicles');
   const data = await res.json();
   return (data.cars || data.organizationCarList || []).filter(
@@ -50,7 +50,7 @@ async function fetchAllInspectedBuses(): Promise<InspectedBus[]> {
 
 async function fetchAllAssignedRoutes(): Promise<AssignedRouteInfo[]> {
   // Ensure this URL is correct and your backend is running
-  const res = await fetch('http://localhost:8080/auth/organization-car/assigned-routes');
+  const res = await fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/assigned-routes');
   if (!res.ok) throw new Error('Failed to fetch assigned routes');
   const data = await res.json();
   return data.assignedRoutes || data || [];
@@ -58,7 +58,7 @@ async function fetchAllAssignedRoutes(): Promise<AssignedRouteInfo[]> {
 
 // Placeholder: Replace with your actual API call for newly registered cars
 async function fetchAllNewlyRegisteredCars(): Promise<NewlyRegisteredCar[]> {
-  // Example: const res = await fetch('http://localhost:8080/auth/organization-car/newly-registered');
+  // Example: const res = await fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/newly-registered');
   // if (!res.ok) throw new Error('Failed to fetch newly registered cars');
   // const data = await res.json();
   // return data.newCars || data || [];

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/auth/rent-car';
+const API_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -10,7 +10,7 @@ interface ApiResponse<T> {
 
 export const fetchRentCars = async (): Promise<ApiResponse<any[]>> => {
   try {
-    const response = await axios.get(`${API_URL}/all`);
+    const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/all`);
     const data = response.data;
 
     if (response.status !== 200) {

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { FiMapPin, FiAlertCircle, FiLoader, FiList } from 'react-icons/fi'; // Added FiList
 
-const API_BASE_URL = 'http://localhost:8080'; // Assuming Spring Boot runs on port 8080
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL // Assuming Spring Boot runs on port 8080
 
 type Waypoint = {
   latitude: number;

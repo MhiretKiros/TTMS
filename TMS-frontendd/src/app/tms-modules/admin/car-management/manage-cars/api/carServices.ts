@@ -1,7 +1,7 @@
 // src/app/true-modules/admin/car-management/api/carService.ts
 import { Car } from '../types';
 
-const API_BASE_URL = 'http://localhost:8080/auth/car';
+const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -11,7 +11,7 @@ export interface ApiResponse<T> {
 
 export const fetchCars = async (): Promise<ApiResponse<Car[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/all`);
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/all`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -137,7 +137,7 @@ export const fetchCarById = async (id: number): Promise<{
   car: Car | null;
 }> => {
   try {
-    const response = await fetch(`http://localhost:8080/auth/car/${id}`);
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/${id}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

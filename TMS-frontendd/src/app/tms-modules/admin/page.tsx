@@ -96,10 +96,10 @@ export default function AdminDashboard() {
       setLoading(true);
       try {
         const [carRes, orgCarRes, rentCarRes, assignRes] = await Promise.all([
-          fetch('http://localhost:8080/auth/car/all').then(r => r.json()),
-          fetch('http://localhost:8080/auth/organization-car/all').then(r => r.json()),
-          fetch('http://localhost:8080/auth/rent-car/all').then(r => r.json()),
-          fetch('http://localhost:8080/auth/assignment/all').then(r => r.json()),
+          fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all').then(r => r.json()),
+          fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all').then(r => r.json()),
+          fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all').then(r => r.json()),
+          fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignment/all').then(r => r.json()),
         ]);
         setCars(carRes.carList || []);
         setOrgCars(orgCarRes.organizationCarList || []);

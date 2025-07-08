@@ -1,7 +1,7 @@
 // src/api/handlers.ts
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api/travel-requests';
+const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/travel-requests';
 
 export interface TravelRequest {
   id?: number;
@@ -18,7 +18,8 @@ export interface TravelRequest {
   claimantName: string;
   teamLeaderName: string;
   approvement?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED'|'ENDED'|'ACCEPTED'| 'FINISHED'
+ | 'SUCCESED'|'ASSIGNED';
   serviceProviderName?: string;
   assignedCarType?: string;
   assignedDriver?: string;
@@ -106,7 +107,7 @@ export const TravelApi = {
     }
   },
 
-  async updateRequestStatus(id: number, status: 'APPROVED' | 'REJECTED'): Promise<TravelRequest> {
+  async updateRequestStatus(id: number, status: 'APPROVED' | 'REJECTED'|'ACCEPTED' | 'ENDED'): Promise<TravelRequest> {
     try {
       const response = await axios.patch(`${API_BASE_URL}/${id}/status`, null, {
         params: { status }
@@ -123,7 +124,7 @@ export const TravelApi = {
 // In handlers.ts
 async getDriverRequests(driverName?: string): Promise<TravelRequest[]> {
   try {
-    const params = driverName ? { params: { driverName, status: 'COMPLETED' } } : undefined;
+    const params = driverName ? { params: { driverName, status: 'ACCEPTED' } } : undefined;
     const response = await axios.get(`${API_BASE_URL}/driver`, params);
     return response.data.map((req: any) => ({
       ...parseDates(req),
@@ -375,23 +376,23 @@ async completeTrip(data: {
  // Add these to your TravelApi
 // Change these methods in the TravelApi object// CORRECT API ENDPOINTS
 async getAllCars() {
-  return axios.get('http://localhost:8080/auth/car/all');
+  return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all');
 },
 
 async getAllOrganizationCars() {
-  return axios.get('http://localhost:8080/auth/organization-car/all');
+  return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all');
 },
 
 async getAllRentCars() {
-  return axios.get('http://localhost:8080/auth/rent-car/all');
+  return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all');
 },
 
 updateCarStatus: (plateNumber: string, data: { status: string }) => 
-  axios.put(`http://localhost:8080/auth/car/status/${plateNumber}`, data),
+  axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${plateNumber}`, data),
 
 updateOrganizationCarStatus: (plateNumber: string, data: { status: string }) => 
-  axios.put(`http://localhost:8080/auth/organization-car/update/${plateNumber}`, data),
+  axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/update/${plateNumber}`, data),
 
 updateRentCarStatus: (plateNumber: string, data: { status: string }) => 
-  axios.put(`http://localhost:8080/auth/rent-car/update/${plateNumber}`, data),
+  axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/update/${plateNumber}`, data),
 };

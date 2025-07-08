@@ -341,7 +341,7 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
           throw new Error('assignmentHistoryId is required to mark as completed');
         }
         await updateCarOrRentCarStatus(vehicleData.plateNumber, 'In_transfer');
-      }
+      } 
 
       await Swal.fire({
         title: 'Success!',

@@ -1,26 +1,34 @@
-"use client"
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import axios from 'axios';
-import Swal from 'sweetalert2';
-import '@sweetalert2/theme-material-ui/material-ui.css';
-import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+"use client";
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import axios from "axios";
+import Swal from "sweetalert2";
+import "@sweetalert2/theme-material-ui/material-ui.css";
+import {
+  PDFDownloadLink,
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+} from "@react-pdf/renderer";
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDateString = (): string => {
   const today = new Date();
   const year = today.getFullYear();
-  const month = (today.getMonth() + 1).toString().padStart(2, '0');
-  const day = today.getDate().toString().padStart(2, '0');
+  const month = (today.getMonth() + 1).toString().padStart(2, "0");
+  const day = today.getDate().toString().padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
 interface Car {
-  id: string;
+  id: string; // Combined ID format "car-123" or "rent-456"
+  originalId: number; // Original numeric ID from backend
   plateNumber: string;
   model: string;
   status: string;
-  isRentCar?: boolean;
+  isRentCar: boolean;
 }
 
 interface FormData {
@@ -47,7 +55,9 @@ interface CarTransferFormProps {
   onSuccess?: () => void;
 }
 
-// PDF Document Component
+/* ------------------------------------------------------------------
+   PDF Document Component (unchanged)
+------------------------------------------------------------------ */
 const TransferPDFDocument = ({ formData }: { formData: FormData }) => (
   <Document>
     <Page size="A4" style={styles.page}>
@@ -166,260 +176,328 @@ const TransferPDFDocument = ({ formData }: { formData: FormData }) => (
   </Document>
 );
 
-// PDF Styles
+/* ------------------------------------------------------------------
+   PDF Styles (unchanged)
+------------------------------------------------------------------ */
 const styles = StyleSheet.create({
   page: {
     padding: 40,
-    fontFamily: 'Helvetica'
+    fontFamily: "Helvetica",
   },
   header: {
     marginBottom: 20,
-    textAlign: 'center'
+    textAlign: "center",
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 5
+    fontWeight: "bold",
+    marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666'
+    color: "#666",
   },
   section: {
-    marginBottom: 15
+    marginBottom: 15,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#000',
-    paddingBottom: 3
+    borderBottomColor: "#000",
+    paddingBottom: 3,
   },
   row: {
-    flexDirection: 'row',
-    marginBottom: 10
+    flexDirection: "row",
+    marginBottom: 10,
   },
   column: {
-    width: '50%',
-    paddingRight: 10
+    width: "50%",
+    paddingRight: 10,
   },
   fullWidth: {
-    width: '100%',
-    marginBottom: 10
+    width: "100%",
+    marginBottom: 10,
   },
   label: {
     fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 3
+    fontWeight: "bold",
+    marginBottom: 3,
   },
   value: {
     fontSize: 12,
     paddingBottom: 5,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd'
+    borderBottomColor: "#ddd",
   },
   signatureSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 50
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 50,
   },
   signatureBox: {
-    width: '30%',
+    width: "30%",
     borderTopWidth: 1,
-    borderTopColor: '#000',
+    borderTopColor: "#000",
     paddingTop: 10,
-    textAlign: 'center'
+    textAlign: "center",
   },
   footer: {
     marginTop: 30,
     fontSize: 10,
-    textAlign: 'center',
-    color: '#999'
-  }
+    textAlign: "center",
+    color: "#999",
+  },
 });
 
-const CarTransferForm: React.FC<CarTransferFormProps> = ({ 
-  initialData = {}, 
-  onClose, 
-  onSuccess 
+/* ------------------------------------------------------------------
+   Main Component
+------------------------------------------------------------------ */
+const CarTransferForm: React.FC<CarTransferFormProps> = ({
+  initialData = {},
+  onClose,
+  onSuccess,
 }) => {
   const [formData, setFormData] = useState<FormData>({
     transferDate: getTodayDateString(),
-    transferNumber: '',
-    oldPlateNumber: initialData.oldPlateNumber || '',
-    oldKmReading: initialData.oldKmReading || '',
-    designatedOfficial: initialData.designatedOfficial || '',
-    driverName: initialData.driverName || '',
-    transferReason: '',
-    oldFuelLiters: '',
-    newPlateNumber: '',
-    newKmReading: '',
-    currentDesignatedOfficial: '',
-    newFuelLiters: '',
-    verifyingBodyName: '',
-    authorizingOfficerName: '',
-    assignmentHistoryId: initialData.assignmentHistoryId?.toString() || '',
+    transferNumber: "",
+    oldPlateNumber: initialData.oldPlateNumber || "",
+    oldKmReading: initialData.oldKmReading || "",
+    designatedOfficial: initialData.designatedOfficial || "",
+    driverName: initialData.driverName || "",
+    transferReason: "",
+    oldFuelLiters: "",
+    newPlateNumber: "",
+    newKmReading: "",
+    currentDesignatedOfficial: "",
+    newFuelLiters: "",
+    verifyingBodyName: "",
+    authorizingOfficerName: "",
+    assignmentHistoryId: initialData.assignmentHistoryId?.toString() || "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableCars, setAvailableCars] = useState<Car[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredCars, setFilteredCars] = useState<Car[]>([]);
 
+  /* ------------------------------------------------------------------
+     Fetch cars in transfer (UNCHANGED)
+  ------------------------------------------------------------------ */
   useEffect(() => {
     const fetchAvailableCars = async () => {
       try {
         const [regularCarsResponse, rentCarsResponse] = await Promise.all([
-          axios.get('http://localhost:8080/auth/car/in-transfer'),
-          axios.get('http://localhost:8080/auth/rent-car/in-transfer')
+          axios.get("${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/in-transfer"),
+          axios.get("${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/in-transfer"),
         ]);
 
-        const regularCars: Car[] = regularCarsResponse.data?.carList?.map((car: any) => ({
-          id: car.id.toString(),
-          plateNumber: car.plateNumber,
-          model: car.model,
-          status: car.status,
-          isRentCar: false
-        })) || [];
+        const regularCars: Car[] =
+          regularCarsResponse.data?.carList?.map((car: any) => ({
+            id: `car-${car.id}`,
+            originalId: car.id,
+            plateNumber: car.plateNumber,
+            model: car.model,
+            status: car.status,
+            isRentCar: false,
+          })) || [];
 
-        const rentCars: Car[] = rentCarsResponse.data?.rentCarList?.map((car: any) => ({
-          id: `rent-${car.id}`,
-          plateNumber: car.plateNumber,
-          model: car.model,
-          status: car.status,
-          isRentCar: true
-        })) || [];
+        const rentCars: Car[] =
+          rentCarsResponse.data?.rentCarList?.map((car: any) => ({
+            id: `rent-${car.id}`,
+            originalId: car.id,
+            plateNumber: car.plateNumber,
+            model: car.model,
+            status: car.status,
+            isRentCar: true,
+          })) || [];
 
         setAvailableCars([...regularCars, ...rentCars]);
       } catch (error) {
-        console.error('Error fetching available cars:', error);
+        console.error("Error fetching available cars:", error);
       }
     };
 
     fetchAvailableCars();
   }, []);
 
+  /* ------------------------------------------------------------------
+     Filter dropdown results (UNCHANGED)
+  ------------------------------------------------------------------ */
   useEffect(() => {
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       setFilteredCars(
-        availableCars.filter(car => 
-          car.plateNumber.toLowerCase().includes(term) ||
-          car.model.toLowerCase().includes(term)
-      ));
+        availableCars.filter(
+          (car) =>
+            car.plateNumber.toLowerCase().includes(term) ||
+            car.model.toLowerCase().includes(term)
+        )
+      );
     } else {
       setFilteredCars(availableCars);
     }
   }, [searchTerm, availableCars]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  /* ------------------------------------------------------------------
+     Handlers (mostly unchanged)
+  ------------------------------------------------------------------ */
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleNewPlateNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleNewPlateNumberChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setSearchTerm(e.target.value);
     setShowDropdown(true);
   };
 
   const selectCar = (car: Car) => {
-    setFormData(prev => ({ ...prev, newPlateNumber: car.plateNumber }));
+    setFormData((prev) => ({ ...prev, newPlateNumber: car.plateNumber }));
     setSearchTerm(car.plateNumber);
     setShowDropdown(false);
   };
 
-  const updateCarStatus = async (plateNumber: string, status: string, isRentCar: boolean = false) => {
-    const endpoint = isRentCar 
-      ? `http://localhost:8080/auth/rent-car/status/${plateNumber}`
-      : `http://localhost:8080/auth/car/status/${plateNumber}`;
-    
+  /* ------------------------------------------------------------------
+     Utility requests (UNCHANGED except where noted)
+  ------------------------------------------------------------------ */
+  const updateCarStatus = async (
+    plateNumber: string,
+    status: string,
+    isRentCar: boolean = false
+  ) => {
+    const endpoint = isRentCar
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${plateNumber}`
+      : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${plateNumber}`;
+
     try {
       await axios.put(endpoint, { status });
     } catch (error) {
-      console.error(`Error updating ${isRentCar ? 'rent car' : 'car'} status:`, error);
+      console.error(`Error updating ${isRentCar ? "rent car" : "car"} status:`, error);
       throw error;
     }
   };
 
   const updateAssignmentHistory = async () => {
     try {
-      const newCar = availableCars.find(car => car.plateNumber === formData.newPlateNumber);
-      if (!newCar) throw new Error('Selected car not found');
+      const newCar = availableCars.find(
+        (car) => car.plateNumber === formData.newPlateNumber
+      );
+      if (!newCar) throw new Error("Selected car not found");
 
       await axios.put(
-        `http://localhost:8080/auth/car/assignments/update/${formData.assignmentHistoryId}`,
-        { 
-          status: 'Completed',
-          carIds: [newCar.id],
-          plateNumbers: newCar.plateNumber,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assignments/update/${formData.assignmentHistoryId}`,
+        {
+          status: "Completed",
+          carIds: [newCar.originalId],
+          plateNumber: newCar.plateNumber,
           allCarModels: newCar.model,
-          numberOfCar: "1/1"
+          numberOfCar: "1/1",
         }
       );
     } catch (error) {
-      console.error('Error updating assignment history:', error);
+      console.error("Error updating assignment history:", error);
       throw error;
     }
   };
 
+  /* ------------------------------------------------------------------
+     NEW: update VehicleAcceptance.assignmentHistoryId by plate
+  ------------------------------------------------------------------ */
+  const updateAcceptanceAssignment = async (plateNumber: string) => {
+    try {
+      await axios.put(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/vehicle-acceptance/plate/${plateNumber}`,
+        {
+          assignmentHistoryId:
+            formData.assignmentHistoryId && formData.assignmentHistoryId !== ""
+              ? parseInt(formData.assignmentHistoryId, 10)
+              : null,
+        },
+        { headers: { "Content-Type": "application/json" } }
+      );
+    } catch (error) {
+      console.error("Error updating VehicleAcceptance:", error);
+      throw error;
+    }
+  };
+
+  /* ------------------------------------------------------------------
+     Submit handler (updated with NEW call)
+  ------------------------------------------------------------------ */
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
+      /* Step 1: save transfer info */
       const transferPayload = {
         ...formData,
-        assignmentHistoryId: formData.assignmentHistoryId ? parseInt(formData.assignmentHistoryId) : null
+        assignmentHistoryId:
+          formData.assignmentHistoryId && formData.assignmentHistoryId !== ""
+            ? parseInt(formData.assignmentHistoryId, 10)
+            : null,
       };
-      
-      const transferResponse = await axios.post('http://localhost:8080/api/transfers', transferPayload, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
 
-      if (transferResponse.status !== 200 && transferResponse.status !== 201) {
-        throw new Error('Failed to save transfer info');
+      const transferResponse = await axios.post(
+        "${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers",
+        transferPayload,
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (![200, 201].includes(transferResponse.status)) {
+        throw new Error("Failed to save transfer info");
       }
 
-      const newCar = availableCars.find(car => car.plateNumber === formData.newPlateNumber);
-      if (!newCar) throw new Error('Selected car not found');
+      /* Step 2: locate new car */
+      const newCar = availableCars.find(
+        (car) => car.plateNumber === formData.newPlateNumber
+      );
+      if (!newCar) throw new Error("Selected car not found");
 
+      /* Step 3: update assignment history & car statuses */
       await updateAssignmentHistory();
-      await updateCarStatus(formData.oldPlateNumber, 'In_transfer');
-      await updateCarStatus(formData.newPlateNumber, 'Assigned', newCar.isRentCar);
+      await updateCarStatus(formData.oldPlateNumber, "In_transfer");
+      await updateCarStatus(formData.newPlateNumber, "Assigned", newCar.isRentCar);
 
+      /* Step 4: NEW → update assignmentHistoryId on VehicleAcceptance */
+      await updateAcceptanceAssignment(formData.newPlateNumber);
+
+      /* Step 5: success UI */
       Swal.fire({
-        title: 'Success!',
-        text: 'Transfer completed successfully and vehicle statuses updated',
-        icon: 'success',
+        title: "Success!",
+        text: "Transfer completed successfully and vehicle statuses updated",
+        icon: "success",
         timer: 2000,
-        showConfirmButton: false
+        showConfirmButton: false,
       });
 
-      if (onSuccess) onSuccess();
+      onSuccess?.();
     } catch (error: any) {
-      console.error('Error during transfer:', error);
-      
-      let errorMessage = 'An unexpected error occurred';
+      console.error("Error during transfer:", error);
+      let errorMessage = "An unexpected error occurred";
       if (error.response) {
         errorMessage = error.response.data.message || error.response.data;
       } else if (error.message) {
         errorMessage = error.message;
       }
-
-      Swal.fire({
-        title: 'Error!',
-        text: errorMessage,
-        icon: 'error'
-      });
+      Swal.fire({ title: "Error!", text: errorMessage, icon: "error" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  /* ------------------------------------------------------------------
+     Render JSX (unchanged except hidden assignmentHistoryId input)
+  ------------------------------------------------------------------ */
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -427,9 +505,10 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
       transition={{ duration: 0.5 }}
       className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden my-8 border border-gray-200"
     >
+      {/* Header + PDF button */}
       <div className="flex justify-between items-center p-8 pb-4">
         <h2 className="text-3xl font-bold text-blue-600">Vehicle Transfer Form</h2>
-        <PDFDownloadLink 
+        <PDFDownloadLink
           document={<TransferPDFDocument formData={formData} />}
           fileName="vehicle_transfer.pdf"
         >
@@ -441,11 +520,20 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
               disabled={loading}
             >
               {loading ? (
-                'Preparing PDF...'
+                "Preparing PDF..."
               ) : (
                 <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                   Download PDF
                 </>
@@ -454,8 +542,9 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
           )}
         </PDFDownloadLink>
       </div>
-      
-      <form onSubmit={handleSubmit} className="p-8 pt-4 space-y-8">
+
+      {/* Form */}
+       <form onSubmit={handleSubmit} className="p-8 pt-4 space-y-8">
         <input 
           type="hidden" 
           name="assignmentHistoryId" 
@@ -584,3 +673,10 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
 };
 
 export default CarTransferForm;
+
+
+
+
+
+ 
+  

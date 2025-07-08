@@ -13,9 +13,9 @@ import axios from 'axios';
 import { MaintenanceRequest } from '../api/handlers';
 import RequestsTable from './RequestsTable';
 
-const API_BASE_URL = 'http://localhost:8080/api/maintenance-requests';
-const CARS_API_URL = 'http://localhost:8080/auth/rent-car/all';
-const CAR_STATUS_API_URL = 'http://localhost:8080/auth/rent-car/status';
+const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/maintenance-requests';
+const CARS_API_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all';
+const CAR_STATUS_API_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status';
  
 interface MaintenanceRequestFormProps {
   requestId?: number;
@@ -891,7 +891,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                   placeholder="Current km will auto-fill"
                   min="0"
                   step="0.1"
-                  readOnly
+                  
                 />
                 {errors.kilometerReading && (
                   <p className="mt-1 text-sm text-red-500 flex items-center">
@@ -1360,7 +1360,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                 <FiCheckCircle className="mr-2" />
                 Approve
               </button>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => handleStatusChange(selectedRequest.id, 'REJECTED')}
                 disabled={isApproving}
@@ -1372,7 +1372,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
               >
                 <FiAlertCircle className="mr-2" />
                 Reject
-              </button>
+              </button> */}
             </div>
           )}
 
@@ -1391,7 +1391,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                 <FiCheckCircle className="mr-2" />
                 Approve
               </button>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => handleStatusChange(selectedRequest.id, 'REJECTED')}
                 disabled={isApproving}
@@ -1403,7 +1403,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
               >
                 <FiAlertCircle className="mr-2" />
                 Reject
-              </button>
+              </button> */}
             </div>
           )}
 

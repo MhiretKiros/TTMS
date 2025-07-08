@@ -156,9 +156,9 @@ export default function AssignCarManagerForm() {
   const fetchData = useCallback(async () => {
     try {
       const [carsResponse, rentCarsResponse, pendingResponse] = await Promise.all([
-        axios.get('http://localhost:8080/auth/car/approved'),
-        axios.get('http://localhost:8080/auth/rent-car/approved'),
-        axios.get('http://localhost:8080/auth/assignments/pending')
+        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved'),
+        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved'),
+        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending')
       ]);
 
       const allAvailableCars = [];
@@ -298,7 +298,7 @@ export default function AssignCarManagerForm() {
           numberOfCar: `0/${formData.selectedModels.length}`
         };
 
-        const response = await axios.post('http://localhost:8080/auth/car/assign', payload);
+        const response = await axios.post('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign', payload);
   
         if (response.data.codStatus === 200) {
           setAssignmentResult({
@@ -380,7 +380,7 @@ export default function AssignCarManagerForm() {
 
       await Promise.all(
         proposedCars.map(car => 
-          axios.put(`http://localhost:8080/auth/car/status/${car.plateNumber}`, {
+          axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${car.plateNumber}`, {
             status: 'Assigned',
             assignmentDate: new Date().toISOString().split('T')[0]
           })
@@ -397,7 +397,7 @@ export default function AssignCarManagerForm() {
         numberOfCar
       };
 
-      const response = await axios.post('http://localhost:8080/auth/car/assign', payload);
+      const response = await axios.post('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign', payload);
   
       if (response.data.codStatus === 200) {
         setAssignmentResult({
@@ -575,24 +575,56 @@ export default function AssignCarManagerForm() {
                   />
                 </div>
               </motion.div>
-  
-              <motion.div whileHover={{ scale: 1.02 }}>
-                <div className="form-group">
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Travel/Work Percentage
+
+              <motion.div whileHover={{ scale: 1.05 }}>
+              <div className="form-group">
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Car Models (Max 3)
                   </label>
-                  <select
-                    name="travelWorkPercentage"
-                    value={formData.travelWorkPercentage}
-                    onChange={handleChange}
-                    className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
+                  <button
+                    type="button"
+                    onClick={() => setShowCarModelDropdown(!showCarModelDropdown)}
+                    className={`w-full px-4 py-3 rounded-lg border ${
+                      errors.selectedModels ? 'border-red-500' : 'border-gray-300'
+                    } text-left flex justify-between items-center bg-gray-50`}
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
+                    {formData.selectedModels.length > 0 
+                      ? formData.selectedModels.join(', ')
+                      : 'Select car models'}
+                    <FiChevronDown className={`transition-transform ${showCarModelDropdown ? 'transform rotate-180' : ''}`} />
+                  </button>
+                  
+                  {showCarModelDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-2 max-h-60 overflow-y-auto">
+                      {STATIC_CAR_MODELS.map(model => (
+                        <div key={model} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <input
+                            type="checkbox"
+                            id={`car-${model}`}
+                            checked={formData.selectedModels.includes(model)}
+                            onChange={() => handleModelSelect(model)}
+                            disabled={!formData.selectedModels.includes(model) && formData.selectedModels.length >= 3}
+                            className="mr-2"
+                          />
+                          <label htmlFor={`car-${model}`} className="cursor-pointer">
+                            {model}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {errors.selectedModels && (
+                    <p className="mt-1 text-sm text-red-500">{errors.selectedModels}</p>
+                  )}
+                  {formData.selectedModels.length > 0 && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Selected: {formData.selectedModels.length}/3
+                    </p>
+                  )}
                 </div>
-              </motion.div>
+              </div>
+            </motion.div>
   
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
@@ -653,55 +685,23 @@ export default function AssignCarManagerForm() {
             </motion.div>
   
             {/* Car Model Selection */}
-            <motion.div whileHover={{ scale: 1.05 }}>
-              <div className="form-group">
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Car Models (Max 3)
+           <motion.div whileHover={{ scale: 1.02 }}>
+                <div className="form-group">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Travel/Work Percentage
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowCarModelDropdown(!showCarModelDropdown)}
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.selectedModels ? 'border-red-500' : 'border-gray-300'
-                    } text-left flex justify-between items-center bg-gray-50`}
+                  <select
+                    name="travelWorkPercentage"
+                    value={formData.travelWorkPercentage}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
                   >
-                    {formData.selectedModels.length > 0 
-                      ? formData.selectedModels.join(', ')
-                      : 'Select car models'}
-                    <FiChevronDown className={`transition-transform ${showCarModelDropdown ? 'transform rotate-180' : ''}`} />
-                  </button>
-                  
-                  {showCarModelDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-2 max-h-60 overflow-y-auto">
-                      {STATIC_CAR_MODELS.map(model => (
-                        <div key={model} className="flex items-center p-2 hover:bg-gray-100 rounded">
-                          <input
-                            type="checkbox"
-                            id={`car-${model}`}
-                            checked={formData.selectedModels.includes(model)}
-                            onChange={() => handleModelSelect(model)}
-                            disabled={!formData.selectedModels.includes(model) && formData.selectedModels.length >= 3}
-                            className="mr-2"
-                          />
-                          <label htmlFor={`car-${model}`} className="cursor-pointer">
-                            {model}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {errors.selectedModels && (
-                    <p className="mt-1 text-sm text-red-500">{errors.selectedModels}</p>
-                  )}
-                  {formData.selectedModels.length > 0 && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Selected: {formData.selectedModels.length}/3
-                    </p>
-                  )}
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
           </div>
   
           <motion.div 

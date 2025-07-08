@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { FiAlertCircle, FiCheckCircle, FiLoader, FiSend, FiEdit, FiList, FiXCircle } from 'react-icons/fi';
 import { fetchFuelRequests, headMechanicReview, nezekReview } from './services';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
+
 const FUEL_REQUEST_API_URL = `${API_BASE_URL}/api/fuel-requests`;
 
 interface RequestFillDetails {

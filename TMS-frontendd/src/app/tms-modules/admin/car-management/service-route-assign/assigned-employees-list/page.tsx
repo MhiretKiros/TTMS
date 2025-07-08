@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FiUsers, FiLoader, FiAlertCircle, FiPlusCircle } from 'react-icons/fi';
 
-const API_BASE_URL = 'http://localhost:8080'; // Assuming Spring Boot runs on port 8080
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL // Assuming Spring Boot runs on port 8080
 
 type RegisteredEmployee = {
   employeeId: string | number;
