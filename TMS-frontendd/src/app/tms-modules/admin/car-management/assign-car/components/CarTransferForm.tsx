@@ -11,7 +11,9 @@ import {
   Text,
   View,
   StyleSheet,
+  Image,
 } from "@react-pdf/renderer";
+import insaprofile from "../images/insaprofile.png";
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDateString = (): string => {
@@ -21,7 +23,7 @@ const getTodayDateString = (): string => {
   const day = today.getDate().toString().padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 interface Car {
   id: string; // Combined ID format "car-123" or "rent-456"
   originalId: number; // Original numeric ID from backend
@@ -56,203 +58,323 @@ interface CarTransferFormProps {
 }
 
 /* ------------------------------------------------------------------
-   PDF Document Component (unchanged)
------------------------------------------------------------------- */
-const TransferPDFDocument = ({ formData }: { formData: FormData }) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      <View style={styles.header}>
-        <Text style={styles.title}>VEHICLE TRANSFER FORM</Text>
-        <Text style={styles.subtitle}>Official Document</Text>
-      </View>
-
-      {/* Transfer Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Transfer Information</Text>
-        <View style={styles.row}>
-          <View style={styles.column}>
-            <Text style={styles.label}>Transfer Date:</Text>
-            <Text style={styles.value}>{formData.transferDate}</Text>
-          </View>
-          <View style={styles.column}>
-            <Text style={styles.label}>Transfer Number:</Text>
-            <Text style={styles.value}>{formData.transferNumber}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Original Vehicle Details */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Original Vehicle Details</Text>
-        <View style={styles.row}>
-          <View style={styles.column}>
-            <Text style={styles.label}>Plate Number:</Text>
-            <Text style={styles.value}>{formData.oldPlateNumber}</Text>
-          </View>
-          <View style={styles.column}>
-            <Text style={styles.label}>KM Reading:</Text>
-            <Text style={styles.value}>{formData.oldKmReading}</Text>
-          </View>
-        </View>
-        <View style={styles.row}>
-          <View style={styles.column}>
-            <Text style={styles.label}>Designated Official:</Text>
-            <Text style={styles.value}>{formData.designatedOfficial}</Text>
-          </View>
-          <View style={styles.column}>
-            <Text style={styles.label}>Driver's Name:</Text>
-            <Text style={styles.value}>{formData.driverName}</Text>
-          </View>
-        </View>
-        <View style={styles.row}>
-          <View style={styles.column}>
-            <Text style={styles.label}>Fuel Level:</Text>
-            <Text style={styles.value}>{formData.oldFuelLiters}</Text>
-          </View>
-        </View>
-        <View style={styles.fullWidth}>
-          <Text style={styles.label}>Transfer Reason:</Text>
-          <Text style={styles.value}>{formData.transferReason}</Text>
-        </View>
-      </View>
-
-      {/* Substitute Vehicle */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Assigned Substitute Vehicle</Text>
-        <View style={styles.row}>
-          <View style={styles.column}>
-            <Text style={styles.label}>New Plate Number:</Text>
-            <Text style={styles.value}>{formData.newPlateNumber}</Text>
-          </View>
-          <View style={styles.column}>
-            <Text style={styles.label}>KM Reading:</Text>
-            <Text style={styles.value}>{formData.newKmReading}</Text>
-          </View>
-        </View>
-        <View style={styles.row}>
-          <View style={styles.column}>
-            <Text style={styles.label}>Current Official:</Text>
-            <Text style={styles.value}>{formData.currentDesignatedOfficial}</Text>
-          </View>
-          <View style={styles.column}>
-            <Text style={styles.label}>Fuel Level:</Text>
-            <Text style={styles.value}>{formData.newFuelLiters}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Verification */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Verification & Authorization</Text>
-        <View style={styles.row}>
-          <View style={styles.column}>
-            <Text style={styles.label}>Verifying Body:</Text>
-            <Text style={styles.value}>{formData.verifyingBodyName}</Text>
-          </View>
-          <View style={styles.column}>
-            <Text style={styles.label}>Authorizing Officer:</Text>
-            <Text style={styles.value}>{formData.authorizingOfficerName}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Signatures */}
-      <View style={styles.signatureSection}>
-        <View style={styles.signatureBox}>
-          <Text>Driver's Signature</Text>
-        </View>
-        <View style={styles.signatureBox}>
-          <Text>Receiving Official</Text>
-        </View>
-        <View style={styles.signatureBox}>
-          <Text>Authorizing Officer</Text>
-        </View>
-      </View>
-
-      <View style={styles.footer}>
-        <Text>Generated on {new Date().toLocaleDateString()}</Text>
-      </View>
-    </Page>
-  </Document>
-);
-
-/* ------------------------------------------------------------------
-   PDF Styles (unchanged)
+   PDF Styles - Updated to match INSA ISO format
 ------------------------------------------------------------------ */
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
-    fontFamily: "Helvetica",
+    paddingTop: 100,  // Increased from 80 to give more space
+    paddingBottom: 60,
+    paddingHorizontal: 40,
+    fontFamily: 'Helvetica',
+    position: 'relative',
+    fontSize: 10,
+    lineHeight: 1.4
   },
   header: {
-    marginBottom: 20,
-    textAlign: "center",
+    position: 'absolute',
+    top: 20,
+    left: 40,
+    right: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    borderBottomStyle: 'solid',
+    paddingBottom: 15,  // Increased padding
+    marginBottom: 20,   // Increased margin
+    flexDirection: 'column'
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
+  headerTable: {
+    width: '100%',
+    flexDirection: 'row',
     marginBottom: 5,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'solid'
   },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
+  headerTableCell: {
+    padding: 5,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'solid',
+    verticalAlign: 'top' as 'top'
+  },
+  headerLeft: {
+    width: '20%',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  headerCenter: {
+    width: '60%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center'
+  },
+  headerRight: {
+    width: '20%',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    textAlign: 'right'
+  },
+  headerTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 3
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    marginBottom: 3
+  },
+  headerInfo: {
+    fontSize: 8,
+    marginBottom: 3
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 40,
+    right: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#000',
+    borderTopStyle: 'solid',
+    paddingTop: 10,
+    flexDirection: 'column',
+    fontSize: 8,
+    textAlign: 'center'
   },
   section: {
-    marginBottom: 15,
+    marginBottom: 25,
+    breakInside: 'avoid'
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 14,
+    fontWeight: 'bold',
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#000",
-    paddingBottom: 3,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
+    paddingBottom: 3
   },
   row: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginBottom: 10,
   },
   column: {
-    width: "50%",
+    width: '50%',
     paddingRight: 10,
   },
   fullWidth: {
-    width: "100%",
+    width: '100%',
     marginBottom: 10,
   },
   label: {
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: 10,
+    fontWeight: 'bold',
     marginBottom: 3,
   },
   value: {
-    fontSize: 12,
+    fontSize: 10,
     paddingBottom: 5,
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    borderBottomColor: '#ddd',
   },
   signatureSection: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 50,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 30,
   },
   signatureBox: {
-    width: "30%",
+    width: '30%',
     borderTopWidth: 1,
-    borderTopColor: "#000",
+    borderTopColor: '#000',
     paddingTop: 10,
-    textAlign: "center",
+    textAlign: 'center',
+    fontSize: 9,
   },
-  footer: {
-    marginTop: 30,
+  carCard: {
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderStyle: 'solid',
+    borderRadius: 3,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: '#f9f9f9'
+  },
+  carHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderBottomStyle: 'solid',
+    paddingBottom: 3
+  },
+  carPlate: {
+    fontSize: 11,
+    fontWeight: 'bold'
+  },
+  carType: {
     fontSize: 10,
-    textAlign: "center",
-    color: "#999",
+    color: '#555'
   },
+  pageNumber: {
+    position: 'absolute',
+    fontSize: 10,
+    bottom: 30,
+    left: 0,
+    right: 0,
+    textAlign: 'center'
+  }
 });
 
 /* ------------------------------------------------------------------
-   Main Component
+   PDF Document Component - Updated to match INSA format
+------------------------------------------------------------------ */
+const TransferPDFDocument = ({ formData }: { formData: FormData }) => {
+  const currentDate = new Date().toLocaleDateString();
+  const letterNumber = `INS/TRF/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`;
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page} wrap>
+        {/* Header - INSA format */}
+        <View fixed style={styles.header}>
+          <View style={styles.headerTable}>
+            <View style={[styles.headerTableCell, styles.headerLeft]}>
+              <Image src={insaprofile.src} style={{ width: 50, height: 50 }} />
+            </View>
+            
+            <View style={[styles.headerTableCell, styles.headerCenter]}>
+              <Text style={styles.headerTitle}>
+                INFORMATION NETWORK SECURITY ADMINISTRATION
+              </Text>
+              
+              <Text style={styles.headerSubtitle}>
+                VEHICLE TRANSFER FORM
+              </Text>
+            </View>
+            
+            <View style={[styles.headerTableCell, styles.headerRight]}>
+              <Text style={styles.headerInfo}>Letter No: {letterNumber}</Text>
+              <Text style={styles.headerInfo}>Date: {currentDate}</Text>
+              <Text style={styles.headerInfo}>Page: 1 of 1</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Transfer Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Transfer Information</Text>
+          <View style={styles.row}>
+            <View style={styles.column}>
+              <Text style={styles.label}>Transfer Date:</Text>
+              <Text style={styles.value}>{formData.transferDate}</Text>
+            </View>
+            <View style={styles.column}>
+              <Text style={styles.label}>Transfer Number:</Text>
+              <Text style={styles.value}>{formData.transferNumber}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Original Vehicle Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Original Vehicle Details</Text>
+          <View style={styles.row}>
+            <View style={styles.column}>
+              <Text style={styles.label}>Plate Number:</Text>
+              <Text style={styles.value}>{formData.oldPlateNumber}</Text>
+            </View>
+            <View style={styles.column}>
+              <Text style={styles.label}>KM Reading:</Text>
+              <Text style={styles.value}>{formData.oldKmReading}</Text>
+            </View>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.column}>
+              <Text style={styles.label}>Designated Official:</Text>
+              <Text style={styles.value}>{formData.designatedOfficial}</Text>
+            </View>
+            <View style={styles.column}>
+              <Text style={styles.label}>Driver's Name:</Text>
+              <Text style={styles.value}>{formData.driverName}</Text>
+            </View>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.column}>
+              <Text style={styles.label}>Fuel Level:</Text>
+              <Text style={styles.value}>{formData.oldFuelLiters}</Text>
+            </View>
+          </View>
+          <View style={styles.fullWidth}>
+            <Text style={styles.label}>Transfer Reason:</Text>
+            <Text style={styles.value}>{formData.transferReason}</Text>
+          </View>
+        </View>
+
+        {/* Substitute Vehicle */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Assigned Substitute Vehicle</Text>
+          <View style={styles.row}>
+            <View style={styles.column}>
+              <Text style={styles.label}>New Plate Number:</Text>
+              <Text style={styles.value}>{formData.newPlateNumber}</Text>
+            </View>
+            <View style={styles.column}>
+              <Text style={styles.label}>KM Reading:</Text>
+              <Text style={styles.value}>{formData.newKmReading}</Text>
+            </View>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.column}>
+              <Text style={styles.label}>Current Official:</Text>
+              <Text style={styles.value}>{formData.currentDesignatedOfficial}</Text>
+            </View>
+            <View style={styles.column}>
+              <Text style={styles.label}>Fuel Level:</Text>
+              <Text style={styles.value}>{formData.newFuelLiters}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Verification */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Verification & Authorization</Text>
+          <View style={styles.row}>
+            <View style={styles.column}>
+              <Text style={styles.label}>Verifying Body:</Text>
+              <Text style={styles.value}>{formData.verifyingBodyName}</Text>
+            </View>
+            <View style={styles.column}>
+              <Text style={styles.label}>Authorizing Officer:</Text>
+              <Text style={styles.value}>{formData.authorizingOfficerName}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Signatures */}
+        <View style={styles.signatureSection}>
+          <View style={styles.signatureBox}>
+            <Text>Driver's Signature</Text>
+          </View>
+          <View style={styles.signatureBox}>
+            <Text>Receiving Official</Text>
+          </View>
+          <View style={styles.signatureBox}>
+            <Text>Authorizing Officer</Text>
+          </View>
+        </View>
+
+        {/* Footer - INSA format */}
+        <View fixed style={styles.footer}>
+          <Text>INFORMATION NETWORK SECURITY ADMINISTRATION</Text>
+          <Text>Make sure whether the letter is correct or not before use</Text>
+        </View>
+      </Page>
+    </Document>
+  );
+};
+
+/* ------------------------------------------------------------------
+   Main Component (unchanged except for PDFDownloadLink styling)
 ------------------------------------------------------------------ */
 const CarTransferForm: React.FC<CarTransferFormProps> = ({
   initialData = {},
@@ -290,8 +412,8 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
     const fetchAvailableCars = async () => {
       try {
         const [regularCarsResponse, rentCarsResponse] = await Promise.all([
-          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/in-transfer`),
-          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/in-transfer`),
+          axios.get(`${API_BASE_URL}/auth/car/in-transfer`),
+          axios.get(`${API_BASE_URL}/auth/rent-car/in-transfer`),
         ]);
 
         const regularCars: Car[] =
@@ -342,7 +464,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
   }, [searchTerm, availableCars]);
 
   /* ------------------------------------------------------------------
-     Handlers (mostly unchanged)
+     Handlers (unchanged)
   ------------------------------------------------------------------ */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -365,7 +487,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
   };
 
   /* ------------------------------------------------------------------
-     Utility requests (UNCHANGED except where noted)
+     Utility requests (UNCHANGED)
   ------------------------------------------------------------------ */
   const updateCarStatus = async (
     plateNumber: string,
@@ -373,8 +495,8 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
     isRentCar: boolean = false
   ) => {
     const endpoint = isRentCar
-      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${plateNumber}`
-      : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${plateNumber}`;
+      ? `${API_BASE_URL}/auth/rent-car/status/${plateNumber}`
+      : `${API_BASE_URL}/auth/car/status/${plateNumber}`;
 
     try {
       await axios.put(endpoint, { status });
@@ -392,7 +514,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
       if (!newCar) throw new Error("Selected car not found");
 
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assignments/update/${formData.assignmentHistoryId}`,
+        `${API_BASE_URL}/auth/car/assignments/update/${formData.assignmentHistoryId}`,
         {
           status: "Completed",
           carIds: [newCar.originalId],
@@ -407,13 +529,10 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
     }
   };
 
-  /* ------------------------------------------------------------------
-     NEW: update VehicleAcceptance.assignmentHistoryId by plate
-  ------------------------------------------------------------------ */
   const updateAcceptanceAssignment = async (plateNumber: string) => {
     try {
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/vehicle-acceptance/plate/${plateNumber}`,
+        `${API_BASE_URL}/api/vehicle-acceptance/plate/${plateNumber}`,
         {
           assignmentHistoryId:
             formData.assignmentHistoryId && formData.assignmentHistoryId !== ""
@@ -429,7 +548,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
   };
 
   /* ------------------------------------------------------------------
-     Submit handler (updated with NEW call)
+     Submit handler (unchanged)
   ------------------------------------------------------------------ */
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -446,7 +565,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
       };
 
       const transferResponse = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers`,
+        `${API_BASE_URL}/api/transfers`,
         transferPayload,
         {
           headers: { "Content-Type": "application/json" },
@@ -468,7 +587,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
       await updateCarStatus(formData.oldPlateNumber, "In_transfer");
       await updateCarStatus(formData.newPlateNumber, "Assigned", newCar.isRentCar);
 
-      /* Step 4: NEW → update assignmentHistoryId on VehicleAcceptance */
+      /* Step 4: update assignmentHistoryId on VehicleAcceptance */
       await updateAcceptanceAssignment(formData.newPlateNumber);
 
       /* Step 5: success UI */
@@ -496,7 +615,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
   };
 
   /* ------------------------------------------------------------------
-     Render JSX (unchanged except hidden assignmentHistoryId input)
+     Render JSX (unchanged except for PDFDownloadLink styling)
   ------------------------------------------------------------------ */
   return (
     <motion.div
@@ -510,13 +629,15 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
         <h2 className="text-3xl font-bold text-blue-600">Vehicle Transfer Form</h2>
         <PDFDownloadLink
           document={<TransferPDFDocument formData={formData} />}
-          fileName="vehicle_transfer.pdf"
+          fileName={`vehicle_transfer_${new Date().toISOString().slice(0, 10)}.pdf`}
         >
           {({ loading }) => (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2"
+              className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 ${
+                loading ? 'bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
               disabled={loading}
             >
               {loading ? (
@@ -544,7 +665,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
       </div>
 
       {/* Form */}
-       <form onSubmit={handleSubmit} className="p-8 pt-4 space-y-8">
+      <form onSubmit={handleSubmit} className="p-8 pt-4 space-y-8">
         <input 
           type="hidden" 
           name="assignmentHistoryId" 
@@ -673,10 +794,3 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
 };
 
 export default CarTransferForm;
-
-
-
-
-
- 
-  

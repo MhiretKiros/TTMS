@@ -1,9 +1,23 @@
+// page.tsx
 'use client';
 
+import { motion } from "framer-motion";
 import { useEffect, useState } from 'react';
-import { FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX } from 'react-icons/fi';
+import { FiPlusCircle, FiEye,FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX, FiUserPlus, FiSearch, FiMapPin, FiPlus, FiRefreshCw } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
+import EmployeeAssignment from './components/EmployeeAssignment';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
+type Waypoint = {
+  latitude: number;
+  longitude: number;
+  name?: string;
+};
+
+type Employee = {
+  employeeId: string;
+  name: string;
+  department: string;
+};
 
 type CarSeatInfo = {
   id: string | number;
@@ -11,21 +25,64 @@ type CarSeatInfo = {
   model: string;
   totalSeats: number;
   availableSeats: number;
-  assignedEmployees: {
-    employeeId: string;
-    name: string;
-    department: string;
-  }[];
+  route?: string;
+  destination?: string;
+  waypoints?: Waypoint[];
+  assignedEmployees: Employee[];
 };
 
 export default function CarSeatCounterPage() {
+  const router = useRouter();
   const [cars, setCars] = useState<CarSeatInfo[]>([]);
+  const [filteredCars, setFilteredCars] = useState<CarSeatInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [expandedCarId, setExpandedCarId] = useState<string | number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedCarForAssignment, setSelectedCarForAssignment] = useState<string | number | null>(null);
+  const [assignmentMode, setAssignmentMode] = useState<'single' | 'all'>('all');
 
-  // Fetch all cars with their seat information and assigned employees
+  // Helper function to fetch location name
+  async function fetchLocationName(lat: number, lng: number): Promise<string> {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`
+      );
+      if (!response.ok) throw new Error('Failed to fetch location name');
+      const data = await response.json();
+      if (data && data.address) {
+        return data.address.village || data.address.town || data.address.suburb || 
+               data.address.city_district || data.address.city || data.display_name || 
+               `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      }
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    } catch (err) {
+      console.error("Reverse geocoding error:", err);
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  }
+
+  // Function to fetch employee details by ID
+  async function fetchEmployeeDetails(employeeId: string): Promise<Employee> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch employee details for ID: ${employeeId}`);
+      }
+      return await response.json();
+    } catch (err) {
+      console.error("Error fetching employee details:", err);
+      return {
+        employeeId,
+        name: 'Unknown',
+        department: 'Unknown'
+      };
+    }
+  }
+
+  // Fetch all cars with their seat information, assigned employees, and route data
   const fetchCarSeatData = async () => {
     setIsLoading(true);
     setError(null);
@@ -40,25 +97,59 @@ export default function CarSeatCounterPage() {
       if (!assignmentsResponse.ok) throw new Error('Failed to fetch employee assignments');
       const assignmentsData = await assignmentsResponse.json();
 
-      const validAssignments = Array.isArray(assignmentsData) ? assignmentsData : [];
+      // Then fetch route information
+      const routesResponse = await fetch(`${API_BASE_URL}/api/routes`);
+      if (!routesResponse.ok) throw new Error('Failed to fetch routes');
+      const routesData = await routesResponse.json();
 
-      // Process the data to combine car info with seat counts and assignments
+      const validAssignments = Array.isArray(assignmentsData) ? assignmentsData : [];
+      const validRoutes = Array.isArray(routesData) ? routesData : [];
+
+      // Process the data to combine car info with seat counts, assignments, and route info
       const processedCars = (carsData.cars || carsData.organizationCarList || [])
         .filter((car: any) => car.organizationCar && car.organizationCar.plateNumber)
-        .map((car: any) => {
+        .map(async (car: any) => {
           const carId = car.organizationCar.id;
           const plateNumber = car.organizationCar.plateNumber;
           const model = car.organizationCar.model || 'Unknown Model';
           const totalSeats = car.organizationCar.loadCapacity || 14;
           
-          // Find all employees assigned to this car
-          const assignedEmployees = validAssignments
+          // Find all employees assigned to this car and fetch their details
+          const assignedEmployeeIds = validAssignments
             .filter((assignment: any) => assignment.assignedCarPlateNumber === plateNumber)
-            .map((assignment: any) => ({
-              employeeId: assignment.employeeId,
-              name: assignment.employeeName,
-              department: assignment.employeeDepartment
-            }));
+            .map((assignment: any) => assignment.employeeId);
+
+          // Fetch details for each employee
+          const assignedEmployees = await Promise.all(
+            assignedEmployeeIds.map(async (employeeId: string) => {
+              return await fetchEmployeeDetails(employeeId);
+            })
+          );
+
+          // Find route information for this car
+          const carRoute = validRoutes.find((route: any) => route.plateNumber === plateNumber);
+          let routeInfo = '';
+          let destination = '';
+          let waypoints: Waypoint[] = [];
+
+          if (carRoute && carRoute.waypoints && Array.isArray(carRoute.waypoints)) {
+            // Get names for all waypoints
+            waypoints = await Promise.all(
+              carRoute.waypoints.map(async (wp: any) => {
+                const name = await fetchLocationName(Number(wp.latitude), Number(wp.longitude));
+                return {
+                  latitude: Number(wp.latitude),
+                  longitude: Number(wp.longitude),
+                  name
+                };
+              })
+            );
+
+            if (waypoints.length > 0) {
+              routeInfo = waypoints.map(wp => wp.name).join(' → ');
+              destination = waypoints[waypoints.length - 1].name || '';
+            }
+          }
 
           return {
             id: carId,
@@ -66,15 +157,21 @@ export default function CarSeatCounterPage() {
             model,
             totalSeats,
             availableSeats: totalSeats - assignedEmployees.length,
+            route: routeInfo,
+            destination,
+            waypoints,
             assignedEmployees
           };
         });
 
-      setCars(processedCars);
+      const resolvedCars = await Promise.all(processedCars);
+      setCars(resolvedCars);
+      setFilteredCars(resolvedCars);
     } catch (err: any) {
       console.error("Error fetching car seat data:", err);
       setError(err.message || "Failed to load car seat information");
       setCars([]);
+      setFilteredCars([]);
     } finally {
       setIsLoading(false);
     }
@@ -85,22 +182,145 @@ export default function CarSeatCounterPage() {
     fetchCarSeatData();
   }, []);
 
+  // Filter cars based on search term
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredCars(cars);
+    } else {
+      const filtered = cars.filter(car => 
+        car.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        car.destination?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        car.route?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredCars(filtered);
+    }
+  }, [searchTerm, cars]);
+
   const toggleCarExpansion = (carId: string | number) => {
     setExpandedCarId(expandedCarId === carId ? null : carId);
   };
 
+  const getRowColorClass = (availableSeats: number) => {
+    if (availableSeats <= 0) return 'bg-red-50';
+    if (availableSeats <= 2) return 'bg-yellow-50';
+    return 'bg-white';
+  };
+
+  const getSeatStatusText = (availableSeats: number) => {
+    if (availableSeats <= 0) return 'Full';
+    if (availableSeats <= 2) return `Only ${availableSeats} left`;
+    return 'Available';
+  };
+
+  const getSeatStatusColor = (availableSeats: number) => {
+    if (availableSeats <= 0) return 'text-red-600';
+    if (availableSeats <= 2) return 'text-yellow-600';
+    return 'text-green-600';
+  };
+
+  const handleAddEmployee = (carId: string | number, plateNumber: string) => {
+    setSelectedCarForAssignment(carId);
+    setAssignmentMode('single');
+    setShowAssignmentModal(true);
+  };
+
+  const handleOpenAllCarsAssignment = () => {
+    setSelectedCarForAssignment(null);
+    setAssignmentMode('all');
+    setShowAssignmentModal(true);
+  };
+
+  const handleAssignRoute = () => {
+    router.push('/tms-modules/admin/car-management/service-route-assign');
+  };
+
+  const handleViewAssignedEmployees = () => {
+    router.push('/tms-modules/admin/car-management/service-route-assign/assigned-employees-list');
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      {/* Assignment Modal */}
+      {showAssignmentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b p-4">
+              <h2 className="text-xl font-bold">
+                {assignmentMode === 'single' && selectedCarForAssignment ? 
+                  `Assign Employee to ${cars.find(c => c.id === selectedCarForAssignment)?.plateNumber}` : 
+                  'Assign Employee to Car'}
+              </h2>
+              <button 
+                onClick={() => {
+                  setShowAssignmentModal(false);
+                  setSelectedCarForAssignment(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FiX className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-4">
+              <EmployeeAssignment 
+                selectedCarId={selectedCarForAssignment || ''}
+                onAssignmentSuccess={() => {
+                  setShowAssignmentModal(false);
+                  fetchCarSeatData();
+                }}
+                singleCarMode={assignmentMode === 'single'}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6 border-b pb-3">
         <h1 className="text-3xl font-bold text-gray-700">Service Car Seat Management</h1>
         <div className="flex items-center space-x-2">
-          <button
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FiSearch className="text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by plate, destination, or route"
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleOpenAllCarsAssignment}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white"
+          >
+            <FiPlusCircle className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white" />
+            <span className="text-[#3c8dbc] font-medium">Assign Employee</span>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleViewAssignedEmployees}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white"
+          >
+            <FiEye className="w-12 h-12 p-1 rounded-full text-purple-600 transition-colors duration-200 hover:bg-purple-600 hover:text-white" />
+            <span className="text-purple-600 font-medium">View Assigned Employees</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={fetchCarSeatData}
             disabled={isLoading}
-            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className="flex items-center justify-center px-4 py-2 rounded-lg transition-colors text-sm bg-white disabled:opacity-50"
           >
-            {isLoading ? <FiLoader className="animate-spin mr-2" /> : 'Refresh Data'}
-          </button>
+            {isLoading ? (
+              <FiLoader className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] animate-spin" />
+            ) : (
+              <FiRefreshCw className="w-10 h-10 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white" />
+            )}
+          </motion.button>
         </div>
       </div>
 
@@ -138,72 +358,180 @@ export default function CarSeatCounterPage() {
           <FiLoader className="animate-spin text-4xl text-blue-500" />
           <span className="ml-2 text-lg">Loading car seat data...</span>
         </div>
-      ) : cars.length === 0 ? (
+      ) : filteredCars.length === 0 ? (
         <div className="text-center py-10 text-gray-500">
-          No service cars found or no assignments made yet.
+          {searchTerm ? 'No cars match your search criteria' : 'No service cars found or no assignments made yet.'}
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cars.map((car) => (
-            <div key={car.id} className="border rounded-lg overflow-hidden shadow-sm">
-              <div
-                className={`p-4 ${car.availableSeats <= 0 ? 'bg-red-50' : 'bg-blue-50'} border-b cursor-pointer`}
-                onClick={() => toggleCarExpansion(car.id)}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-lg flex items-center">
-                      <FiTruck className="mr-2" /> {car.plateNumber}
-                    </h3>
-                    <p className="text-sm text-gray-600">{car.model}</p>
-                  </div>
-                  <div className="text-right">
-                    <div>
-                      <span className={`text-xl font-bold ${car.availableSeats <= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                        {car.availableSeats}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Plate Number
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Model
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Destination
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Seats
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Assigned
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Available
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredCars.map((car) => (
+                <>
+                  <tr 
+                    key={car.id} 
+                    className={`${getRowColorClass(car.availableSeats)} hover:bg-gray-100 cursor-pointer`}
+                    onClick={() => toggleCarExpansion(car.id)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <FiTruck className="flex-shrink-0 h-5 w-5 text-gray-400" />
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{car.plateNumber}</div>
+                          <div className="text-sm text-gray-500">{car.model}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{car.model}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{car.destination}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.totalSeats}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.assignedEmployees.length}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.availableSeats}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getSeatStatusColor(car.availableSeats)}`}>
+                        {getSeatStatusText(car.availableSeats)}
                       </span>
-                      <span className="text-sm text-gray-600"> Free</span>
-                    </div>
-                    <div>
-                      <span className="text-xl font-bold text-gray-700">
-                        {car.assignedEmployees.length}
-                      </span>
-                      <span className="text-sm text-gray-600"> Held</span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Total: {car.totalSeats} seats
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {expandedCarId === car.id && (
-                <div className="p-4">
-                  {car.assignedEmployees.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic">No employees assigned</p>
-                  ) : (
-                    <>
-                      <h4 className="font-medium text-sm flex items-center mb-2">
-                        <FiUsers className="mr-1" /> Assigned Employees ({car.assignedEmployees.length})
-                      </h4>
-                      <ul className="space-y-2">
-                        {car.assignedEmployees.map((employee) => (
-                          <li key={employee.employeeId} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <div>
-                              <div className="font-medium">{employee.name}</div>
-                              <div className="text-xs text-gray-500">{employee.department} • ID: {employee.employeeId}</div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
+                    </td>
+                  </tr>
+                  {expandedCarId === car.id && (
+                    <tr className="bg-gray-50">
+                      <td colSpan={7} className="px-6 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="font-medium text-lg flex items-center mb-2">
+                              <FiUsers className="mr-2" /> Assigned Employees ({car.assignedEmployees.length})
+                            </h4>
+                            {car.assignedEmployees.length === 0 ? (
+                              <p className="text-sm text-gray-500 italic">No employees assigned</p>
+                            ) : (
+                              <div className="overflow-y-auto max-h-60">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-gray-100 sticky top-0">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {car.assignedEmployees.map((employee) => (
+                                      <tr key={employee.employeeId}>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{employee.name}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{employee.department}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{employee.employeeId}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                            
+                            {car.availableSeats > 0 && car.waypoints && car.waypoints.length > 0 ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddEmployee(car.id, car.plateNumber);
+                                }}
+                                className="mt-4 flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white hover:bg-[#367fa9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                style={{ backgroundColor: '#3c8dbc' }}
+                              >
+                                <FiUserPlus className="mr-2" /> Add New Employee
+                              </button>
+                            ) : null}
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-medium text-lg flex items-center mb-2">
+                              <FiMapPin className="mr-2" /> Route Details
+                            </h4>
+                            {car.waypoints && car.waypoints.length > 0 ? (
+                              <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
+                                <h5 className="font-medium mb-2">Full Route:</h5>
+                                <p className="text-sm text-gray-700">{car.route}</p>
+                                <h5 className="font-medium mt-4 mb-2">Waypoints:</h5>
+                                <div className="overflow-y-auto max-h-40">
+                                  <ul className="space-y-2">
+                                    {car.waypoints.map((wp, index) => (
+                                      <li key={index} className="flex items-start">
+                                        <div className="flex-shrink-0 h-5 w-5 text-blue-500 mr-2 mt-0.5">
+                                          {index === car.waypoints!.length - 1 ? (
+                                            <FiMapPin className="h-full w-full text-red-500" />
+                                          ) : (
+                                            <span className="block h-full w-full rounded-full bg-blue-100 text-center leading-5">
+                                              {index + 1}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium text-gray-900">{wp.name}</p>
+                                          <p className="text-xs text-gray-500">
+                                            {wp.latitude.toFixed(4)}, {wp.longitude.toFixed(4)}
+                                          </p>
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
+                                <p className="text-sm text-gray-500 italic mb-4">No route information available</p>
+                                <button
+                                  onClick={handleAssignRoute}
+                                  className="flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                >
+                                  Assign Routes
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </div>
-              )}
-            </div>
-          ))}
+                </>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
 }
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;

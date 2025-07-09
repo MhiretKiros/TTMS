@@ -52,9 +52,9 @@ export default function AssignedEmployeesListPage() {
         </h1>
         <button
             className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
-            onClick={() => router.push('/tms-modules/admin/car-management/service-route-assign/employee-car-assignment')}
+            onClick={() => router.push('/tms-modules/admin/car-management/Avaliable-seats')}
           >
-            <FiPlusCircle className="mr-2" /> Assign New Car
+            <FiPlusCircle className="mr-2" /> Back
           </button>
       </div>
 
