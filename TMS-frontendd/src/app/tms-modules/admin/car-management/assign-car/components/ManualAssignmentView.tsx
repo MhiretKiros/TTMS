@@ -166,9 +166,9 @@ export default function ManualAssignmentView() {
     try {
       // Fetch approved cars (both regular and rent cars)
       const [regularCarsResponse, rentCarsResponse, requestsResponse] = await Promise.all([
-        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved'),
-        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved'),
-        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending-and-semipending')
+        axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending-and-semipending`)
       ]);
   
       // Process regular cars

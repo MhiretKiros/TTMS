@@ -29,8 +29,8 @@ export default function CarReportsPage() {
     const loadData = async () => {
       try {
         const [transfersRes, acceptancesRes] = await Promise.all([
-          axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers/all'),
-          axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/api/vehicle-acceptance/all')
+          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers/all`),
+          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/vehicle-acceptance/all`)
         ]);
 
         setAllTransfers(transfersRes.data);

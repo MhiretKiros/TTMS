@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car';
+const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 interface ApiResponse<T> {
   success: boolean;
@@ -10,7 +10,7 @@ interface ApiResponse<T> {
 
 export const fetchRentCars = async (): Promise<ApiResponse<any[]>> => {
   try {
-    const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/all`);
+    const response = await axios.get(`${API_URL}/auth/rent-car/all`);
     const data = response.data;
 
     if (response.status !== 200) {
@@ -38,7 +38,7 @@ export const fetchRentCars = async (): Promise<ApiResponse<any[]>> => {
 
 export const createRentCar = async (carData: any): Promise<ApiResponse<any>> => {
   try {
-    const response = await axios.post(`${API_URL}/register`, carData);
+    const response = await axios.post(`${API_URL}/auth/rent-car/register`, carData);
     const data = response.data;
 
     if (response.status !== 200) {
@@ -66,7 +66,7 @@ export const createRentCar = async (carData: any): Promise<ApiResponse<any>> => 
 
 export const updateRentCar = async (id: number, carData: any): Promise<ApiResponse<any>> => {
   try {
-    const response = await axios.put(`${API_URL}/update/${id}`, carData);
+    const response = await axios.put(`${API_URL}/auth/rent-car/update/${id}`, carData);
     const data = response.data;
 
     if (response.status !== 200) {
@@ -94,7 +94,7 @@ export const updateRentCar = async (id: number, carData: any): Promise<ApiRespon
 
 export const deleteRentCar = async (id: number): Promise<ApiResponse<null>> => {
   try {
-    const response = await axios.delete(`${API_URL}/delete/${id}`);
+    const response = await axios.delete(`${API_URL}/auth/rent-car/delete/${id}`);
     const data = response.data;
 
     if (response.status !== 200) {
@@ -123,7 +123,7 @@ export const deleteRentCar = async (id: number): Promise<ApiResponse<null>> => {
 
 export const fetchRentCarById = async (id: number): Promise<ApiResponse<any>> => {
   try {
-    const response = await axios.get(`${API_URL}/${id}`);
+    const response = await axios.get(`${API_URL}/auth/rent-car/${id}`);
     
     if (response.status >= 200 && response.status < 300) {
       return {

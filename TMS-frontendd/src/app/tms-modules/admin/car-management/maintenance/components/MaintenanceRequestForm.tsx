@@ -13,9 +13,9 @@ import axios from 'axios';
 import { MaintenanceRequest } from '../api/handlers';
 import RequestsTable from './RequestsTable';
 
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/maintenance-requests';
-const CARS_API_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all';
-const CAR_STATUS_API_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status';
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/maintenance-requests`;
+const CARS_API_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all`;
+const CAR_STATUS_API_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status`;
  
 interface MaintenanceRequestFormProps {
   requestId?: number;

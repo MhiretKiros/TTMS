@@ -10,7 +10,7 @@
 export type CarType = 'car' | 'organization' | 'rent';
 
 // Define the base URL (adjust if needed, but seems consistent in the path structure)
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth';
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth`;
 
 /**
  * Updates the inspection status for a car of a specified type.

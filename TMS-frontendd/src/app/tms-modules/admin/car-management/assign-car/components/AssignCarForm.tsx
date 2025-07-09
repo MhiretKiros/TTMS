@@ -211,8 +211,8 @@ export default function RentalRequestForm() {
   const fetchApprovedCars = async (rentalType: string): Promise<Car[]> => {
     try {
       const endpoint = rentalType === 'organizational' 
-        ? '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved' 
-        : '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved';
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved` 
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved`;
       
       const response = await axios.get(endpoint);
       const data = response.data;
@@ -250,7 +250,7 @@ export default function RentalRequestForm() {
 
 const fetchPendingRequests = async (): Promise<PendingRequest[]> => {
   try {
-    const response = await axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending');
+    const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending`);
     
     if (!response.data) {
       console.error('No data received in response');
@@ -445,8 +445,8 @@ const checkForAutoAssignments = useCallback(async () => {
         };
   
         const endpoint = formData.rentalType === 'organizational' 
-          ? '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/assign' 
-          : '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign';
+          ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/assign` 
+          : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`;
   
         const response = await axios.post(endpoint, payload);
   
@@ -601,8 +601,8 @@ const checkForAutoAssignments = useCallback(async () => {
     try {
       const isOrgCar = rentalType === 'organizational';
       const endpoint = isOrgCar 
-        ? '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/assign' 
-        : '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign';
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/assign` 
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`;
   
       const statusEndpoint = isOrgCar
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${proposedCar.plateNumber}`

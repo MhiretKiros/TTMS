@@ -12,7 +12,7 @@ import axios from 'axios';
 import { MaintenanceRequest } from '../api/handlers';
 import RequestsTable from './RequestsTable';
 
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/maintenance-requests';
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/maintenance-requests`;
 
 interface MaintenanceRequestFormProps {
   requestId?: number;

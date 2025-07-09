@@ -2,7 +2,7 @@ type Role = 'Mechanic' | 'HeadMechanic' | 'NezekOfficial';
 
 // Fetch requests based on role
 export const fetchFuelRequests = async (role: Role, mechanicName?: string) => {
-  let url = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests';
+  let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests`;
 
   if (role === 'Mechanic') {
     // Mechanics fetch only their own requests

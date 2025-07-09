@@ -1,7 +1,7 @@
 // maintenanceApi.ts
 import axios from 'axios';
 
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/maintenance-requests';
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/maintenance-requests`;
 
 export interface MaintenanceRequest {
   id?: number;

@@ -1,8 +1,7 @@
 // src/app/tms-modules/vehicle-inspection/api/carInspectionService.ts
 import { CarInspectionResultPage } from '../result/page';
 
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/inspections';
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -23,7 +22,7 @@ export interface StoredInspectionResult {
 
 export const fetchAllInspections = async (): Promise<ApiResponse<StoredInspectionResult[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/get-all`);
+    const response = await fetch(`${API_BASE_URL}/api/inspections/get-all`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -51,7 +50,7 @@ export const fetchAllInspections = async (): Promise<ApiResponse<StoredInspectio
 
 export const fetchInspectionsByCar = async (plateNumber: string): Promise<ApiResponse<StoredInspectionResult[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/by-plate/${encodeURIComponent(plateNumber)}`);
+    const response = await fetch(`${API_BASE_URL}/api/inspections/by-plate/${encodeURIComponent(plateNumber)}`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -81,7 +80,7 @@ export const createInspection = async (
   inspectionData: Omit<StoredInspectionResult, 'id'>
 ): Promise<ApiResponse<StoredInspectionResult>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/create`, {
+    const response = await fetch(`${API_BASE_URL}/api/inspections/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(inspectionData)
@@ -116,7 +115,7 @@ export const updateInspection = async (
   inspectionData: Partial<StoredInspectionResult>
 ): Promise<ApiResponse<StoredInspectionResult>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/update/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/inspections/update/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(inspectionData)
@@ -148,7 +147,7 @@ export const updateInspection = async (
 
 export const deleteInspection = async (id: number): Promise<ApiResponse<null>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/delete/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/api/inspections/delete/${id}`, {
       method: 'DELETE'
     });
     const data = await response.json();
@@ -182,7 +181,7 @@ export const fetchInspectionById = async (id: number): Promise<{
   inspection: StoredInspectionResult | null;
 }> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/get/${id}`);
+    const response = await fetch(`${API_BASE_URL}/api/inspections/get/${id}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -208,7 +207,7 @@ export const updateCarInspectionStatus = async (
   result: 'Approved' | 'Rejected'
 ): Promise<ApiResponse<null>> => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/update-status`, {
+    const response = await fetch(`${API_BASE_URL}/api/inspections/auth/car/update-status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plateNumber, inspected, result })

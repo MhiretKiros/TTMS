@@ -1,7 +1,7 @@
 // src/app/true-modules/admin/car-management/api/carService.ts
 import { Car } from '../types';
 
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -11,7 +11,7 @@ export interface ApiResponse<T> {
 
 export const fetchCars = async (): Promise<ApiResponse<Car[]>> => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/all`);
+    const response = await fetch(`${API_BASE_URL}/auth/car/all`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -39,7 +39,7 @@ export const fetchCars = async (): Promise<ApiResponse<Car[]>> => {
 
 export const createCar = async (carData: Omit<Car, 'id'>): Promise<ApiResponse<Car>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/register`, {
+    const response = await fetch(`${API_BASE_URL}/auth/car/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(carData)
@@ -71,7 +71,7 @@ export const createCar = async (carData: Omit<Car, 'id'>): Promise<ApiResponse<C
 
 export const updateCar = async (id: number, carData: Partial<Car>): Promise<ApiResponse<Car>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/update/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/auth/car/update/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(carData)
@@ -103,7 +103,7 @@ export const updateCar = async (id: number, carData: Partial<Car>): Promise<ApiR
 
 export const deleteCar = async (id: number): Promise<ApiResponse<null>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/delete/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/auth/car/delete/${id}`, {
       method: 'DELETE'
     });
     const data = await response.json();
@@ -137,7 +137,7 @@ export const fetchCarById = async (id: number): Promise<{
   car: Car | null;
 }> => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/${id}`);
+    const response = await fetch(`${API_BASE_URL}/auth/car/${id}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

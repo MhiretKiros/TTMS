@@ -114,9 +114,9 @@ export default function CarInspectionPage() {
       setLoading(true);
       let endpoint = '';
       switch(activeTab) {
-        case 'personal': endpoint = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all'; break;
-        case 'organization': endpoint = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all'; break;
-        case 'rented': endpoint = '${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all'; break;
+        case 'personal': endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all`; break;
+        case 'organization': endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all`; break;
+        case 'rented': endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all`; break;
       }
       
       const carList = await fetchData(endpoint);

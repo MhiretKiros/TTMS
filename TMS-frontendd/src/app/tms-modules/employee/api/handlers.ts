@@ -1,7 +1,7 @@
 // src/api/handlers.ts
 import axios from 'axios';
 
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/travel-requests';
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/travel-requests`;
 
 export interface TravelRequest {
   id?: number;

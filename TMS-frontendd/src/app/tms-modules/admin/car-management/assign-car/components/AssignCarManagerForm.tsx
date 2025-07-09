@@ -156,9 +156,9 @@ export default function AssignCarManagerForm() {
   const fetchData = useCallback(async () => {
     try {
       const [carsResponse, rentCarsResponse, pendingResponse] = await Promise.all([
-        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved'),
-        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved'),
-        axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending')
+        axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/approved`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/approved`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignments/pending`)
       ]);
 
       const allAvailableCars = [];
@@ -298,7 +298,7 @@ export default function AssignCarManagerForm() {
           numberOfCar: `0/${formData.selectedModels.length}`
         };
 
-        const response = await axios.post('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign', payload);
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`, payload);
   
         if (response.data.codStatus === 200) {
           setAssignmentResult({
@@ -397,7 +397,7 @@ export default function AssignCarManagerForm() {
         numberOfCar
       };
 
-      const response = await axios.post('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign', payload);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`, payload);
   
       if (response.data.codStatus === 200) {
         setAssignmentResult({

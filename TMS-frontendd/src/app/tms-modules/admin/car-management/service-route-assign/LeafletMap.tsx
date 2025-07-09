@@ -24,8 +24,8 @@ const welloSefer: LatLngTuple = [8.992820, 38.773790];
 async function fetchInspectedBuses() {
   try {
     const [orgRes, rentRes] = await Promise.all([
-      fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/service-buses'),
-      fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/bus-minibus'),
+      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/service-buses`),
+      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/bus-minibus`),
     ]);
 
     if (!orgRes.ok || !rentRes.ok) throw new Error("Failed to fetch one or more vehicle sources");

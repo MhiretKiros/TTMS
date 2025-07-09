@@ -58,7 +58,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   try {
     alert(formData.oldPlateNumber);
-    const response = await axios.post('${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers', formData, {
+    const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers`, formData, {
       headers: {
         'Content-Type': 'application/json',
         // Authorization header removed as requested

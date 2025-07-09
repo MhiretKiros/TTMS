@@ -293,15 +293,14 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={isSubmitting}
                     >
-                      <option value="minibus">Mini Bus</option>
-                      <option value="bus">Bus</option>
                       <option value="">Select Body Type</option>
-                      <option value="Sedan">Sedan</option>
-                      <option value="SUV">SUV</option>
+                      <option value="Auto Mobile">Auto Mobile</option>
+                      <option value="mini bus">Mini bus</option>
+                      <option value="bus">Bus</option>
+                      <option value="Truck">Truck</option>
                       
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Motor Number</label>
                     <input

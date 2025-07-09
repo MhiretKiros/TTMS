@@ -92,21 +92,31 @@ export default function AdminDashboard() {
   useEffect(() => {
     setIsClient(true);
     if (isInView) controls.start("visible");
+
+    const fetchJson = async (url: string) => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorBody}`);
+      }
+      return response.json();
+    };
+
     const fetchAll = async () => {
       setLoading(true);
       try {
         const [carRes, orgCarRes, rentCarRes, assignRes] = await Promise.all([
-          fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all').then(r => r.json()),
-          fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all').then(r => r.json()),
-          fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all').then(r => r.json()),
-          fetch('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignment/all').then(r => r.json()),
+          fetchJson(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all`),
+          fetchJson(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all`),
+          fetchJson(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all`),
+          fetchJson(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignment/all`),
         ]);
         setCars(carRes.carList || []);
         setOrgCars(orgCarRes.organizationCarList || []);
         setRentCars(rentCarRes.rentCarList || []);
         setAssignments(assignRes.assignmentHistoryList || []);
       } catch (e) {
-        // handle error
+        console.error("Failed to fetch dashboard data:", e);
       }
       setLoading(false);
     };

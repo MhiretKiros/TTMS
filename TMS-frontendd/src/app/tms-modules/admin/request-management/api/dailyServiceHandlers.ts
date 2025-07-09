@@ -1,7 +1,7 @@
 // src/api/dailyServiceHandlers.ts
 import axios from 'axios';
 
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_BASE_URL}/api/daily-requests';
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/daily-requests`;
 
 export interface DailyServiceRequest {
   id?: number;
@@ -105,7 +105,7 @@ export const DailyServiceApi = {
     }
   },
   async getAllCars() {
-    return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all');
+    return axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all`);
   },
   
   async getAllOrganizationCars() {

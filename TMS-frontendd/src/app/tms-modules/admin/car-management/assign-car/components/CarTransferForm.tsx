@@ -290,8 +290,8 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
     const fetchAvailableCars = async () => {
       try {
         const [regularCarsResponse, rentCarsResponse] = await Promise.all([
-          axios.get("${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/in-transfer"),
-          axios.get("${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/in-transfer"),
+          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/in-transfer`),
+          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/in-transfer`),
         ]);
 
         const regularCars: Car[] =
@@ -446,7 +446,7 @@ const CarTransferForm: React.FC<CarTransferFormProps> = ({
       };
 
       const transferResponse = await axios.post(
-        "${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers",
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/transfers`,
         transferPayload,
         {
           headers: { "Content-Type": "application/json" },

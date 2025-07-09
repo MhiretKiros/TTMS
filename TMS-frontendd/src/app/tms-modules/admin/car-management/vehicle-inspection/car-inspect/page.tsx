@@ -32,7 +32,7 @@ const CRITICAL_MECHANICAL_CHECKS: (keyof MechanicalInspection)[] = [
 ];
 
 // API Base URL (Consider moving to .env.local)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '${process.env.NEXT_PUBLIC_API_BASE_URL}/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // --- Types --- (CarType, Car, ItemCondition, MechanicalInspection, BodyInspection, InteriorInspection, InspectionResultState, InspectionPayload) remain the same
 type CarType = 'personal' | 'organization' | 'rented';
@@ -652,7 +652,7 @@ export default function CarInspectPage() {
     try {
       // *** Ensure this API endpoint expects the 'serviceStatus' in the 'status' field ***
       // *** The backend should handle setting 'inspected = true' and updating the car's operational status ***
-      const response = await fetch(`${API_BASE_URL}/inspections/update/{id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/inspections/update/{id}`, {
         method: 'POST', // Or 'PUT'
         headers: {
           'Content-Type': 'application/json',
@@ -718,8 +718,8 @@ export default function CarInspectPage() {
 
       // --- >>> Determine API endpoint based on car type <<< ---
       const submissionEndpoint = carTypeParam === 'organization'
-        ? `${API_BASE_URL}/org-inspections/create` // Use the new endpoint for organization cars
-        : `${API_BASE_URL}/inspections/create`; // Use the original endpoint otherwise
+        ? `${API_BASE_URL}/api/org-inspections/create` // Use the new endpoint for organization cars
+        : `${API_BASE_URL}/api/inspections/create`; // Use the original endpoint otherwise
 
       const response = await fetch(submissionEndpoint, {
         method: 'POST',

@@ -100,7 +100,7 @@ type InspectionResultData = {
     rejectionReason?: string | null;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '${process.env.NEXT_PUBLIC_API_BASE_URL}/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const formatLabel = (key: string): string => {
     const result = key.replace(/([A-Z])/g, ' $1');
@@ -176,7 +176,7 @@ export default function CarInspectionResultPage() {
         const token = localStorage.getItem('authToken') || localStorage.getItem('token');
         
         try {
-            const response = await fetch(`${API_BASE_URL}/inspections/get/${inspectionId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/inspections/get/${inspectionId}`, {
                 method: 'GET',
                 headers: {
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
