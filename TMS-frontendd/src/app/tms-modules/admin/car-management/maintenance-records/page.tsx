@@ -39,7 +39,7 @@ interface MaintenanceRecord {
   problemResolutionDetails?: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function MaintenanceRecordsPage() {
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);

@@ -150,6 +150,11 @@ export default function UpdateMaintenanceRecordPage() {
   }, [id, reset]);
 
   const onSubmit = async (data: UpdateMaintenanceFormData) => {
+    if (!record) {
+      toast.error("Cannot submit, maintenance record data is not loaded.");
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/maintenance/records`, {
         method: 'POST',
@@ -159,7 +164,7 @@ export default function UpdateMaintenanceRecordPage() {
         body: JSON.stringify({
           ...record,
           ...data,
-          maintenanceRequestId: record.id, // <-- Add this line!
+          maintenanceRequestId: record.id,
         }),
       });
 
@@ -168,15 +173,24 @@ export default function UpdateMaintenanceRecordPage() {
         throw new Error(errorText || `Failed to save record: ${response.status}`);
       }
 
-      toast.success('Maintenance record saved!');
       if (data.isProblemFixed) {
+        const statusResponse = await fetch(`${API_BASE_URL}/api/maintenance-requests/${record.id}/status?status=COMPLETED`, {
+          method: 'PATCH',
+        });
+
+        if (!statusResponse.ok) {
+            const errorText = await statusResponse.text();
+            throw new Error(errorText || `Failed to update status: ${statusResponse.status}`);
+        }
+        toast.success('Maintenance record updated and status set to COMPLETED!');
         setTimeout(() => {
           router.push(`/tms-modules/admin/car-management/add-maintenance-record?plateNumber=${record?.plateNumber}`);
         }, 1500);
+      } else {
+        toast.success('Maintenance follow-up saved!');
       }
-      // If not fixed, do not redirect (stay on page)
     } catch (err: any) {
-      toast.error(`Failed to save record: ${err.message || 'Unknown error'}`);
+      toast.error(`Failed to save: ${err.message || 'Unknown error'}`);
     }
   };
 

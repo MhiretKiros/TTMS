@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, useCallback } from 'react';
 import { FiSearch, FiList, FiEdit, FiRefreshCw } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
@@ -61,17 +60,17 @@ export default function ApprovedMaintenanceRequestsPage() {
   useEffect(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     const results = allRequests.filter(request =>
-      request.plateNumber?.toLowerCase().includes(lowerCaseSearchTerm) ||
-      request.vehicleType?.toLowerCase().includes(lowerCaseSearchTerm) ||
-      request.defectDetails?.toLowerCase().includes(lowerCaseSearchTerm) ||
-      request.reportingDriver?.toLowerCase().includes(lowerCaseSearchTerm)
+      (request.plateNumber || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+      (request.vehicleType || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+      (request.defectDetails || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+      (request.reportingDriver || '').toLowerCase().includes(lowerCaseSearchTerm)
     );
     setFilteredRequests(results);
   }, [searchTerm, allRequests]);
 
-  const handleRecordMaintenance = (plateNumber: string) => {
-    // Navigate to the AddMaintenanceRecordPage with the plate number as a query parameter
-    router.push(`/tms-modules/admin/car-management/add-maintenance-record?plateNumber=${encodeURIComponent(plateNumber)}`);
+  const handleRecordMaintenance = (id: number) => {
+    // Navigate to the dynamic route for updating a maintenance record
+    router.push(`/tms-modules/admin/car-management/update-maintenance-record/${id}`);
   };
 
   return (
@@ -157,7 +156,7 @@ export default function ApprovedMaintenanceRequestsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        onClick={() => handleRecordMaintenance(request.plateNumber)}
+                        onClick={() => handleRecordMaintenance(request.id)}
                         className="text-blue-600 hover:text-blue-900 inline-flex items-center px-3 py-1.5 border border-blue-600 rounded-md shadow-sm text-sm font-medium bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         <FiEdit className="mr-1" /> Record Maintenance

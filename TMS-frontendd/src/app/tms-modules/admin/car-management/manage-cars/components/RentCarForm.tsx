@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { motion } from 'framer-motion';
@@ -48,6 +49,7 @@ interface RentCar {
   driverPhone: string;
   driverAddress: string;
   driverExperience: string;
+  numberOfSeats: number;
 }
 
 // Define initial state outside the component for stability and reusability
@@ -95,6 +97,7 @@ const initialRentCarFormData: RentCar = {
   driverPhone: '',
   driverAddress: '',
   driverExperience: '',
+  numberOfSeats: 0, // Initialize to 0
 };
 
 const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
@@ -117,6 +120,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
         driverPhone: car.driverPhone || '',
         driverAddress: car.driverAddress || '',
         driverExperience: car.driverExperience || '',
+        numberOfSeats: car.numberOfSeats || 0,
       });
       setIncludeDriverInfo(
         !!car.driverName || !!car.driverPhone || !!car.driverAddress || !!car.driverExperience
@@ -152,7 +156,13 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
       const { checked } = e.target as HTMLInputElement;
       setFormData(prev => ({ ...prev, [name]: checked ? 'Yes' : 'No' }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      // Convert numberOfSeats to a number, reset to 0 if bodyType is not Mini Bus or Bus
+      const finalValue = name === 'numberOfSeats' ? parseInt(value) || 0 : value;
+      setFormData(prev => ({
+        ...prev,
+        [name]: finalValue,
+        ...(name === 'bodyType' && value !== 'Mini Bus' && value !== 'Bus' ? { numberOfSeats: 0 } : {}),
+      }));
     }
 
     if (errors[name]) {
@@ -167,6 +177,9 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     if (!formData.plateNumber) newErrors.plateNumber = 'Plate number is required';
     if (!formData.model) newErrors.model = 'Model is required';
     if (!formData.status) newErrors.status = 'Status is required';
+    if (formData.bodyType === 'Mini Bus' || formData.bodyType === 'Bus') {
+      if (formData.numberOfSeats <= 0) newErrors.numberOfSeats = 'Number of seats is required for Mini Bus or Bus';
+    }
     if (includeDriverInfo) {
       if (!formData.driverName) newErrors.driverName = 'Driver name is required';
       if (!formData.driverPhone) newErrors.driverPhone = 'Driver phone is required';
@@ -330,6 +343,26 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       <option value="Truck">Truck</option>
                     </select>
                   </div>
+
+                  {(formData.bodyType === 'Mini Bus' || formData.bodyType === 'Bus') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Number of Seats *</label>
+                      <input
+                        type="number"
+                        name="numberOfSeats"
+                        value={formData.numberOfSeats}
+                        onChange={handleChange}
+                        min="0"
+                        className={`w-full px-4 py-2 rounded-lg border ${
+                          errors.numberOfSeats ? 'border-red-500' : 'border-gray-300'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        disabled={isSubmitting}
+                      />
+                      {errors.numberOfSeats && (
+                        <p className="mt-1 text-sm text-red-600">{errors.numberOfSeats}</p>
+                      )}
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Motor Number</label>
