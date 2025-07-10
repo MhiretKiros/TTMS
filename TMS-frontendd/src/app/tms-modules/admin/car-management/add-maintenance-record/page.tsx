@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 
 // Updated to better align with the MaintenanceRequest.java entity and the expected API response
 interface VehicleDetails {
+  id: number; // Added to hold the ID of the maintenance request
   vehicleType: string;
   kilometerReading: number;
   reportingDriver: string;
@@ -59,7 +60,7 @@ const initialRepairDetails: RepairDetails = {
   worksDoneDescription: '',
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function AddMaintenanceRecordPage() {
   const searchParams = useSearchParams();
@@ -107,6 +108,7 @@ export default function AddMaintenanceRecordPage() {
         // Map the received data to the frontend's VehicleDetails interface.
         // This handles potential mismatches between backend field names (e.g., 'type', 'km') and frontend names.
         const mappedDetails: VehicleDetails = {
+        id: rawData.id, // Assuming the backend returns an ID
           vehicleType: rawData.vehicleType || rawData.type || 'N/A',
           kilometerReading: rawData.kilometerReading || rawData.km || 0,
           reportingDriver: rawData.reportingDriver || 'N/A',
@@ -146,6 +148,7 @@ export default function AddMaintenanceRecordPage() {
     // Constructing a payload that aligns with the MaintenanceRequest.java entity
     // CORRECTED: Constructing a payload that aligns with the backend's MaintenanceRecordDTO
     const formData = {
+      maintenanceRequestId: vehicleDetails.id, // Use the ID from the fetched vehicle details
       plateNumber,
       vehicleDetails: {
         type: vehicleDetails.vehicleType,

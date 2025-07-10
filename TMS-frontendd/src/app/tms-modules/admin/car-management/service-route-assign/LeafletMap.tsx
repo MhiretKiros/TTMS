@@ -18,6 +18,7 @@ L.Icon.Default.mergeOptions({
 });
 import 'leaflet/dist/leaflet.css';
 import { useRouter } from 'next/navigation';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 
 const welloSefer: LatLngTuple = [8.992820, 38.773790];
 
@@ -62,8 +63,6 @@ async function fetchInspectedBuses() {
   }
 }
 
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL // Assuming Spring Boot runs on port 8080
 
 type Waypoint = {
   destinationLat: number;

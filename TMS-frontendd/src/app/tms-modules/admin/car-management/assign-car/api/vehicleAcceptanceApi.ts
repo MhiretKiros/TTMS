@@ -1,8 +1,7 @@
 // src/api/vehicleAcceptanceApi.ts
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
-const API_ROOT_URL = process.env.NEXT_PUBLIC_API_ROOT || 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 interface ApiResponseError {
   message?: string;
   [key: string]: any;
@@ -62,7 +61,7 @@ export const createVehicleAcceptance = async (
 ): Promise<{ data?: VehicleAcceptanceResponse; error?: ApiError }> => {
   try {
     const response: AxiosResponse<VehicleAcceptanceResponse> = await axios.post(
-      `${API_BASE_URL}/vehicle-acceptance`,
+      `${API_BASE_URL}/api/vehicle-acceptance`,
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -82,7 +81,7 @@ export const updateVehicleAcceptance = async (
 ): Promise<{ data?: VehicleAcceptanceResponse; error?: ApiError }> => {
   try {
     const response: AxiosResponse<VehicleAcceptanceResponse> = await axios.put(
-      `${API_BASE_URL}/vehicle-acceptance/${id}`,
+      `${API_BASE_URL}/api/vehicle-acceptance/${id}`,
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -101,7 +100,7 @@ export const getVehicleAcceptanceByAssignment = async (
 ): Promise<{ data?: VehicleAcceptanceResponse; error?: ApiError }> => {
   try {
     const response: AxiosResponse<VehicleAcceptanceResponse> = await axios.get(
-      `${API_BASE_URL}/vehicle-acceptance/assignment/${assignmentId}`,
+      `${API_BASE_URL}/api/vehicle-acceptance/assignment/${assignmentId}`,
       {
         timeout: 5000,
       }
@@ -118,7 +117,7 @@ export const getVehicleAcceptanceById = async (
 ): Promise<{ data?: VehicleAcceptanceResponse; error?: ApiError }> => {
   try {
     const response: AxiosResponse<VehicleAcceptanceResponse> = await axios.get(
-      `${API_BASE_URL}/vehicle-acceptance/${id}`,
+      `${API_BASE_URL}/api/vehicle-acceptance/${id}`,
       {
         timeout: 5000,
       }
@@ -133,7 +132,7 @@ export const getVehicleAcceptanceById = async (
 
 export const updateCarStatus = async (plateNumber: string, status: string) => {
   try {
-    const response = await axios.put(`${API_BASE_URLS}/auth/car/status/${plateNumber}`, { status }, {
+    const response = await axios.put(`${API_BASE_URL}/auth/car/status/${plateNumber}`, { status }, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 5000,
     });
@@ -145,7 +144,7 @@ export const updateCarStatus = async (plateNumber: string, status: string) => {
 
 export const updateRentCarStatus = async (plateNumber: string, status: string) => {
   try {
-    const response = await axios.put(`${API_BASE_URLS}/auth/rent-car/status/${plateNumber}`, { status }, {
+    const response = await axios.put(`${API_BASE_URL}/auth/rent-car/status/${plateNumber}`, { status }, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 5000,
     });
@@ -157,7 +156,7 @@ export const updateRentCarStatus = async (plateNumber: string, status: string) =
 
 export const updateAssignmentStatus = async (assignmentId: number, status: string) => {
   try {
-    const response = await axios.put(`${API_BASE_URLS}/auth/assignment/status/${assignmentId}`, { status }, {
+    const response = await axios.put(`${API_BASE_URL}/auth/assignment/status/${assignmentId}`, { status }, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 5000,
     });
@@ -173,7 +172,7 @@ export const getLatestVehicleAcceptanceByPlate = async (
 ): Promise<{ data?: any; error?: ApiError }> => {
   try {
     const response: AxiosResponse = await axios.get(
-      `${API_BASE_URL}/vehicle-acceptance/plate/${plateNumber}`,
+      `${API_BASE_URL}/api/vehicle-acceptance/plate/${plateNumber}`,
       { timeout: 5000 }
     );
     return { data: response.data };
@@ -188,7 +187,7 @@ export const deleteVehicleAcceptance = async (
 ): Promise<{ data?: { success: boolean }; error?: ApiError }> => {
   try {
     const response: AxiosResponse<{ success: boolean }> = await axios.delete(
-      `${API_BASE_URL}/vehicle-acceptance/${id}`,
+      `${API_BASE_URL}/api/vehicle-acceptance/${id}`,
       {
         timeout: 5000,
       }

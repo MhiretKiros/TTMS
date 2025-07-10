@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { FiX } from 'react-icons/fi';
 
@@ -43,8 +43,11 @@ interface RentCar {
   position: string;
   libre: string;
   transmission: string;
-  // dataAntollerNatue: string;
   km: string;
+  driverName: string;
+  driverPhone: string;
+  driverAddress: string;
+  driverExperience: string;
 }
 
 // Define initial state outside the component for stability and reusability
@@ -87,8 +90,11 @@ const initialRentCarFormData: RentCar = {
   position: '',
   libre: '',
   transmission: '',
-  // dataAntollerNatue: '',
-  km: ''
+  km: '',
+  driverName: '',
+  driverPhone: '',
+  driverAddress: '',
+  driverExperience: '',
 };
 
 const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
@@ -98,31 +104,52 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
   isSubmitting: boolean;
 }) => {
   const [formData, setFormData] = useState<RentCar>(initialRentCarFormData);
-
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [includeDriverInfo, setIncludeDriverInfo] = useState(false);
 
   useEffect(() => {
     if (car) {
-      // When editing, set form data from car prop.
-      // Ensure status from car is used, or fallback if car.status is missing/falsy.
       setFormData({
-        ...initialRentCarFormData, // Spread initial state first to ensure all fields are present
-        ...car,                   // Then spread car to override with its values
-        status: car.status || initialRentCarFormData.status, // Explicitly handle status, fallback to default
+        ...initialRentCarFormData,
+        ...car,
+        status: car.status || initialRentCarFormData.status,
+        driverName: car.driverName || '',
+        driverPhone: car.driverPhone || '',
+        driverAddress: car.driverAddress || '',
+        driverExperience: car.driverExperience || '',
       });
+      setIncludeDriverInfo(
+        !!car.driverName || !!car.driverPhone || !!car.driverAddress || !!car.driverExperience
+      );
     } else {
-      // When creating a new car (car is null), or if form is cleared.
-      // Reset to the initial default state.
       setFormData(initialRentCarFormData);
+      setIncludeDriverInfo(false);
     }
   }, [car]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
 
-    if (type === 'checkbox') {
+    if (type === 'checkbox' && name === 'includeDriverInfo') {
+      setIncludeDriverInfo((e.target as HTMLInputElement).checked);
+      if (!(e.target as HTMLInputElement).checked) {
+        setFormData(prev => ({
+          ...prev,
+          driverName: '',
+          driverPhone: '',
+          driverAddress: '',
+          driverExperience: '',
+        }));
+        setErrors(prev => ({
+          ...prev,
+          driverName: '',
+          driverPhone: '',
+          driverAddress: '',
+          driverExperience: '',
+        }));
+      }
+    } else if (type === 'checkbox') {
       const { checked } = e.target as HTMLInputElement;
-      // The dropdowns used 'Yes'/'No'. We map boolean to that.
       setFormData(prev => ({ ...prev, [name]: checked ? 'Yes' : 'No' }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -139,9 +166,14 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     if (!formData.companyName) newErrors.companyName = 'Company name is required';
     if (!formData.plateNumber) newErrors.plateNumber = 'Plate number is required';
     if (!formData.model) newErrors.model = 'Model is required';
-    // Add validation for status, ensuring it's not empty.
     if (!formData.status) newErrors.status = 'Status is required';
-    
+    if (includeDriverInfo) {
+      if (!formData.driverName) newErrors.driverName = 'Driver name is required';
+      if (!formData.driverPhone) newErrors.driverPhone = 'Driver phone is required';
+      if (!formData.driverAddress) newErrors.driverAddress = 'Driver address is required';
+      if (!formData.driverExperience) newErrors.driverExperience = 'Driver experience is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -151,11 +183,9 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     if (!validateForm()) return;
 
     try {
-      // For new cars, send formData as is. It includes 'status' from initialization.
-      // For existing cars (update), ensure 'id' is included from the 'car' prop.
       const carDataToSubmit = (car && car.id)
-        ? { ...formData, id: car.id } // Update existing car
-        : { ...formData };            // Create new car
+        ? { ...formData, id: car.id }
+        : { ...formData };
       
       await onSubmit(carDataToSubmit as RentCar);
     } catch (error) {
@@ -295,12 +325,12 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                     >
                       <option value="">Select Body Type</option>
                       <option value="Auto Mobile">Auto Mobile</option>
-                      <option value="mini bus">Mini bus</option>
-                      <option value="bus">Bus</option>
+                      <option value="Mini Bus">Mini Bus</option>
+                      <option value="Bus">Bus</option>
                       <option value="Truck">Truck</option>
-                      
                     </select>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Motor Number</label>
                     <input
@@ -402,7 +432,8 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       disabled={isSubmitting}
                     />
                   </div>
-<div>
+
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Vehicles Status *</label>
                     <select
                       name="status"
@@ -420,6 +451,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       <p className="mt-1 text-sm text-red-600">{errors.status}</p>
                     )}
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Type</label>
                     <select
@@ -435,8 +467,6 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       <option value="Hybrid">Hybrid</option>
                     </select>
                   </div>
-
-                  
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Other Description</label>
@@ -456,61 +486,97 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
               <div className="md:col-span-2">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Equipment Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="radio-checkbox"
-                      type="checkbox"
-                      name="radio"
-                      checked={formData.radio === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="radio-checkbox"
+                        type="checkbox"
+                        name="radio"
+                        checked={formData.radio === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.radio === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="radio-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Radio
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="antena-checkbox"
-                      type="checkbox"
-                      name="antena"
-                      checked={formData.antena === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="antena-checkbox"
+                        type="checkbox"
+                        name="antena"
+                        checked={formData.antena === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.antena === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="antena-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Antena
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="krik-checkbox"
-                      type="checkbox"
-                      name="krik"
-                      checked={formData.krik === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="krik-checkbox"
+                        type="checkbox"
+                        name="krik"
+                        checked={formData.krik === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.krik === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="krik-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Krik
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="krikManesha-checkbox"
-                      type="checkbox"
-                      name="krikManesha"
-                      checked={formData.krikManesha === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="krikManesha-checkbox"
+                        type="checkbox"
+                        name="krikManesha"
+                        checked={formData.krikManesha === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.krikManesha === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="krikManesha-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Krik Manesha
                     </label>
@@ -532,111 +598,273 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                     </select>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="gomaMaficha-checkbox"
-                      type="checkbox"
-                      name="gomaMaficha"
-                      checked={formData.gomaMaficha === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="gomaMaficha-checkbox"
+                        type="checkbox"
+                        name="gomaMaficha"
+                        checked={formData.gomaMaficha === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.gomaMaficha === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="gomaMaficha-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Goma Maficha
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="mefcha-checkbox"
-                      type="checkbox"
-                      name="mefcha"
-                      checked={formData.mefcha === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="mefcha-checkbox"
+                        type="checkbox"
+                        name="mefcha"
+                        checked={formData.mefcha === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.mefcha === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="mefcha-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Mefcha
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="reserveTayer-checkbox"
-                      type="checkbox"
-                      name="reserveTayer"
-                      checked={formData.reserveTayer === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="reserveTayer-checkbox"
+                        type="checkbox"
+                        name="reserveTayer"
+                        checked={formData.reserveTayer === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.reserveTayer === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="reserveTayer-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Reserve Tayer
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="gomaGet-checkbox"
-                      type="checkbox"
-                      name="gomaGet"
-                      checked={formData.gomaGet === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="gomaGet-checkbox"
+                        type="checkbox"
+                        name="gomaGet"
+                        checked={formData.gomaGet === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.gomaGet === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="gomaGet-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Goma Get
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="pinsa-checkbox"
-                      type="checkbox"
-                      name="pinsa"
-                      checked={formData.pinsa === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="pinsa-checkbox"
+                        type="checkbox"
+                        name="pinsa"
+                        checked={formData.pinsa === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.pinsa === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="pinsa-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Pinsa
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="kacavite-checkbox"
-                      type="checkbox"
-                      name="kacavite"
-                      checked={formData.kacavite === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="kacavite-checkbox"
+                        type="checkbox"
+                        name="kacavite"
+                        checked={formData.kacavite === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.kacavite === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="kacavite-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Kacavite
                     </label>
                   </div>
 
-                  <div className="flex items-center pt-6">
-                    <input
-                      id="fireProtection-checkbox"
-                      type="checkbox"
-                      name="fireProtection"
-                      checked={formData.fireProtection === 'Yes'}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isSubmitting}
-                    />
+                  <div className="flex items-center">
+                    <div className="relative">
+                      <input
+                        id="fireProtection-checkbox"
+                        type="checkbox"
+                        name="fireProtection"
+                        checked={formData.fireProtection === 'Yes'}
+                        onChange={handleChange}
+                        className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                        disabled={isSubmitting}
+                      />
+                      <motion.span
+                        className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                        animate={{ opacity: formData.fireProtection === 'Yes' ? 1 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        ✓
+                      </motion.span>
+                    </div>
                     <label htmlFor="fireProtection-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
                       Fire Protection
                     </label>
                   </div>
                 </div>
+              </div>
+
+              {/* Driver Information */}
+              <div className="md:col-span-2">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Driver Information</h3>
+                <div className="flex items-center mb-4">
+                  <div className="relative">
+                    <input
+                      id="includeDriverInfo-checkbox"
+                      type="checkbox"
+                      name="includeDriverInfo"
+                      checked={includeDriverInfo}
+                      onChange={handleChange}
+                      className="appearance-none h-5 w-5 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200"
+                      disabled={isSubmitting}
+                    />
+                    <motion.span
+                      className="absolute inset-0 flex items-center justify-center text-white text-sm"
+                      animate={{ opacity: includeDriverInfo ? 1 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      ✓
+                    </motion.span>
+                  </div>
+                  <label htmlFor="includeDriverInfo-checkbox" className="ml-3 block text-sm font-medium text-gray-900">
+                    Include Driver Information
+                  </label>
+                </div>
+                {includeDriverInfo && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name *</label>
+                      <input
+                        type="text"
+                        name="driverName"
+                        value={formData.driverName}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-2 rounded-lg border ${
+                          errors.driverName ? 'border-red-500' : 'border-gray-300'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        disabled={isSubmitting}
+                      />
+                      {errors.driverName && (
+                        <p className="mt-1 text-sm text-red-600">{errors.driverName}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Driver Phone *</label>
+                      <input
+                        type="text"
+                        name="driverPhone"
+                        value={formData.driverPhone}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-2 rounded-lg border ${
+                          errors.driverPhone ? 'border-red-500' : 'border-gray-300'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        disabled={isSubmitting}
+                      />
+                      {errors.driverPhone && (
+                        <p className="mt-1 text-sm text-red-600">{errors.driverPhone}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Driver Address *</label>
+                      <input
+                        type="text"
+                        name="driverAddress"
+                        value={formData.driverAddress}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-2 rounded-lg border ${
+                          errors.driverAddress ? 'border-red-500' : 'border-gray-300'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        disabled={isSubmitting}
+                      />
+                      {errors.driverAddress && (
+                        <p className="mt-1 text-sm text-red-600">{errors.driverAddress}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Driver Experience *</label>
+                      <input
+                        type="text"
+                        name="driverExperience"
+                        value={formData.driverExperience}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-2 rounded-lg border ${
+                          errors.driverExperience ? 'border-red-500' : 'border-gray-300'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        disabled={isSubmitting}
+                      />
+                      {errors.driverExperience && (
+                        <p className="mt-1 text-sm text-red-600">{errors.driverExperience}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Additional Information */}
@@ -754,18 +982,6 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                     </select>
                   </div>
 
-                  {/* <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Antoller Natue</label>
-                    <input
-                      type="text"
-                      name="dataAntollerNatue"
-                      value={formData.dataAntollerNatue}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={isSubmitting}
-                    />
-                  </div> */}
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
                     <input
@@ -782,44 +998,43 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-            <motion.button
-              type="button"
-              onClick={onClose}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-4 py-2 border border-[#3c8dbc] text-[#3c8dbc] rounded-lg hover:bg-[#ecf4f8] transition-colors"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </motion.button>
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              disabled={isSubmitting}
-              className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                isSubmitting
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-[#3c8dbc] hover:bg-[#2a6a90]'
-              }`}
-            >
-              {isSubmitting ? (
-                <span className="flex items-center justify-center">
-                  <motion.span
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                  />
-                  {car ? 'Updating...' : 'Registering...'}
-                </span>
-              ) : car ? (
-                'Update Vehicle'
-              ) : (
-                'Register Vehicle'
-              )}
-            </motion.button>
-          </div>
-
+              <motion.button
+                type="button"
+                onClick={onClose}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-4 py-2 border border-[#3c8dbc] text-[#3c8dbc] rounded-lg hover:bg-[#ecf4f8] transition-colors"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                type="submit"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                disabled={isSubmitting}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                  isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-[#3c8dbc] hover:bg-[#2a6a90]'
+                }`}
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center">
+                    <motion.span
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                    />
+                    {car ? 'Updating...' : 'Registering...'}
+                  </span>
+                ) : car ? (
+                  'Update Vehicle'
+                ) : (
+                  'Register Vehicle'
+                )}
+              </motion.button>
+            </div>
           </form>
         </div>
       </motion.div>
