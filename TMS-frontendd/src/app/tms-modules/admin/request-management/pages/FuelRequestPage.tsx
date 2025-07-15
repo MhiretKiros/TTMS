@@ -9,26 +9,51 @@ import { FuelReturnForm } from '../components/FuelForms/FuelReturnForm';
 import { TravelApi, TravelRequest } from '../api/handlers';
 
 const FuelManagementPage = () => {
-  const [actorType, setActorType] = useState<'distributor' | 'nezek'>('distributor');
   const [activeTab, setActiveTab] = useState<'requests' | 'returns'>('requests');
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [returns, setReturns] = useState<TravelRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'DISTRIBUTOR' | 'NEZEK'>('DISTRIBUTOR');
 
   useEffect(() => {
+    // Get user role from localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        const role = user.role?.toUpperCase();
+        
+        // Set user role based on localStorage
+        if (role === 'DISTRIBUTOR' || role === 'HEAD_OF_DISTRIBUTOR') {
+          setUserRole('DISTRIBUTOR');
+        } else if (role === 'NEZEK') {
+          setUserRole('NEZEK');
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        setUserRole('DISTRIBUTOR');
+      }
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    
     const loadData = async () => {
       try {
-        const data = await TravelApi.getRequests(actorType);
+        const data = await TravelApi.getRequests(userRole.toLowerCase() as 'distributor' | 'nezek');
         
-        if (actorType === 'distributor') {
+        if (userRole === 'DISTRIBUTOR') {
           if (activeTab === 'requests') {
             setRequests(data.filter(req => req.status === 'ASSIGNED'));
           } else {
             setReturns(data.filter(req => req.status === 'FINISHED'));
           }
-        } else { // nezek
+        } else { // NEZEK
           if (activeTab === 'requests') {
             setRequests(data.filter(req => req.status === 'COMPLETED'));
           } else {
@@ -40,19 +65,19 @@ const FuelManagementPage = () => {
       }
     };
     loadData();
-  }, [activeTab, actorType]);
+  }, [activeTab, userRole, loading]);
 
   const handleSuccess = () => {
     setSelectedRequest(null);
-    TravelApi.getRequests(actorType)
+    TravelApi.getRequests(userRole.toLowerCase() as 'distributor' | 'nezek')
       .then(data => {
-        if (actorType === 'distributor') {
+        if (userRole === 'DISTRIBUTOR') {
           if (activeTab === 'requests') {
             setRequests(data.filter(req => req.status === 'ASSIGNED'));
           } else {
             setReturns(data.filter(req => req.status === 'FINISHED'));
           }
-        } else { // nezek
+        } else { // NEZEK
           if (activeTab === 'requests') {
             setRequests(data.filter(req => req.status === 'COMPLETED'));
           } else {
@@ -114,63 +139,42 @@ const FuelManagementPage = () => {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6">
-      {/* Actor Type Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div className="flex items-center gap-2">
-          <FiUser className="text-gray-500" />
-          <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-            <button
-              onClick={() => setActorType('distributor')}
-              className={`px-4 py-2 font-medium ${
-                actorType === 'distributor'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Distributor
-            </button>
-            <button
-              onClick={() => setActorType('nezek')}
-              className={`px-4 py-2 font-medium ${
-                actorType === 'nezek'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Nezek
-            </button>
-          </div>
+        {/* Tab Navigation (for both roles) */}
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'requests' 
+                ? 'text-blue-600 border-b-2 border-blue-600' 
+                : 'text-gray-500 hover:text-blue-500'
+            }`}
+          >
+            <FiTruck className="mr-2 inline-block" />
+            {userRole === 'DISTRIBUTOR' ? 'New Fuel Requests' : 'Completed Requests'}
+          </button>
+          <button
+            onClick={() => setActiveTab('returns')}
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'returns' 
+                ? 'text-blue-600 border-b-2 border-blue-600' 
+                : 'text-gray-500 hover:text-blue-500'
+            }`}
+          >
+            <FiPackage className="mr-2 inline-block" />
+            {userRole === 'DISTRIBUTOR' ? 'Fuel Returns' : 'Successful Returns'}
+          </button>
         </div>
-
-        {/* Tab Navigation (only for distributor) */}
-        {actorType === 'distributor' && (
-          <div className="flex gap-4">
-            <button
-              onClick={() => setActiveTab('requests')}
-              className={`px-4 py-2 font-medium ${
-                activeTab === 'requests' 
-                  ? 'text-blue-600 border-b-2 border-blue-600' 
-                  : 'text-gray-500 hover:text-blue-500'
-              }`}
-            >
-              <FiTruck className="mr-2 inline-block" />
-              New Fuel Requests
-            </button>
-            <button
-              onClick={() => setActiveTab('returns')}
-              className={`px-4 py-2 font-medium ${
-                activeTab === 'returns' 
-                  ? 'text-blue-600 border-b-2 border-blue-600' 
-                  : 'text-gray-500 hover:text-blue-500'
-              }`}
-            >
-              <FiPackage className="mr-2 inline-block" />
-              Fuel Returns
-            </button>
-          </div>
-        )}
 
         {/* Search Bar */}
         <div className="relative w-full sm:w-auto">
@@ -185,26 +189,28 @@ const FuelManagementPage = () => {
         </div>
       </div>
 
-      {/* For Nezek - Show current view title */}
-      {actorType === 'nezek' && (
-        <h2 className="text-lg font-semibold mb-4 flex items-center">
-          {activeTab === 'requests' ? (
-            <>
-              <FiTruck className="mr-2" />
-              Completed Fuel Requests (Ready for Approval)
-            </>
-          ) : (
-            <>
-              <FiPackage className="mr-2" />
-              Successful Fuel Returns (Ready for Completion)
-            </>
-          )}
-        </h2>
-      )}
+      {/* View title based on role */}
+      <h2 className="text-lg font-semibold mb-4 flex items-center">
+        {activeTab === 'requests' ? (
+          <>
+            <FiTruck className="mr-2" />
+            {userRole === 'DISTRIBUTOR' 
+              ? 'New Fuel Requests' 
+              : 'Completed Fuel Requests (Ready for Approval)'}
+          </>
+        ) : (
+          <>
+            <FiPackage className="mr-2" />
+            {userRole === 'DISTRIBUTOR' 
+              ? 'Fuel Returns' 
+              : 'Successful Fuel Returns (Ready for Completion)'}
+          </>
+        )}
+      </h2>
 
       <RequestsTable
         requests={activeTab === 'requests' ? requests : returns}
-        actorType={actorType}
+        actorType={userRole.toLowerCase() as 'distributor' | 'nezek'}
         onRowClick={setSelectedRequest}
         driverSearchQuery={searchQuery}
       />
@@ -221,20 +227,12 @@ const FuelManagementPage = () => {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold">
-                    {actorType === 'distributor' ? (
-                      activeTab === 'requests' ? (
-                        <FiTruck className="mr-2 inline-block" />
-                      ) : (
-                        <FiPackage className="mr-2 inline-block" />
-                      )
+                    {activeTab === 'requests' ? (
+                      <FiTruck className="mr-2 inline-block" />
                     ) : (
-                      activeTab === 'requests' ? (
-                        <FiTruck className="mr-2 inline-block" />
-                      ) : (
-                        <FiPackage className="mr-2 inline-block" />
-                      )
+                      <FiPackage className="mr-2 inline-block" />
                     )}
-                    {actorType === 'distributor' ? (
+                    {userRole === 'DISTRIBUTOR' ? (
                       activeTab === 'requests' ? 'Fuel Request for Fieldwork' : 'Fuel Request for Return to Fieldwork'
                     ) : (
                       activeTab === 'requests' ? 'Fuel Request Approval' : 'Fuel Return Completion'
@@ -248,7 +246,7 @@ const FuelManagementPage = () => {
                   </button>
                 </div>
 
-                {actorType === 'distributor' ? (
+                {userRole === 'DISTRIBUTOR' ? (
                   activeTab === 'requests' ? (
                     <FuelRequestForm
                       travelRequestId={selectedRequest.id}

@@ -376,15 +376,15 @@ async completeTrip(data: {
  // Add these to your TravelApi
 // Change these methods in the TravelApi object// CORRECT API ENDPOINTS
 async getAllCars() {
-  return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all');
+  return axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all`);
 },
 
 async getAllOrganizationCars() {
-  return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all');
+  return axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all`);
 },
 
 async getAllRentCars() {
-  return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all');
+  return axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all`);
 },
 
 updateCarStatus: (plateNumber: string, data: { status: string }) => 

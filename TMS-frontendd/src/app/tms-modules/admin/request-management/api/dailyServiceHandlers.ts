@@ -109,10 +109,10 @@ export const DailyServiceApi = {
   },
   
   async getAllOrganizationCars() {
-    return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all');
+    return axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/all`);
   },
   
   async getAllRentCars() {
-    return axios.get('${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all');
+    return axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/all`);
   },
 };

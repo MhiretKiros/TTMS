@@ -1,6 +1,6 @@
 // api/assignmentServices.ts
 import axios from 'axios';
-import { API_BASE_URL } from 'D:/my git projects/TMS/TMS-frontendd/src/config';
+import { API_BASE_URL } from '@/config';
 import { AssignmentHistory, ApiResponse } from '../types';
 
 const BASE_URL = `${API_BASE_URL}/auth/assignment`;

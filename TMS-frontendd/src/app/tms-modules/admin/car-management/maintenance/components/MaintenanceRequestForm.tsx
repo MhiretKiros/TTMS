@@ -99,24 +99,43 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
   const [carSearch, setCarSearch] = useState('');
   const [showCarDropdown, setShowCarDropdown] = useState(false);
   
+  // Get driver name from localStorage
+  const [driverName, setDriverName] = useState(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        return parsedUser.name || '';
+      } catch {
+        return '';
+      }
+    }
+    return '';
+  });
+
   useEffect(() => {
     const loadRequests = async () => {
       try {
         let data;
         if (actorType === 'driver') {
           data = await axios.get(`${API_BASE_URL}/driver`).then(res => res.data);
+          // Filter requests for the current driver only
+          data = data.filter((request: MaintenanceRequest) => 
+            request.reportingDriver?.toLowerCase() === driverName.toLowerCase()
+          );
+          setRequests(data);
+          setFilteredRequests(data);
         } else if (actorType === 'distributor') {
           data = await axios.get(`${API_BASE_URL}/distributor`).then(res => res.data);
+          setRequests(data);
+          setFilteredRequests(data);
         } else if (actorType === 'maintenance') {
           data = await axios.get(`${API_BASE_URL}/maintenance`).then(res => res.data);
+          setRequests(data);
+          setFilteredRequests(data);
         } else if (actorType === 'inspector') {
           data = await axios.get(`${API_BASE_URL}/inspector`).then(res => res.data);
-        }
-        
-        setRequests(data);
-        if (actorType === 'driver') {
-          setFilteredRequests([]);
-        } else {
+          setRequests(data);
           setFilteredRequests(data);
         }
         
@@ -134,7 +153,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     };
     
     loadRequests();
-  }, [requestId, actorType]);
+  }, [requestId, actorType, driverName]);
 
   useEffect(() => {
     const fetchCars = async () => {
@@ -2222,68 +2241,49 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-800">My Maintenance Requests</h2>
+          <h2 className="text-2xl font-semibold text-gray-800">
+            My Maintenance Requests
+            {driverName && (
+              <span className="text-lg font-normal text-gray-600 ml-2">
+                (Driver: {driverName})
+              </span>
+            )}
+          </h2>
           <p className="text-gray-600 mt-1">
-            Search by your exact name to view your requests or add a new maintenance request
+            View your maintenance requests or add a new request
           </p>
         </div>
-        <div className="flex space-x-4">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-              <FiSearch className="text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search by your exact name..."
-              value={searchQuery}
-              onChange={handleDriverSearch}
-              className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowRequestForm(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white"
-          >
-            <FiPlusCircle
-              className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
-            />
-          </motion.button>
-        </div>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowRequestForm(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white"
+        >
+          <FiPlusCircle
+            className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
+          />
+        </motion.button>
       </div>
 
       {filteredRequests.length === 0 ? (
         <div className="text-center py-8">
           <div className="text-gray-500 max-w-md mx-auto">
-            {searchQuery.trim() === '' ? (
-              <>
-                <FiFileText className="mx-auto text-3xl mb-4 text-blue-500" />
-                <h4 className="font-medium text-lg mb-2">No Search Performed</h4>
-                <p className="mb-4">
-                  Enter your exact name in the search bar to view your maintenance requests
-                </p>
-              </>
-            ) : (
-              <>
-                <FiFileText className="mx-auto text-3xl mb-4 text-blue-500" />
-                <h4 className="font-medium text-lg mb-2">No Requests Found</h4>
-                <p className="mb-4">
-                  No maintenance requests found for "{searchQuery}". Make sure you've entered your exact name.
-                </p>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowRequestForm(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white mx-auto"
-                >
-                  <FiPlusCircle
-                    className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
-                  />
-                  <span className="text-[#3c8dbc] font-semibold">Add New Request</span>
-                </motion.button>
-              </>
-            )}
+            <FiFileText className="mx-auto text-3xl mb-4 text-blue-500" />
+            <h4 className="font-medium text-lg mb-2">No Requests Found</h4>
+            <p className="mb-4">
+              You don't have any maintenance requests yet.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowRequestForm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm bg-white mx-auto"
+            >
+              <FiPlusCircle
+                className="w-12 h-12 p-1 rounded-full text-[#3c8dbc] transition-colors duration-200 hover:bg-[#3c8dbc] hover:text-white"
+              />
+              <span className="text-[#3c8dbc] font-semibold">Add New Request</span>
+            </motion.button>
           </div>
         </div>
       ) : (
@@ -2416,7 +2416,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     </div>
   );
 
-  return (
+return (
     <>
       {actorType === 'driver' ? renderDriverView() : 
        actorType === 'distributor' ? renderDistributorView() : 

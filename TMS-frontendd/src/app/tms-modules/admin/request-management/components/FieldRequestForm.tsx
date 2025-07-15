@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect,useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiAlertCircle, FiMapPin, FiSend, FiCalendar, FiCheckCircle, 
   FiUser, FiUsers, FiTool, FiPlus, FiMinus, FiTruck, FiPackage,
-  FiSearch, FiArrowRight, FiX,FiChevronDown 
+  FiSearch, FiArrowRight, FiX, FiChevronDown 
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import { TravelApi, TravelRequest } from '../api/handlers';
@@ -45,16 +45,6 @@ const formatDateForInput = (dateString: string) => {
   }
 };
 
-const parseInputDate = (dateString: string) => {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? '' : date.toISOString();
-  } catch {
-    return '';
-  }
-};
-
 export default function TravelRequestForm({ requestId, onSuccess, actorType }: TravelRequestFormProps) {
   const [formData, setFormData] = useState({
     startingPlace: '',
@@ -89,11 +79,9 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
 
   const [showCargoDropdown, setShowCargoDropdown] = useState(false);
   const [selectedCargoTypes, setSelectedCargoTypes] = useState<string[]>([]);
-  const [vehicleType, setVehicleType] = useState( '' as 'car' | 'organization' | 'rent' | ''
-  );
+  const [vehicleType, setVehicleType] = useState('' as 'car' | 'organization' | 'rent' | '');
   const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<TravelRequest[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -103,161 +91,162 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
   const [showUserModal, setShowUserModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showFuelModal, setShowFuelModal] = useState(false);
-  const [driverNameFilter, setDriverNameFilter] = useState('');
-  const [driverSearchQuery, setDriverSearchQuery] = useState('');
-
   
+  // Get driver name from localStorage like the Header component
+  const [driverName, setDriverName] = useState(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        return parsedUser.name || '';
+      } catch {
+        return '';
+      }
+    }
+    return '';
+  });
+
   // Plate search functionality
   interface VehicleSuggestion {
     plate: string;
     driver: string;
     carType: string;
     status: string;
-    type: 'car' | 'organization' | 'rent'; // Add type discriminator
-
+    type: 'car' | 'organization' | 'rent';
   }
-    // State declarations
-    const [vehicleSuggestions, setVehicleSuggestions] = useState<VehicleSuggestion[]>([]);
-    const [plateSearchQuery, setPlateSearchQuery] = useState('');
-  
-    // Fetch vehicles data
-// Update the vehicle fetching useEffect
-useEffect(() => {
-  const fetchAllVehicles = async () => {
-    try {
-      const [carsRes, orgCarsRes, rentCarsRes] = await Promise.all([
-        TravelApi.getAllCars(),
-        TravelApi.getAllOrganizationCars(),
-        TravelApi.getAllRentCars()
-      ]);
 
-      const vehicles = [
-        ...(carsRes.data.carList || []).filter((car: { status: string }) => 
-          car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
-          plate: v.plateNumber,
-          driver: v.driverName || 'No driver assigned',
-          carType: v.carType,
-          type: 'car' as const // Add type identifier
-        })),
-        ...(orgCarsRes.data.organizationCarList || []).filter((car: { status: string }) => 
-          car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
-          plate: v.plateNumber,
-          driver: v.driverName || 'No driver assigned',
-          carType: v.carType,
-          type: 'organization' as const // Add type identifier
-        })),
-        ...(rentCarsRes.data.rentCarList || []).filter((car: { status: string }) => 
-          car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
-          plate: v.licensePlate,
-          driver: v.driverName || 'No driver assigned',
-          carType: v.vehicleType,
-          type: 'rent' as const // Add type identifier
-        }))
-      ].filter(v => v.plate !== 'N/A');
+  const [vehicleSuggestions, setVehicleSuggestions] = useState<VehicleSuggestion[]>([]);
+  const [plateSearchQuery, setPlateSearchQuery] = useState('');
 
-      setVehicleSuggestions(vehicles);
-    } catch (error) {
-      console.error('Vehicle fetch error:', error);
-    }
-  };
+  // Fetch vehicles data
+  useEffect(() => {
+    const fetchAllVehicles = async () => {
+      try {
+        const [carsRes, orgCarsRes, rentCarsRes] = await Promise.all([
+          TravelApi.getAllCars(),
+          TravelApi.getAllOrganizationCars(),
+          TravelApi.getAllRentCars()
+        ]);
 
-  if (showServiceModal) fetchAllVehicles();
-}, [showServiceModal]);
-  
-    // Enhanced search logic
-const filteredVehicles = useMemo(() => {
-  if (!plateSearchQuery.trim()) return [];
-  
-  const query = plateSearchQuery.toLowerCase().replace(/[^a-z0-9]/g, '');
-  
-  return vehicleSuggestions
-    .filter(vehicle => {
-      const plate = vehicle?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
-      return plate.includes(query);
-    })
-    .sort((a, b) => {
-      const aPlate = a?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
-      const bPlate = b?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
+        const vehicles = [
+          ...(carsRes.data.carList || []).filter((car: { status: string }) => 
+            car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
+            plate: v.plateNumber,
+            driver: v.driverName || 'No driver assigned',
+            carType: v.carType,
+            type: 'car' as const
+          })),
+          ...(orgCarsRes.data.organizationCarList || []).filter((car: { status: string }) => 
+            car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
+            plate: v.plateNumber,
+            driver: v.driverName || 'No driver assigned',
+            carType: v.carType,
+            type: 'organization' as const
+          })),
+          ...(rentCarsRes.data.rentCarList || []).filter((car: { status: string }) => 
+            car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
+            plate: v.licensePlate,
+            driver: v.driverName || 'No driver assigned',
+            carType: v.vehicleType,
+            type: 'rent' as const
+          }))
+        ].filter(v => v.plate !== 'N/A');
 
-      // Exact match first
-      if (aPlate === query) return -1;
-      if (bPlate === query) return 1;
-      
-      // Then startsWith matches
-      const aStartsWith = aPlate.startsWith(query);
-      const bStartsWith = bPlate.startsWith(query);
-      if (aStartsWith && !bStartsWith) return -1;
-      if (bStartsWith && !aStartsWith) return 1;
-      
-      // Alphabetical order
-      return aPlate.localeCompare(bPlate);
-    })
-    .slice(0, 5);
-}, [plateSearchQuery, vehicleSuggestions]);
-  
-    // Plate selection handler
-// Update handlePlateSelect function
-const handlePlateSelect = (vehicle: VehicleSuggestion) => {
-  setFormData(prev => ({
-    ...prev,
-    vehicleDetails: vehicle.plate,
-    assignedDriver: vehicle.driver,
-    assignedCarType: vehicle.carType,
-    // Store vehicle type in form data
-  }));
-  setVehicleType(vehicle.type)
-  setPlateSearchQuery(vehicle.plate);
-  
-};
-
-useEffect(() => {
-  const determineVehicleType = async () => {
-    if (!selectedRequest?.vehicleDetails) return;
-    
-    try {
-      const [cars, orgCars, rentCars] = await Promise.all([
-        TravelApi.getAllCars(),
-        TravelApi.getAllOrganizationCars(),
-        TravelApi.getAllRentCars()
-      ]);
-
-      const plate = selectedRequest.vehicleDetails;
-      
-      if (cars.data.carList.some((c: any) => c.plateNumber === plate)) {
-        setVehicleType( 'car' );      } 
-      else if (orgCars.data.organizationCarList.some((c: any) => c.plateNumber === plate)) {
-        setVehicleType( 'organization' );
+        setVehicleSuggestions(vehicles);
+      } catch (error) {
+        console.error('Vehicle fetch error:', error);
       }
-      else if (rentCars.data.rentCarList.some((c: any) => c.licensePlate === plate)) {
-        setVehicleType( 'rent' );      }
-    } catch (error) {
-      console.error('Failed to determine vehicle type', error);
-    }
+    };
+
+    if (showServiceModal) fetchAllVehicles();
+  }, [showServiceModal]);
+
+  const filteredVehicles = useMemo(() => {
+    if (!plateSearchQuery.trim()) return [];
+    
+    const query = plateSearchQuery.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    return vehicleSuggestions
+      .filter(vehicle => {
+        const plate = vehicle?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
+        return plate.includes(query);
+      })
+      .sort((a, b) => {
+        const aPlate = a?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
+        const bPlate = b?.plate?.toLowerCase()?.replace(/[^a-z0-9]/g, '') || '';
+
+        if (aPlate === query) return -1;
+        if (bPlate === query) return 1;
+        
+        const aStartsWith = aPlate.startsWith(query);
+        const bStartsWith = bPlate.startsWith(query);
+        if (aStartsWith && !bStartsWith) return -1;
+        if (bStartsWith && !aStartsWith) return 1;
+        
+        return aPlate.localeCompare(bPlate);
+      })
+      .slice(0, 5);
+  }, [plateSearchQuery, vehicleSuggestions]);
+
+  const handlePlateSelect = (vehicle: VehicleSuggestion) => {
+    setFormData(prev => ({
+      ...prev,
+      vehicleDetails: vehicle.plate,
+      assignedDriver: vehicle.driver,
+      assignedCarType: vehicle.carType,
+    }));
+    setVehicleType(vehicle.type);
+    setPlateSearchQuery(vehicle.plate);
   };
 
-  if (showUserModal && actorType === 'driver') {
-    determineVehicleType();
-  }
-}, [showUserModal, selectedRequest, actorType]);
+  useEffect(() => {
+    const determineVehicleType = async () => {
+      if (!selectedRequest?.vehicleDetails) return;
+      
+      try {
+        const [cars, orgCars, rentCars] = await Promise.all([
+          TravelApi.getAllCars(),
+          TravelApi.getAllOrganizationCars(),
+          TravelApi.getAllRentCars()
+        ]);
+
+        const plate = selectedRequest.vehicleDetails;
+        
+        if (cars.data.carList.some((c: any) => c.plateNumber === plate)) {
+          setVehicleType('car');
+        } 
+        else if (orgCars.data.organizationCarList.some((c: any) => c.plateNumber === plate)) {
+          setVehicleType('organization');
+        }
+        else if (rentCars.data.rentCarList.some((c: any) => c.licensePlate === plate)) {
+          setVehicleType('rent');
+        }
+      } catch (error) {
+        console.error('Failed to determine vehicle type', error);
+      }
+    };
+
+    if (showUserModal && actorType === 'driver') {
+      determineVehicleType();
+    }
+  }, [showUserModal, selectedRequest, actorType]);
 
   useEffect(() => {
     const loadRequests = async () => {
       try {
         let data;
         if (actorType === 'driver') {
-          // Load all ACCEPTED requests but don't show them initially
+          // Load all ACCEPTED requests for the current driver
           data = await TravelApi.getDriverRequests();
-          data = data.filter(request => request.status === 'ACCEPTED');
+          data = data.filter(request => 
+            request.status === 'ACCEPTED' && 
+            request.assignedDriver?.toLowerCase() === driverName.toLowerCase()
+          );
+          setRequests(data);
+          setFilteredRequests(data);
         } else {
           data = await TravelApi.getRequests(actorType);
-        }
-        
-        setRequests(data);
-        
-        if (actorType === 'driver') {
-          // Start with empty results for drivers
-          setFilteredRequests([]);
-        } else {
+          setRequests(data);
           setFilteredRequests(data);
         }
         
@@ -273,129 +262,85 @@ useEffect(() => {
       }
     };
     loadRequests();
-  }, [requestId, actorType]);
-  
+  }, [requestId, actorType, driverName]);
+
   useEffect(() => {
     if (selectedRequest) {
       populateFormData(selectedRequest);
     }
   }, [selectedRequest]);
-  
-//searching functionality
 
-useEffect(() => {
-  if (actorType === 'driver') {
-    // For drivers, only show exact matches
-    if (driverSearchQuery.trim() === '') {
-      setFilteredRequests([]);
+  const populateFormData = (request: TravelRequest) => {
+    if (actorType === 'driver') {
+      setFormData(prev => ({
+        ...prev,
+        serviceProviderName: request.serviceProviderName || '',
+        assignedCarType: request.assignedCarType || '',
+        assignedDriver: request.assignedDriver || '',
+        vehicleDetails: request.vehicleDetails || '',
+        actualStartingDate: '',
+        actualReturnDate: '',
+        startingKilometers: '',
+        endingKilometers: '',
+        kmDifference: '',
+        cargoType: request.cargoType || '',
+        cargoWeight: '',
+        numberOfPassengers: request.travelers.filter(t => t?.name?.trim()).length.toString(),
+        travelers: request.travelers.map(t => t?.name || '')
+      }));
+      
+      if (request.cargoType) {
+        setSelectedCargoTypes(
+          request.cargoType.split(',')
+            .map(t => t.trim())
+            .filter(t => t.length > 0)
+        );
+      } else {
+        setSelectedCargoTypes([]);
+      }
     } else {
-      const filtered = requests.filter(request => {
-        // Exact case-sensitive match with trimmed whitespace
-        return request.assignedDriver?.trim() === driverSearchQuery.trim();
+      setFormData({
+        paymentType: request.paymentType || '',
+        startingPlace: request.startingPlace,
+        destinationPlace: request.destinationPlace,
+        travelers: request.travelers.map(t => t?.name || ''),
+        travelReason: request.travelReason,
+        carType: request.carType || '',
+        travelDistance: request.travelDistance?.toString() || '',
+        startingDate: formatDateForInput(request.startingDate) || '',
+        returnDate: request.returnDate ? formatDateForInput(request.returnDate) : '',
+        department: request.department,
+        jobStatus: request.jobStatus,
+        claimantName: request.claimantName,
+        accountNumber: request.accountNumber || '',
+        teamLeaderName: request.teamLeaderName,
+        approvement: request.approvement || '',
+        serviceProviderName: request.serviceProviderName || '',
+        assignedCarType: request.assignedCarType || '',
+        assignedDriver: request.assignedDriver || '',
+        vehicleDetails: request.vehicleDetails || '',
+        actualStartingDate: request.actualStartingDate ? formatDateForInput(request.actualStartingDate) : '',
+        actualReturnDate: request.actualReturnDate ? formatDateForInput(request.actualReturnDate) : '',
+        startingKilometers: request.startingKilometers?.toString() || '',
+        endingKilometers: request.endingKilometers?.toString() || '',
+        kmDifference: request.kmDifference?.toString() || '',
+        cargoType: request.cargoType || '',
+        cargoWeight: request.cargoWeight?.toString() || '',
+        numberOfPassengers: request.travelers.filter(t => t?.name?.trim()).length.toString(),
+        status: request.status,
       });
-      setFilteredRequests(filtered);
-    }
-  } else {
-    // Keep existing search for other roles
-    if (searchQuery.trim() === '') {
-      setFilteredRequests(requests);
-    } else {
-      const query = searchQuery.toLowerCase().trim();
-      const filtered = requests.filter(request => {
-        const fieldsToSearch = [
-          request.startingPlace,
-          request.destinationPlace,
-          request.claimantName,
-          request.travelReason,
-          request.status,
-          ...(request.travelers || [])
-        ];
-        
-        return fieldsToSearch.some(field => {
-          if (!field) return false;
-          const textValue = typeof field === 'string' ? field : field.name || '';
-          return textValue.toLowerCase().includes(query);
-        });
-      });
-      setFilteredRequests(filtered);
-    }
-  }
-}, [driverSearchQuery, searchQuery, requests, actorType]);
 
-const populateFormData = (request: TravelRequest) => {
-  if (actorType === 'driver') {
-    setFormData(prev => ({
-      ...prev,
-      serviceProviderName: request.serviceProviderName || '',
-      assignedCarType: request.assignedCarType || '',
-      assignedDriver: request.assignedDriver || '',
-      vehicleDetails: request.vehicleDetails || '',
-      // Reset editable fields
-      actualStartingDate: '',
-      actualReturnDate: '',
-      startingKilometers: '',
-      endingKilometers: '',
-      kmDifference: '',
-      cargoType: request.cargoType || '',
-      cargoWeight: '',
-      numberOfPassengers: request.travelers.filter(t => t?.name?.trim()).length.toString(),
-      travelers: request.travelers.map(t => t?.name || '')
-    }));
-    
-    // Initialize selected cargo types from existing data
-    if (request.cargoType) {
-      setSelectedCargoTypes(
-        request.cargoType.split(',')
-          .map(t => t.trim())
-          .filter(t => t.length > 0)
-      );
-    } else {
-      setSelectedCargoTypes([]);
+      if (request.cargoType) {
+        setSelectedCargoTypes(
+          request.cargoType.split(',')
+            .map(t => t.trim())
+            .filter(t => t.length > 0)
+        );
+      } else {
+        setSelectedCargoTypes([]);
+      }
     }
-  } else {
-    setFormData({
-      paymentType: request.paymentType || '',
-      startingPlace: request.startingPlace,
-      destinationPlace: request.destinationPlace,
-      travelers: request.travelers.map(t => t?.name || ''), // Safe access
-      travelReason: request.travelReason,
-      carType: request.carType || '',
-      travelDistance: request.travelDistance?.toString() || '',
-      startingDate: formatDateForInput(request.startingDate) || '',
-      returnDate: request.returnDate ? formatDateForInput(request.returnDate) : '',
-      department: request.department,
-      jobStatus: request.jobStatus,
-      claimantName: request.claimantName,
-      accountNumber: request.accountNumber || '',
-      teamLeaderName: request.teamLeaderName,
-      approvement: request.approvement || '',
-      serviceProviderName: request.serviceProviderName || '',
-      assignedCarType: request.assignedCarType || '',
-      assignedDriver: request.assignedDriver || '',
-      vehicleDetails: request.vehicleDetails || '',
-      actualStartingDate: request.actualStartingDate ? formatDateForInput(request.actualStartingDate) : '',
-      actualReturnDate: request.actualReturnDate ? formatDateForInput(request.actualReturnDate) : '',
-      startingKilometers: request.startingKilometers?.toString() || '',
-      endingKilometers: request.endingKilometers?.toString() || '',
-      kmDifference: request.kmDifference?.toString() || '',
-      cargoType: request.cargoType || '',
-      cargoWeight: request.cargoWeight?.toString() || '',
-      numberOfPassengers: request.travelers.filter(t => t?.name?.trim()).length.toString(),
-      status: request.status,
-    });
-
-    // Initialize selected cargo types from existing data
-    if (request.cargoType) {
-      setSelectedCargoTypes(
-        request.cargoType.split(',')
-          .map(t => t.trim())
-          .filter(t => t.length > 0)
-      );
-    } else {
-      setSelectedCargoTypes([]);
-    }
-  }
-};
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -514,7 +459,6 @@ const populateFormData = (request: TravelRequest) => {
       }
     });
   
-    // Check cargo types
     if (selectedCargoTypes.length === 0) {
       newErrors.cargoType = 'At least one cargo type must be selected';
     }
@@ -583,7 +527,6 @@ const populateFormData = (request: TravelRequest) => {
         `Request has been ${status.toLowerCase()} successfully`
       );
       
-      // Refresh data
       const data = await TravelApi.getRequests(actorType);
       setRequests(data);
       setFilteredRequests(data);
@@ -600,8 +543,7 @@ const populateFormData = (request: TravelRequest) => {
     
     if (!validateUserSection()) return;
   
-     // Add confirmation for cash payments
-     if (formData.paymentType === 'cash') {
+    if (formData.paymentType === 'cash') {
       const resultss = await Swal.fire({
         title: 'Confirm Account Number',
         html: `<div class="text-left">
@@ -622,9 +564,10 @@ const populateFormData = (request: TravelRequest) => {
       });
 
       if (!resultss.isConfirmed) {
-        return; // Stop submission if user cancels
+        return;
       }
-     }
+    }
+    
     setIsSubmitting(true);
     setApiError('');
     setSuccessMessage('');
@@ -669,7 +612,6 @@ const populateFormData = (request: TravelRequest) => {
         window.location.reload();
       } else {
         closeModals();
-        // Refresh table data
         const data = await TravelApi.getRequests(actorType);
         setRequests(data);
         setFilteredRequests(data);
@@ -714,95 +656,74 @@ const populateFormData = (request: TravelRequest) => {
     setApiError('');
   
     try {
-      // Save service provider info and set status to ASSIGNED
       const result = await TravelApi.updateServiceProviderInfo({
         id: selectedRequest.id,
         serviceProviderName: formData.serviceProviderName,
         assignedCarType: formData.assignedCarType,
         assignedDriver: formData.assignedDriver,
         vehicleDetails: formData.vehicleDetails,
-        status: 'ASSIGNED' // Add this to update status
+        status: 'ASSIGNED'
       });
-// Before making the status update call, add this validation:
-  if (!formData.vehicleDetails) {
-    setErrors(prev => ({
-      ...prev,
-      vehicleDetails: 'Please select a vehicle from the list',
-    }));
-    
-    // Scroll to the plate search field for better UX
-    document.getElementById('plate-search')?.scrollIntoView({ behavior: 'smooth' });
-    return;
-  }
 
-// Also verify the vehicleType is one of the expected values
-const validVehicleTypes = ['car', 'organization', 'rent'];
-if (!validVehicleTypes.includes(vehicleType)) {
-  showSuccessAlert(
-    'Error!',
-    'Invalid vehicle type selected'
-  );
-  return;
-}
-    // Update vehicle status to "Filed"
-    if (vehicleType && formData.vehicleDetails) {
-      try {
-        let response;
-        const statusUpdate = { status: 'Field' }; // Consistent payload
-    
-        if (vehicleType === 'car') {
-          response = await axios.put(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.vehicleDetails}`,
-            statusUpdate
-          );
-        } 
-        else if (vehicleType === 'organization') {
-          response = await axios.put(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.vehicleDetails}`,
-            statusUpdate
-          );
-        } 
-        else if (vehicleType === 'rent') { // Changed from your second 'organization' check
-          response = await axios.put(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.vehicleDetails}`,
-            statusUpdate
-          );
-        }
-    
-        if (response && response.status === 200) {
-          showSuccessAlert(
-            'Success!',
-            'Car assigned successfully!  Please procede the fule request for this travel'
-
-          );
-        } else {
-          showSuccessAlert(
-            'Error!',
-            'Status not changed successfully!'
-          );
-        }
-      } catch (error) {
-        console.error('API Error:', error);
-        showSuccessAlert(
-          'Error!',
-          'Failed to update status. Please try again.'
-        );
+      if (!formData.vehicleDetails) {
+        setErrors(prev => ({
+          ...prev,
+          vehicleDetails: 'Please select a vehicle from the list',
+        }));
+        document.getElementById('plate-search')?.scrollIntoView({ behavior: 'smooth' });
+        return;
       }
-    } else {
-      showSuccessAlert(
-        'Error!',
-        'Missing vehicle type or details!'
-      );
-    }
+
+      const validVehicleTypes = ['car', 'organization', 'rent'];
+      if (!validVehicleTypes.includes(vehicleType)) {
+        showSuccessAlert('Error!', 'Invalid vehicle type selected');
+        return;
+      }
+
+      if (vehicleType && formData.vehicleDetails) {
+        try {
+          let response;
+          const statusUpdate = { status: 'Field' };
+    
+          if (vehicleType === 'car') {
+            response = await axios.put(
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.vehicleDetails}`,
+              statusUpdate
+            );
+          } 
+          else if (vehicleType === 'organization') {
+            response = await axios.put(
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.vehicleDetails}`,
+              statusUpdate
+            );
+          } 
+          else if (vehicleType === 'rent') {
+            response = await axios.put(
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.vehicleDetails}`,
+              statusUpdate
+            );
+          }
+    
+          if (response && response.status === 200) {
+            showSuccessAlert(
+              'Success!',
+              'Car assigned successfully! Please procede the fuel request for this travel'
+            );
+          } else {
+            showSuccessAlert('Error!', 'Status not changed successfully!');
+          }
+        } catch (error) {
+          console.error('API Error:', error);
+          showSuccessAlert('Error!', 'Failed to update status. Please try again.');
+        }
+      } else {
+        showSuccessAlert('Error!', 'Missing vehicle type or details!');
+      }
       
-      // Refresh requests
       const updatedRequests = await TravelApi.getRequests(actorType);
       setRequests(updatedRequests);
       setFilteredRequests(updatedRequests);
       
-      // Show fuel request confirmation
-
-  
       setShowServiceModal(false);
       setShowFuelModal(true);
   
@@ -813,11 +734,9 @@ if (!validVehicleTypes.includes(vehicleType)) {
     }
   };
   
-  // New handler specifically for drivers
   const handleDriverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Update formData with the selected cargo types before validation
     setFormData(prev => ({
       ...prev,
       cargoType: selectedCargoTypes.join(', '),
@@ -834,7 +753,6 @@ if (!validVehicleTypes.includes(vehicleType)) {
     setApiError('');
   
     try {
-      // Format dates properly before sending
       const completionData = {
         id: selectedRequest.id,
         serviceProviderName: formData.serviceProviderName,
@@ -849,94 +767,75 @@ if (!validVehicleTypes.includes(vehicleType)) {
             : undefined,
         startingKilometers: parseFloat(formData.startingKilometers),
         endingKilometers: parseFloat(formData.endingKilometers),
-        cargoType: selectedCargoTypes.join(', '), // Use the selected types
+        cargoType: selectedCargoTypes.join(', '),
         cargoWeight: parseFloat(formData.cargoWeight),
-        numberOfPassengers: formData.travelers.filter(t => t.trim()).length, // Calculate from travelers
+        numberOfPassengers: formData.travelers.filter(t => t.trim()).length,
         status: 'FINISHED'
       };
 
-    await TravelApi.completeTravelRequest(completionData);
+      await TravelApi.completeTravelRequest(completionData);
 
-    if (vehicleType && formData.vehicleDetails) {
-      try {
-        let response;
-        const statusUpdate = { status: 'InspectedAndReady' }; // Consistent payload
+      if (vehicleType && formData.vehicleDetails) {
+        try {
+          let response;
+          const statusUpdate = { status: 'InspectedAndReady' };
     
-        if (vehicleType === 'car') {
-          response = await axios.put(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.vehicleDetails}`,
-            statusUpdate
-          );
-        } 
-        else if (vehicleType === 'organization') {
-          response = await axios.put(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.vehicleDetails}`,
-            statusUpdate
-          );
-        } 
-        else if (vehicleType === 'rent') { // Changed from your second 'organization' check
-          response = await axios.put(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.vehicleDetails}`,
-            statusUpdate
-          );
-        }
+          if (vehicleType === 'car') {
+            response = await axios.put(
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.vehicleDetails}`,
+              statusUpdate
+            );
+          } 
+          else if (vehicleType === 'organization') {
+            response = await axios.put(
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.vehicleDetails}`,
+              statusUpdate
+            );
+          } 
+          else if (vehicleType === 'rent') {
+            response = await axios.put(
+              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.vehicleDetails}`,
+              statusUpdate
+            );
+          }
     
-        if (response && response.status === 200) {
-          showSuccessAlert(
-            'Success!',
-            'Status changed successfully!'
-          );
-        } else {
-          showSuccessAlert(
-            'Error!',
-            'Status not changed successfully!'
-          );
+          if (response && response.status === 200) {
+            showSuccessAlert('Success!', 'Status changed successfully!');
+          } else {
+            showSuccessAlert('Error!', 'Status not changed successfully!');
+          }
+        } catch (error) {
+          console.error('API Error:', error);
+          showSuccessAlert('Error!', 'Failed to update status. Please try again.');
         }
-      } catch (error) {
-        console.error('API Error:', error);
-        showSuccessAlert(
-          'Error!',
-          'Failed to update status. Please try again.'
-        );
+      } else {
+        showSuccessAlert('Error!', 'Missing vehicle type or details!');
       }
-    } else {
-      showSuccessAlert(
-        'Error!',
-        'Missing vehicle type or details!'
+
+      let finishedRequests;
+      const data = await TravelApi.getDriverRequests();
+      finishedRequests = data.filter(request => 
+        request.status === 'ACCEPTED' && 
+        request.assignedDriver?.toLowerCase() === driverName.toLowerCase()
       );
+      setRequests(finishedRequests);
+      setFilteredRequests(finishedRequests);
+      
+      closeModals();
+    } catch (error: any) {
+      console.error('Submission error:', error);
+      setApiError(error.message || 'Failed to submit trip details');
+    } finally {
+      setIsSubmitting(false);
     }
+  };
 
-  
-
-    // Refresh the requests
-    let finishedRequests;
-    const data = await TravelApi.getDriverRequests();
-    finishedRequests = data.filter(request => request.status === 'ACCEPTED');
-    setRequests(finishedRequests);
-    setFilteredRequests(finishedRequests);
-    
-    closeModals();
-  } catch (error: any) {
-    console.error('Submission error:', error);
-    setApiError(error.message || 'Failed to submit trip details');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
-// New validation specifically for drivers
-const validateDriverSection = () => {
-  const newErrors: Record<string, string> = {};
-  // Driver-specific validation
-  return Object.keys(newErrors).length === 0;
-};
-
- const handleRowClick = (request: TravelRequest) => {
-  setSelectedRequest(request);
-  setShowUserModal(true);
-  setShowServiceModal(false);
-  setShowFuelModal(false);
-};
+  const handleRowClick = (request: TravelRequest) => {
+    setSelectedRequest(request);
+    setShowUserModal(true);
+    setShowServiceModal(false);
+    setShowFuelModal(false);
+  };
 
   const handleGoToServiceForm = () => {
     setShowUserModal(false);
@@ -950,281 +849,274 @@ const validateDriverSection = () => {
   };
 
   const isFormDisabled = actorType !== 'user' || (selectedRequest && actorType === 'user');
-  const showSearchBar = (actorType === 'manager' || actorType === 'corporator' || actorType === 'driver');
+  const showSearchBar = (actorType === 'manager' || actorType === 'corporator');
 
-const renderDriverModal = () => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.2 }}
-      className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-    >
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-            <FiTruck className="mr-2" />
-            Complete Trip Details
-          </h3>
-          <button
-            onClick={closeModals}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <FiX className="text-gray-500" />
-          </button>
-        </div>
-
-        <form onSubmit={handleDriverSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Read-only fields */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Service Provider</label>
-              <input
-                type="text"
-                value={formData.serviceProviderName}
-                readOnly
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Car Type</label>
-              <input
-                type="text"
-                value={formData.assignedCarType}
-                readOnly
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
-              <input
-                type="text"
-                value={formData.assignedDriver}
-                readOnly
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Details</label>
-              <input
-                type="text"
-                value={formData.vehicleDetails}
-                readOnly
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-              />
-            </div>
-
-            {/* Editable fields */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Actual Starting Date *</label>
-              <div className="relative">
-                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  name="actualStartingDate"
-                  value={formData.actualStartingDate}
-                  onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-                    errors.actualStartingDate ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                />
-              </div>
-              {errors.actualStartingDate && (
-                <p className="mt-1 text-sm text-red-500">{errors.actualStartingDate}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Actual Return Date *</label>
-              <div className="relative">
-                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  name="actualReturnDate"
-                  value={formData.actualReturnDate}
-                  onChange={handleChange}
-                  min={formData.actualStartingDate}
-                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-                    errors.actualReturnDate ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                />
-              </div>
-              {errors.actualReturnDate && (
-                <p className="mt-1 text-sm text-red-500">{errors.actualReturnDate}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Starting Kilometers *</label>
-              <input
-                type="number"
-                name="startingKilometers"
-                value={formData.startingKilometers}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  errors.startingKilometers ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                placeholder="Enter starting km"
-                min="0"
-                step="0.1"
-              />
-              {errors.startingKilometers && (
-                <p className="mt-1 text-sm text-red-500">{errors.startingKilometers}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ending Kilometers *</label>
-              <input
-                type="number"
-                name="endingKilometers"
-                value={formData.endingKilometers}
-                onChange={handleChange}
-                min={formData.startingKilometers || 0}
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  errors.endingKilometers ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                placeholder="Enter ending km"
-                step="0.1"
-              />
-              {errors.endingKilometers && (
-                <p className="mt-1 text-sm text-red-500">{errors.endingKilometers}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">KM Difference</label>
-              <input
-                type="number"
-                name="kmDifference"
-                value={formData.kmDifference}
-                readOnly
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-              />
-            </div>
-
-            {/* Updated Cargo Type */}
-{/* Updated Cargo Type */}
-<div className="relative">
-  <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Type *</label>
-  <button
-    type="button"
-    onClick={() => setShowCargoDropdown(!showCargoDropdown)}
-    className={`w-full px-4 py-2 rounded-lg border ${
-      errors.cargoType ? 'border-red-500' : 'border-gray-300'
-    } text-left flex justify-between items-center`}
-  >
-    {selectedCargoTypes.length > 0 
-      ? selectedCargoTypes.join(', ')
-      : 'Select cargo types'}
-    <FiChevronDown className={`transition-transform ${showCargoDropdown ? 'transform rotate-180' : ''}`} />
-  </button>
-  
-  {showCargoDropdown && (
-    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-2">
-      {cargoTypes.map(type => (
-        <div key={type} className="flex items-center p-2 hover:bg-gray-100 rounded">
-          <input
-            type="checkbox"
-            id={`cargo-${type}`}
-            checked={selectedCargoTypes.includes(type)}
-            onChange={(e) => {
-              if (e.target.checked) {
-                setSelectedCargoTypes([...selectedCargoTypes, type]);
-              } else {
-                setSelectedCargoTypes(selectedCargoTypes.filter(t => t !== type));
-              }
-              // Clear error when selecting
-              if (errors.cargoType) {
-                setErrors(prev => ({ ...prev, cargoType: '' }));
-              }
-            }}
-            className="mr-2"
-          />
-          <label htmlFor={`cargo-${type}`} className="cursor-pointer">
-            {type}
-          </label>
-        </div>
-      ))}
-    </div>
-  )}
-  {errors.cargoType && (
-    <p className="mt-1 text-sm text-red-500">{errors.cargoType}</p>
-  )}
-</div>
-
-{/* Number of Passengers */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">Number of Passengers *</label>
-  <input
-    type="number"
-    name="numberOfPassengers"
-    value={formData.travelers.filter(t => t.trim()).length}
-    readOnly
-    className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-  />
-</div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Weight (kg) *</label>
-              <input
-                type="number"
-                name="cargoWeight"
-                value={formData.cargoWeight}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 rounded-lg border ${
-                  errors.cargoWeight ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                placeholder="Enter weight in kg"
-                min="0"
-                step="0.1"
-              />
-              {errors.cargoWeight && (
-                <p className="mt-1 text-sm text-red-500">{errors.cargoWeight}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              disabled={isSubmitting}
-              className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
-                isSubmitting
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
-              }`}
+  const renderDriverModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.2 }}
+        className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+              <FiTruck className="mr-2" />
+              Complete Trip Details
+            </h3>
+            <button
+              onClick={closeModals}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              {isSubmitting ? (
-                <>
-                  <motion.span
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
-                  />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <FiCheckCircle className="mr-2" />
-                  Submit
-                </>
-              )}
-            </motion.button>
+              <FiX className="text-gray-500" />
+            </button>
           </div>
-        </form>
-      </div>
-    </motion.div>
-  </div>
-);
 
-  
+          <form onSubmit={handleDriverSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Service Provider</label>
+                <input
+                  type="text"
+                  value={formData.serviceProviderName}
+                  readOnly
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Car Type</label>
+                <input
+                  type="text"
+                  value={formData.assignedCarType}
+                  readOnly
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
+                <input
+                  type="text"
+                  value={formData.assignedDriver}
+                  readOnly
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Details</label>
+                <input
+                  type="text"
+                  value={formData.vehicleDetails}
+                  readOnly
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Actual Starting Date *</label>
+                <div className="relative">
+                  <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    name="actualStartingDate"
+                    value={formData.actualStartingDate}
+                    onChange={handleChange}
+                    className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                      errors.actualStartingDate ? 'border-red-500' : 'border-gray-300'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+                {errors.actualStartingDate && (
+                  <p className="mt-1 text-sm text-red-500">{errors.actualStartingDate}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Actual Return Date *</label>
+                <div className="relative">
+                  <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    name="actualReturnDate"
+                    value={formData.actualReturnDate}
+                    onChange={handleChange}
+                    min={formData.actualStartingDate}
+                    className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                      errors.actualReturnDate ? 'border-red-500' : 'border-gray-300'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+                {errors.actualReturnDate && (
+                  <p className="mt-1 text-sm text-red-500">{errors.actualReturnDate}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Starting Kilometers *</label>
+                <input
+                  type="number"
+                  name="startingKilometers"
+                  value={formData.startingKilometers}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    errors.startingKilometers ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  placeholder="Enter starting km"
+                  min="0"
+                  step="0.1"
+                />
+                {errors.startingKilometers && (
+                  <p className="mt-1 text-sm text-red-500">{errors.startingKilometers}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ending Kilometers *</label>
+                <input
+                  type="number"
+                  name="endingKilometers"
+                  value={formData.endingKilometers}
+                  onChange={handleChange}
+                  min={formData.startingKilometers || 0}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    errors.endingKilometers ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  placeholder="Enter ending km"
+                  step="0.1"
+                />
+                {errors.endingKilometers && (
+                  <p className="mt-1 text-sm text-red-500">{errors.endingKilometers}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">KM Difference</label>
+                <input
+                  type="number"
+                  name="kmDifference"
+                  value={formData.kmDifference}
+                  readOnly
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                />
+              </div>
+
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Type *</label>
+                <button
+                  type="button"
+                  onClick={() => setShowCargoDropdown(!showCargoDropdown)}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    errors.cargoType ? 'border-red-500' : 'border-gray-300'
+                  } text-left flex justify-between items-center`}
+                >
+                  {selectedCargoTypes.length > 0 
+                    ? selectedCargoTypes.join(', ')
+                    : 'Select cargo types'}
+                  <FiChevronDown className={`transition-transform ${showCargoDropdown ? 'transform rotate-180' : ''}`} />
+                </button>
+                
+                {showCargoDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-2">
+                    {cargoTypes.map(type => (
+                      <div key={type} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <input
+                          type="checkbox"
+                          id={`cargo-${type}`}
+                          checked={selectedCargoTypes.includes(type)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCargoTypes([...selectedCargoTypes, type]);
+                            } else {
+                              setSelectedCargoTypes(selectedCargoTypes.filter(t => t !== type));
+                            }
+                            if (errors.cargoType) {
+                              setErrors(prev => ({ ...prev, cargoType: '' }));
+                            }
+                          }}
+                          className="mr-2"
+                        />
+                        <label htmlFor={`cargo-${type}`} className="cursor-pointer">
+                          {type}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {errors.cargoType && (
+                  <p className="mt-1 text-sm text-red-500">{errors.cargoType}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Passengers *</label>
+                <input
+                  type="number"
+                  name="numberOfPassengers"
+                  value={formData.travelers.filter(t => t.trim()).length}
+                  readOnly
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo Weight (kg) *</label>
+                <input
+                  type="number"
+                  name="cargoWeight"
+                  value={formData.cargoWeight}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    errors.cargoWeight ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  placeholder="Enter weight in kg"
+                  min="0"
+                  step="0.1"
+                />
+                {errors.cargoWeight && (
+                  <p className="mt-1 text-sm text-red-500">{errors.cargoWeight}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <motion.button
+                type="submit"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                disabled={isSubmitting}
+                className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
+                  isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <motion.span
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
+                    />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <FiCheckCircle className="mr-2" />
+                    Submit
+                  </>
+                )}
+              </motion.button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    </div>
+  );
+
   const renderUserForm = () => (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">
@@ -1251,7 +1143,6 @@ const renderDriverModal = () => (
   
       <form onSubmit={handleUserSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Starting Place */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
             <input
@@ -1271,7 +1162,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Destination Place */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
             <input
@@ -1291,7 +1181,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Travelers */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
             <div className="space-y-3">
@@ -1338,7 +1227,6 @@ const renderDriverModal = () => (
             ))}
           </div>
   
-          {/* Travel Reason */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Travel *</label>
             <textarea
@@ -1358,7 +1246,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Car Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Car Type</label>
             <select
@@ -1375,7 +1262,6 @@ const renderDriverModal = () => (
             </select>
           </div>
   
-          {/* Travel Distance */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Total Distance (km)</label>
             <input
@@ -1396,7 +1282,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Starting Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Starting Date *</label>
             <div className="relative">
@@ -1418,7 +1303,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Return Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
             <div className="relative">
@@ -1440,7 +1324,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Department */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
             <select
@@ -1462,7 +1345,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Job Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Job Status *</label>
             <select
@@ -1484,7 +1366,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Claimant Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
             <input
@@ -1504,7 +1385,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Team Leader Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Team Leader Name *</label>
             <input
@@ -1524,7 +1404,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Payment Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type *</label>
             <select
@@ -1545,7 +1424,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Approvement */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Approval Status</label>
             <input
@@ -1565,7 +1443,6 @@ const renderDriverModal = () => (
             )}
           </div>
   
-          {/* Conditional Account Number Field */}
           {formData.paymentType === 'cash' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Account Number *</label>
@@ -1588,7 +1465,6 @@ const renderDriverModal = () => (
           )}
         </div>
   
-        {/* Submit Button for User Section */}
         <motion.div className="mt-8">
           <motion.button
             type="submit"
@@ -1628,44 +1504,36 @@ const renderDriverModal = () => (
         renderUserForm()
       ) : actorType === 'driver' ? (
         <motion.div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
-          <div className="flex justify-between items-start mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">My ACCEPTED Trips</h2>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <FiSearch className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Enter your exact driver name..."
-                value={driverSearchQuery}
-                onChange={(e) => setDriverSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+            My ACCEPTED Trips
+            {driverName && (
+              <span className="text-lg font-normal text-gray-600 ml-2">
+                (Driver: {driverName})
+              </span>
+            )}
+          </h2>
   
           {filteredRequests.length === 0 ? (
             <div className="text-center py-8">
-              {driverSearchQuery.trim() === '' ? (
-                <div className="text-gray-500 max-w-md mx-auto">
-                  <FiSearch className="mx-auto text-3xl mb-4 text-blue-500" />
-                  <h4 className="font-medium text-lg mb-2">Find Your ACCEPTED Trips</h4>
-                  <p className="mb-4">
-                    Enter your exact registered driver name to view your trips.
-                  </p>
-                </div>
-              ) : (
-                <div className="text-gray-500 max-w-md mx-auto">
-                  <FiAlertCircle className="mx-auto text-3xl mb-4 text-yellow-500" />
-                  <h4 className="font-medium text-lg mb-2">No Trips Found</h4>
-                  <p className="mb-3">
-                    No ACCEPTED trips found for: <span className="font-semibold">"{driverSearchQuery}"</span>
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Make sure you entered your name exactly as registered
-                  </p>
-                </div>
-              )}
+              <div className="text-gray-500 max-w-md mx-auto">
+                {requests.length === 0 ? (
+                  <>
+                    <FiAlertCircle className="mx-auto text-3xl mb-4 text-yellow-500" />
+                    <h4 className="font-medium text-lg mb-2">No Trips Found</h4>
+                    <p className="mb-3">
+                      You don't have any ACCEPTED trips assigned to you.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <FiCheckCircle className="mx-auto text-3xl mb-4 text-green-500" />
+                    <h4 className="font-medium text-lg mb-2">No Matching Trips</h4>
+                    <p className="mb-3">
+                      No ACCEPTED trips found for your name.
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           ) : (
             <RequestsTable
@@ -1694,8 +1562,6 @@ const renderDriverModal = () => (
                 <input
                   type="text"
                   placeholder="Search requests..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -1735,7 +1601,6 @@ const renderDriverModal = () => (
   
                     <form onSubmit={handleUserSubmit} className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Starting Place */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
                           <input
@@ -1755,7 +1620,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Destination Place */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
                           <input
@@ -1775,7 +1639,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Travelers */}
                         <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
                           <div className="space-y-3">
@@ -1822,7 +1685,6 @@ const renderDriverModal = () => (
                           ))}
                         </div>
   
-                        {/* Travel Reason */}
                         <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Travel *</label>
                           <textarea
@@ -1842,7 +1704,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Car Type */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Car Type</label>
                           <select
@@ -1859,7 +1720,6 @@ const renderDriverModal = () => (
                           </select>
                         </div>
   
-                        {/* Travel Distance */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Total Distance (km)</label>
                           <input
@@ -1880,7 +1740,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Starting Date */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Starting Date *</label>
                           <div className="relative">
@@ -1902,7 +1761,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Return Date */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
                           <div className="relative">
@@ -1924,7 +1782,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Department */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
                           <select
@@ -1946,7 +1803,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Job Status */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Job Status *</label>
                           <select
@@ -1968,7 +1824,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Claimant Name */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
                           <input
@@ -1988,7 +1843,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Team Leader Name */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Team Leader Name *</label>
                           <input
@@ -2008,7 +1862,6 @@ const renderDriverModal = () => (
                           )}
                         </div>
   
-                        {/* Approvement */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Approval Status</label>
                           <input
@@ -2023,14 +1876,12 @@ const renderDriverModal = () => (
                           />
                           {errors.approvement && (
                             <p className="mt-1 text-sm text-red-500 flex items-center">
-                                <FiAlertCircle className="mr-1" /> {errors.approvement}
+                              <FiAlertCircle className="mr-1" /> {errors.approvement}
                             </p>
-                            )}
+                          )}
                         </div>
-  
                       </div>
                           
-                      {/* Go Button for Manager */}
                       {actorType === 'manager' && selectedRequest?.status === 'APPROVED' && (
                         <motion.div className="mt-8">
                           <motion.button
@@ -2042,12 +1893,10 @@ const renderDriverModal = () => (
                           >
                             Continue
                             <FiArrowRight className="mr-2" />
-                            
                           </motion.button>
                         </motion.div>
                       )}
   
-                      {/* Approval Buttons for Corporator */}
                       {actorType === 'corporator' && selectedRequest && (
                         <div className="mt-8 flex space-x-4">
                           <motion.button
@@ -2089,7 +1938,6 @@ const renderDriverModal = () => (
             )}
           </AnimatePresence>
   
-          {/* Service Provider Modal */}
           <AnimatePresence>
             {showServiceModal && (
               <motion.div
@@ -2106,7 +1954,6 @@ const renderDriverModal = () => (
                   className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
                 >
                   <div className="p-6">
-                    {/* Modal Header */}
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-semibold text-gray-800 flex items-center">
                         <FiTool className="mr-2" />
@@ -2120,7 +1967,6 @@ const renderDriverModal = () => (
                       </button>
                     </div>
   
-                    {/* API Error */}
                     {apiError && (
                       <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
                         <div className="flex items-center">
@@ -2130,184 +1976,169 @@ const renderDriverModal = () => (
                       </div>
                     )}
   
-{/* Form Start */}
-<form onSubmit={handleServiceSubmit} className="space-y-6">
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <form onSubmit={handleServiceSubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Search Plate Number
+                          </label>
+                          <div className="relative">
+                            <FiSearch className="absolute left-3 top-3 text-gray-400" />
+                            <input
+                              type="text"
+                              value={plateSearchQuery}
+                              readOnly={!!formData.vehicleDetails}
+                              onChange={(e) => setPlateSearchQuery(e.target.value)}
+                              placeholder="Start typing plate number..."
+                              className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                                errors.vehicleDetails ? 'border-red-500' : 'border-gray-300'
+                              } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                            />
 
-   
+                            {formData.vehicleDetails && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPlateSearchQuery('');
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    vehicleDetails: '',
+                                    assignedDriver: '',
+                                    assignedCarType: '',
+                                    vehicleType: '',
+                                  }));
+                                }}
+                                className="absolute right-3 top-3 p-1 text-gray-500 hover:text-gray-700"
+                              >
+                                <FiX className="w-5 h-5" />
+                              </button>
+                            )}
 
-    {/* Plate Number Search */}
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Search Plate Number
-      </label>
-      <div className="relative">
-        <FiSearch className="absolute left-3 top-3 text-gray-400" />
-        <input
-          type="text"
-          value={plateSearchQuery}
-          readOnly={!!formData.vehicleDetails}
-          onChange={(e) => setPlateSearchQuery(e.target.value)}
-          placeholder="Start typing plate number..."
-          className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
-            errors.vehicleDetails ? 'border-red-500' : 'border-gray-300'
-          } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-        />
+                            {plateSearchQuery && !formData.vehicleDetails && (
+                              <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
+                                {filteredVehicles.length > 0 ? (
+                                  filteredVehicles.map((vehicle) => (
+                                    <div
+                                      key={vehicle.plate}
+                                      onClick={() => {
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          vehicleDetails: vehicle.plate,
+                                          assignedDriver: vehicle.driver,
+                                          assignedCarType: vehicle.carType
+                                        }));
+                                        setVehicleType(vehicle.type);
+                                        setPlateSearchQuery(vehicle.plate);
+                                      }}
+                                      className="p-3 hover:bg-gray-100 cursor-pointer transition-colors flex justify-between items-center"
+                                    >
+                                      <span className="font-mono">{vehicle.plate}</span>
+                                      <span className="text-sm text-gray-600">{vehicle.driver}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="p-3 text-gray-500 text-sm">
+                                    No vehicles found matching "{plateSearchQuery}"
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {errors.vehicleDetails && (
+                            <p className="mt-1 text-sm text-red-500">{errors.vehicleDetails}</p>
+                          )}
+                        </div>
 
-        {/* Clear selection button */}
-        {formData.vehicleDetails && (
-          <button
-            type="button"
-            onClick={() => {
-              setPlateSearchQuery('');
-              setFormData(prev => ({
-                ...prev,
-                vehicleDetails: '',
-                assignedDriver: '',
-                assignedCarType: '',
-                vehicleType: '',
-              }));
-            }}
-            className="absolute right-3 top-3 p-1 text-gray-500 hover:text-gray-700"
-          >
-            <FiX className="w-5 h-5" />
-          </button>
-        )}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Car Type *
+                          </label>
+                          <input
+                            type="text"
+                            name="assignedCarType"
+                            value={formData.assignedCarType}
+                            readOnly
+                            className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed"
+                            placeholder="Auto-filled from plate selection"
+                          />
+                          {errors.assignedCarType && (
+                            <p className="mt-1 text-sm text-red-500">{errors.assignedCarType}</p>
+                          )}
+                        </div>
 
-        {/* Dropdown list */}
-        {plateSearchQuery && !formData.vehicleDetails && (
-          <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
-            {filteredVehicles.length > 0 ? (
-              filteredVehicles.map((vehicle) => (
-                <div
-                  key={vehicle.plate}
-                  onClick={() => {
-                    setFormData(prev => ({
-                      ...prev,
-                      vehicleDetails: vehicle.plate,
-                      assignedDriver: vehicle.driver,
-                      assignedCarType: vehicle.carType
-                    }));
-                    setVehicleType(vehicle.type);
-                    setPlateSearchQuery(vehicle.plate);
-                  }}
-                  className="p-3 hover:bg-gray-100 cursor-pointer transition-colors flex justify-between items-center"
-                >
-                  <span className="font-mono">{vehicle.plate}</span>
-                  <span className="text-sm text-gray-600">{vehicle.driver}</span>
-                </div>
-              ))
-            ) : (
-              <div className="p-3 text-gray-500 text-sm">
-                No vehicles found matching "{plateSearchQuery}"
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      {errors.vehicleDetails && (
-        <p className="mt-1 text-sm text-red-500">{errors.vehicleDetails}</p>
-      )}
-    </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Driver Name *
+                          </label>
+                          <input
+                            type="text"
+                            name="assignedDriver"
+                            placeholder="Auto-filled from plate selection"
+                            value={formData.assignedDriver}
+                            onChange={handleChange}
+                            className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                          />
+                          {errors.assignedDriver && (
+                            <p className="mt-1 text-sm text-red-500">{errors.assignedDriver}</p>
+                          )}
+                        </div>
 
-    {/* Car Type */}
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Car Type *
-      </label>
-      <input
-        type="text"
-        name="assignedCarType"
-        value={formData.assignedCarType}
-        readOnly
-        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed"
-        placeholder="Auto-filled from plate selection"
-      />
-      {errors.assignedCarType && (
-        <p className="mt-1 text-sm text-red-500">{errors.assignedCarType}</p>
-      )}
-    </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Distributor Manager *
+                          </label>
+                          <input
+                            type="text"
+                            name="serviceProviderName"
+                            value={formData.serviceProviderName}
+                            onChange={handleChange}
+                            className={`w-full px-4 py-2 rounded-lg border ${
+                              errors.serviceProviderName ? 'border-red-500' : 'border-gray-300'
+                            } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                            placeholder="Distributor manager name"
+                          />
+                          {errors.serviceProviderName && (
+                            <p className="mt-1 text-sm text-red-500">{errors.serviceProviderName}</p>
+                          )}
+                        </div>
+                      </div>
 
-    {/* Driver Name */}
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Driver Name *
-      </label>
-      <input
-        type="text"
-        name="assignedDriver"
-        placeholder="Auto-filled from plate selection"
-        value={formData.assignedDriver}
-     onChange={handleChange}
-
-        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-      />
-      {errors.assignedDriver && (
-        <p className="mt-1 text-sm text-red-500">{errors.assignedDriver}</p>
-      )}
-    </div>
-
-     {/* Service Provider */}
-     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Distributor Manager *
-      </label>
-      <input
-        type="text"
-        name="serviceProviderName"
-        value={formData.serviceProviderName}
-        onChange={handleChange}
-        className={`w-full px-4 py-2 rounded-lg border ${
-          errors.serviceProviderName ? 'border-red-500' : 'border-gray-300'
-        } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-        placeholder="Distributor manager name"
-      />
-      {errors.serviceProviderName && (
-        <p className="mt-1 text-sm text-red-500">{errors.serviceProviderName}</p>
-      )}
-    </div>
-
-  </div> {/* End Grid */}
-
-  {/* Submit Button */}
-  <div className="mt-6 flex justify-end">
-    <motion.button
-      type="submit"
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      disabled={isSubmitting}
-      className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
-        isSubmitting
-          ? 'bg-gray-400 cursor-not-allowed'
-          : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
-      }`}
-    >
-      {isSubmitting ? (
-        <>
-          <motion.span
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
-          />
-          Saving...
-        </>
-      ) : (
-        <>
-          <FiCheckCircle className="mr-2" />
-          Assign
-        </>
-      )}
-    </motion.button>
-  </div>
-</form>
-
+                      <div className="mt-6 flex justify-end">
+                        <motion.button
+                          type="submit"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          disabled={isSubmitting}
+                          className={`inline-flex items-center px-6 py-2 rounded-lg text-white font-medium transition-all ${
+                            isSubmitting
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+                          }`}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <motion.span
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                className="inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"
+                              />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <FiCheckCircle className="mr-2" />
+                              Assign
+                            </>
+                          )}
+                        </motion.button>
+                      </div>
+                    </form>
                   </div>
                 </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
   
-          {/* Fuel Request Modal */}
           <AnimatePresence>
             {showFuelModal && selectedRequest && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -2327,28 +2158,26 @@ const renderDriverModal = () => (
                         <FiX className="text-gray-500" />
                       </button>
                     </div>
-                     <FuelRequestForm
-                                        travelRequestId={selectedRequest.id}
-                                        defaultValues={{
-                                          travelers: selectedRequest.travelers,
-                                          startingPlace: selectedRequest.startingPlace,
-                                          destinationPlace: selectedRequest.destinationPlace,
-                                          vehicleType: selectedRequest.assignedCarType,
-                                          licensePlate: selectedRequest.vehicleDetails,
-                                          assignedDriver: selectedRequest.assignedDriver,
-                                          travelDistance: selectedRequest.travelDistance,
-                                          tripExplanation: selectedRequest.travelReason,
-                                          claimantName: selectedRequest.claimantName,
-                                          serviceNumber: `FR-${selectedRequest.id}`,
-                                          actualStartingDate: formData.actualStartingDate,
-                                          actualReturnDate: formData.actualReturnDate,
-                                          accountNumber: selectedRequest.accountNumber,
-                                        }}
-                                       
-                              onSuccess={() => {
-                             closeModals();
-                        // Refresh table data
-                            TravelApi.getRequests(actorType).then(data => {
+                    <FuelRequestForm
+                      travelRequestId={selectedRequest.id}
+                      defaultValues={{
+                        travelers: selectedRequest.travelers,
+                        startingPlace: selectedRequest.startingPlace,
+                        destinationPlace: selectedRequest.destinationPlace,
+                        vehicleType: selectedRequest.assignedCarType,
+                        licensePlate: selectedRequest.vehicleDetails,
+                        assignedDriver: selectedRequest.assignedDriver,
+                        travelDistance: selectedRequest.travelDistance,
+                        tripExplanation: selectedRequest.travelReason,
+                        claimantName: selectedRequest.claimantName,
+                        serviceNumber: `FR-${selectedRequest.id}`,
+                        actualStartingDate: formData.actualStartingDate,
+                        actualReturnDate: formData.actualReturnDate,
+                        accountNumber: selectedRequest.accountNumber,
+                      }}
+                      onSuccess={() => {
+                        closeModals();
+                        TravelApi.getRequests(actorType).then(data => {
                           setRequests(data);
                           setFilteredRequests(data);
                         });

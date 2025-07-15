@@ -84,6 +84,29 @@ export default function CarAssignment() {
   const [activeForm, setActiveForm] = useState<'assign' | 'manager'>('assign');
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Assignment | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Auto-detect user role on component mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        const role = user.role?.toUpperCase();
+        
+        // Map role to actorType
+        if (role === 'HEAD_OF_DISTRIBUTOR') {
+          setActorType('top-manager');
+        } else {
+          setActorType('manager');
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        setActorType('manager');
+      }
+    }
+    setLoading(false);
+  }, []);
 
   const loadAssignments = async () => {
     try {
@@ -232,10 +255,6 @@ export default function CarAssignment() {
     setActiveForm(activeForm === 'assign' ? 'manager' : 'assign');
   };
 
-  const toggleActorType = () => {
-    setActorType(actorType === 'manager' ? 'top-manager' : 'manager');
-  };
-
   const handleRowClick = (assignment: Assignment) => {
     if (actorType === 'top-manager') {
       setSelectedRequest(assignment);
@@ -243,68 +262,66 @@ export default function CarAssignment() {
     }
   };
 
+  const handleStatusChange = async (status: 'Approved' | 'Rejected') => {
+    if (!selectedRequest) return;
 
+    try {
+      setIsSubmitting(true);
 
-const handleStatusChange = async (status: 'Approved' | 'Rejected') => {
-  if (!selectedRequest) return;
+      // 1. Update assignment status directly
+      const assignmentResponse = await axios.put(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignment/status/${selectedRequest.id}`,
+        { status: status === 'Approved' ? 'Approved' : 'Pending' }
+      );
 
-  try {
-    setIsSubmitting(true);
-
-    // 1. Update assignment status directly
-    const assignmentResponse = await axios.put(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignment/status/${selectedRequest.id}`,
-      { status: status === 'Approved' ? 'Approved' : 'Pending' }
-    );
-
-    if (assignmentResponse.data.codStatus !== 200) {
-      throw new Error(assignmentResponse.data.message || 'Failed to update assignment status');
-    }
-
-    // 2. Only update car/rent car status if "Approve" was clicked
-    if (status === 'Rejected') {
-      if (selectedRequest.car) {
-        await axios.put(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${selectedRequest.car.plateNumber}`,
-          { status: 'InspectedAndReady' } // Changed to 'Assigned' to match typical workflow
-        );
-      } else if (selectedRequest.rentCar) {
-        await axios.put(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${selectedRequest.rentCar.plateNumber}`,
-          { status: 'InspectedAndReady' }
-        );
-      } else if (selectedRequest.carIds?.length) {
-        await Promise.all(
-          selectedRequest.carIds.map((carId) =>
-            axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${carId}`, { status: 'InspectedAndReady' })
-          )
-        );
+      if (assignmentResponse.data.codStatus !== 200) {
+        throw new Error(assignmentResponse.data.message || 'Failed to update assignment status');
       }
+
+      // 2. Only update car/rent car status if "Approve" was clicked
+      if (status === 'Rejected') {
+        if (selectedRequest.car) {
+          await axios.put(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${selectedRequest.car.plateNumber}`,
+            { status: 'InspectedAndReady' }
+          );
+        } else if (selectedRequest.rentCar) {
+          await axios.put(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${selectedRequest.rentCar.plateNumber}`,
+            { status: 'InspectedAndReady' }
+          );
+        } else if (selectedRequest.carIds?.length) {
+          await Promise.all(
+            selectedRequest.carIds.map((carId) =>
+              axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${carId}`, { status: 'InspectedAndReady' })
+            )
+          );
+        }
+      }
+
+      // Show success message
+      await showSuccessAlert(
+        status === 'Approved'
+          ? 'Request approved and vehicle assigned!'
+          : 'Request rejected and set to pending.'
+      );
+
+      // Refresh data and close modal
+      await loadAssignments();
+      setShowRequestModal(false);
+    } catch (error) {
+      console.error('Status update error:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: axios.isAxiosError(error)
+          ? error.response?.data?.message || error.message
+          : 'Failed to update request status',
+        icon: 'error',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Show success message
-    await showSuccessAlert(
-      status === 'Approved'
-        ? 'Request approved and vehicle assigned!'
-        : 'Request rejected and set to pending.'
-    );
-
-    // Refresh data and close modal
-    await loadAssignments();
-    setShowRequestModal(false);
-  } catch (error) {
-    console.error('Status update error:', error);
-    Swal.fire({
-      title: 'Error!',
-      text: axios.isAxiosError(error)
-        ? error.response?.data?.message || error.message
-        : 'Failed to update request status',
-      icon: 'error',
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   useEffect(() => {
     loadAssignments();
@@ -316,6 +333,14 @@ const handleStatusChange = async (status: 'Approved' | 'Rejected') => {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm, assignments, activeStatusFilter, activeLevelFilter]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 md:px-8 w-full">
@@ -332,19 +357,7 @@ const handleStatusChange = async (status: 'Approved' | 'Rejected') => {
           </h1>
 
           <div className="flex flex-wrap gap-3 w-full md:w-auto">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={toggleActorType}
-              className={`px-4 py-2 rounded-lg font-medium text-sm ${
-                actorType === 'manager'
-                  ? 'bg-[#e6f2fa] text-[#3c8dbc]'
-                  : 'bg-[#e6f2fa] text-[#3c8dbc]'
-              }`}
-            >
-              {actorType === 'manager' ? 'Switch to Top Manager' : 'Switch to Manager'}
-            </motion.button>
-
+            {/* Removed the toggle button since we're auto-detecting role */}
             {activeTab === 'assigned' && (
               <>
                 <div className="relative flex-1 md:w-64">

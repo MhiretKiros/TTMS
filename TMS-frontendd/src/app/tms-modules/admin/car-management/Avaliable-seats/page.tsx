@@ -3,9 +3,10 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from 'react';
-import { FiPlusCircle, FiEye,FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX, FiUserPlus, FiSearch, FiMapPin, FiPlus, FiRefreshCw } from 'react-icons/fi';
+import { FiPlusCircle, FiEye, FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX, FiUserPlus, FiSearch, FiMapPin, FiPlus, FiRefreshCw, FiPrinter } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import EmployeeAssignment from './components/EmployeeAssignment';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 
 type Waypoint = {
   latitude: number;
@@ -17,6 +18,7 @@ type Employee = {
   employeeId: string;
   name: string;
   department: string;
+  address?: string;
 };
 
 type CarSeatInfo = {
@@ -31,6 +33,199 @@ type CarSeatInfo = {
   assignedEmployees: Employee[];
 };
 
+const idCardStyles = StyleSheet.create({
+  page: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+    backgroundColor: '#ffffff'
+  },
+  card: {
+    width: '50%',
+    height: '50%',
+    padding: 8,
+    backgroundColor: 'white',
+    border: '1px solid #003366',
+    borderRadius: 5,
+    boxShadow: '0 0 5px rgba(0,0,0,0.2)',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  header: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 3,
+    paddingBottom: 3,
+    borderBottom: '1px solid #003366'
+  },
+  logo: {
+    width: 20,
+    height: 20
+  },
+  headerText: {
+    textAlign: 'right'
+  },
+  orgName: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#003366'
+  },
+  contactInfo: {
+    fontSize: 5,
+    color: '#666'
+  },
+  cardTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    margin: '3px 0',
+    color: '#003366'
+  },
+  content: {
+    display: 'flex',
+    flexDirection: 'row',
+    flexGrow: 1,
+    marginBottom: 3
+  },
+  photoSection: {
+    width: '30%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+  photoPlaceholder: {
+    width: '80%',
+    height: 25,
+    backgroundColor: '#f0f0f0',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontSize: 5,
+    border: '1px solid #ddd',
+    marginBottom: 3
+  },
+  infoSection: {
+    width: '70%'
+  },
+  row: {
+    display: 'flex',
+    flexDirection: 'row',
+    marginBottom: 2
+  },
+  label: {
+    width: 22,
+    fontSize: 5.5,
+    fontWeight: 'bold',
+    color: '#003366'
+  },
+  value: {
+    fontSize: 5.5,
+    flex: 1
+  },
+  footer: {
+    fontSize: 5,
+    textAlign: 'center',
+    marginTop: 3,
+    color: '#666',
+    borderTop: '1px solid #eee',
+    paddingTop: 2
+  },
+  barcode: {
+    height: 12,
+    backgroundColor: '#f5f5f5',
+    marginTop: 3,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontSize: 5
+  }
+});
+
+const EmployeeIDCardPDF = ({ employee, car, endDate, giverName }: { 
+  employee: Employee, 
+  car: CarSeatInfo,
+  endDate: string,
+  giverName: string 
+}) => (
+  <Document>
+    <Page size="A4" style={idCardStyles.page}>
+      <View style={idCardStyles.card}>
+        {/* Header with logo and contact info */}
+        <View style={idCardStyles.header}>
+          <Image src="/images/insa-logo.png" style={idCardStyles.logo} />
+          <View style={idCardStyles.headerText}>
+            <Text style={idCardStyles.orgName}>INFORMATION NETWORK SECURITY ADMINISTRATION</Text>
+            <Text style={idCardStyles.contactInfo}>Phone: +251 11 123 4567</Text>
+            <Text style={idCardStyles.contactInfo}>Email: info@insa.gov.et</Text>
+            <Text style={idCardStyles.contactInfo}>P.O.Box: 1234, Addis Ababa</Text>
+          </View>
+        </View>
+
+        <Text style={idCardStyles.cardTitle}>SERVICE ACCESS ID</Text>
+
+        <View style={idCardStyles.content}>
+          <View style={idCardStyles.photoSection}>
+            <View style={idCardStyles.photoPlaceholder}>
+              <Text>PHOTO</Text>
+            </View>
+          </View>
+
+          <View style={idCardStyles.infoSection}>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>Name:</Text>
+              <Text style={idCardStyles.value}>{employee.name}</Text>
+            </View>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>ID:</Text>
+              <Text style={idCardStyles.value}>{employee.employeeId}</Text>
+            </View>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>Address:</Text>
+              <Text style={idCardStyles.value}>{employee.address || 'Not specified'}</Text>
+            </View>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>Dept:</Text>
+              <Text style={idCardStyles.value}>{employee.department}</Text>
+            </View>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>Car:</Text>
+              <Text style={idCardStyles.value}>{car.plateNumber}</Text>
+            </View>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>Dest:</Text>
+              <Text style={idCardStyles.value}>{car.destination || 'Not specified'}</Text>
+            </View>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>Start:</Text>
+              <Text style={idCardStyles.value}>
+                {new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: '2-digit'})}
+              </Text>
+            </View>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>End:</Text>
+              <Text style={idCardStyles.value}>
+                {endDate ? new Date(endDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: '2-digit'}) : 'N/A'}
+              </Text>
+            </View>
+            <View style={idCardStyles.row}>
+              <Text style={idCardStyles.label}>Issuer:</Text>
+              <Text style={idCardStyles.value}>{giverName}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={idCardStyles.barcode}>
+          <Text>ID: {employee.employeeId}</Text>
+        </View>
+        <Text style={idCardStyles.footer}>Must be presented when accessing services</Text>
+      </View>
+    </Page>
+  </Document>
+);
+
 export default function CarSeatCounterPage() {
   const router = useRouter();
   const [cars, setCars] = useState<CarSeatInfo[]>([]);
@@ -43,6 +238,17 @@ export default function CarSeatCounterPage() {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedCarForAssignment, setSelectedCarForAssignment] = useState<string | number | null>(null);
   const [assignmentMode, setAssignmentMode] = useState<'single' | 'all'>('all');
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedCarDetails, setSelectedCarDetails] = useState<CarSeatInfo | null>(null);
+  const [endDate, setEndDate] = useState<string>('');
+  const [giverName, setGiverName] = useState<string>('');
+
+  // Initialize giver name from localStorage
+  useEffect(() => {
+    const name = localStorage.getItem('userName') || 'Admin';
+    setGiverName(name);
+  }, []);
 
   // Helper function to fetch location name
   async function fetchLocationName(lat: number, lng: number): Promise<string> {
@@ -71,13 +277,20 @@ export default function CarSeatCounterPage() {
       if (!response.ok) {
         throw new Error(`Failed to fetch employee details for ID: ${employeeId}`);
       }
-      return await response.json();
+      const data = await response.json();
+      return {
+        employeeId: data.employeeId || employeeId,
+        name: data.name || 'Unknown',
+        department: data.department || 'Unknown',
+        address: data.address || 'Not specified'
+      };
     } catch (err) {
       console.error("Error fetching employee details:", err);
       return {
         employeeId,
         name: 'Unknown',
-        department: 'Unknown'
+        department: 'Unknown',
+        address: 'Not specified'
       };
     }
   }
@@ -238,6 +451,12 @@ export default function CarSeatCounterPage() {
     router.push('/tms-modules/admin/car-management/service-route-assign/assigned-employees-list');
   };
 
+  const handlePrintId = (employee: Employee, car: CarSeatInfo) => {
+    setSelectedEmployee(employee);
+    setSelectedCarDetails(car);
+    setShowPrintModal(true);
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
       {/* Assignment Modal */}
@@ -269,6 +488,99 @@ export default function CarSeatCounterPage() {
                 }}
                 singleCarMode={assignmentMode === 'single'}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print ID Modal */}
+      {showPrintModal && selectedEmployee && selectedCarDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+            <div className="flex justify-between items-center border-b p-4">
+              <h2 className="text-xl font-bold">Print Service Access ID</h2>
+              <button 
+                onClick={() => {
+                  setShowPrintModal(false);
+                  setSelectedEmployee(null);
+                  setSelectedCarDetails(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <FiX className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4">Employee Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="flex">
+                    <span className="w-32 font-medium">Full Name:</span>
+                    <span>{selectedEmployee.name}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 font-medium">Employee ID:</span>
+                    <span>{selectedEmployee.employeeId}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 font-medium">Address:</span>
+                    <span>{selectedEmployee.address || 'Not specified'}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 font-medium">Assigned Car:</span>
+                    <span>{selectedCarDetails.plateNumber}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 font-medium">Destination:</span>
+                    <span>{selectedCarDetails.destination || 'Not specified'}</span>
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-semibold mb-4">ID Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex">
+                    <span className="w-32 font-medium">Service Start:</span>
+                    <span>{new Date().toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="w-32 font-medium">Service End:</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="border rounded px-2 py-1"
+                    />
+                  </div>
+                  <div className="flex">
+                    <span className="w-32 font-medium">Issued By:</span>
+                    <span>{giverName}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <PDFDownloadLink
+                  document={
+                    <EmployeeIDCardPDF 
+                      employee={selectedEmployee} 
+                      car={selectedCarDetails}
+                      endDate={endDate}
+                      giverName={giverName}
+                    />
+                  }
+                  fileName={`insa_service_id_${selectedEmployee.employeeId}.pdf`}
+                  className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  {({ loading }) => (
+                    loading ? 'Preparing PDF...' : (
+                      <>
+                        <FiPrinter className="mr-2" />
+                        Print ID Card
+                      </>
+                    )
+                  )}
+                </PDFDownloadLink>
+              </div>
             </div>
           </div>
         </div>
@@ -446,6 +758,7 @@ export default function CarSeatCounterPage() {
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
@@ -454,6 +767,17 @@ export default function CarSeatCounterPage() {
                                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{employee.name}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{employee.department}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{employee.employeeId}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handlePrintId(employee, car);
+                                            }}
+                                            className="text-blue-600 hover:text-blue-800 flex items-center"
+                                          >
+                                            <FiPrinter className="mr-1" /> Print ID
+                                          </button>
+                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>

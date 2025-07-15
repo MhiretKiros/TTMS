@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiTool, FiCheckCircle, FiAlertCircle, FiList, FiPlus, FiFileText, FiUser, FiUsers, FiClipboard } from 'react-icons/fi';
 import MaintenanceRequestForm from './components/MaintenanceRequestForm';
@@ -10,6 +10,41 @@ export default function MaintenanceRequestPage() {
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Get user role from localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        const role = user.role?.toUpperCase();
+        
+        // Map role to activeTab
+        switch(role) {
+          case 'DRIVER':
+            setActiveTab('driver');
+            break;
+          case 'DISTRIBUTOR':
+          case 'HEAD_OF_DISTRIBUTOR':
+            setActiveTab('distributor');
+            break;
+          case 'HEAD_OF_MECHANIC':
+            setActiveTab('maintenance');
+            break;
+          case 'INSPECTOR':
+            setActiveTab('inspector');
+            break;
+          default:
+            setActiveTab('driver');
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        setActiveTab('driver');
+      }
+    }
+    setLoading(false);
+  }, []);
 
   const handleSuccess = () => {
     setShowForm(false);
@@ -35,25 +70,17 @@ export default function MaintenanceRequestPage() {
     setShowForm(false);
   };
 
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-7xl mx-auto space-y-6">
-        {/* Dropdown for selecting actorType */}
-        <div className="flex items-center gap-4">
-          <label htmlFor="actorType" className="text-lg font-medium text-gray-700">Select Request Type:</label>
-          <select
-            id="actorType"
-            value={activeTab}
-            onChange={(e) => setActiveTab(e.target.value as 'driver' | 'distributor' | 'maintenance' | 'inspector')}
-            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            <option value="driver">Driver</option>
-            <option value="distributor">Distributor</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="inspector">Inspector</option>
-          </select>
-        </div>
-
         {/* Form container with animation */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
           <AnimatePresence mode="wait">

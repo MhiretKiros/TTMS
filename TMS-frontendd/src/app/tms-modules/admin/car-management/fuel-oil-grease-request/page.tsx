@@ -162,6 +162,43 @@ const FuelOilGreaseRequestPage = () => {
   const [requestsList, setRequestsList] = useState<FuelOilGreaseFormData[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | number | null>(null);
   const [mechanicName, setMechanicName] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Get user role from localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        const role = user.role?.toUpperCase();
+        
+        // Map role to currentRole
+        switch(role) {
+          case 'INSPECTOR':
+            setCurrentRole('Mechanic');
+            break;
+          case 'HEAD_OF_MECHANIC':
+            setCurrentRole('HeadMechanic');
+            break;
+          case 'NEZEK':
+            setCurrentRole('NezekOfficial');
+            break;
+          default:
+            setCurrentRole('Mechanic');
+        }
+
+        // Set mechanic name if available
+        if (user.name) {
+          setMechanicName(user.name);
+          setFormData(prev => ({ ...prev, mechanicName: user.name }));
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        setCurrentRole('Mechanic');
+      }
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     if (successMessage) {
@@ -259,6 +296,8 @@ const FuelOilGreaseRequestPage = () => {
   };
 
   useEffect(() => {
+    if (loading) return;
+    
     if (currentRole === 'Mechanic') {
       if (mechanicView === 'pendingFulfillment') {
         fetchPendingFulfillmentRequests();
@@ -271,7 +310,7 @@ const FuelOilGreaseRequestPage = () => {
       fetchFuelOilGreaseRequests();
       setPendingFulfillmentList([]);
     }
-  }, [currentRole, mechanicView, mechanicName]);
+  }, [currentRole, mechanicView, mechanicName, loading]);
 
   const handleSelectRequest = (request: FuelOilGreaseFormData) => {
     setSelectedRequestId(request.id!);
@@ -501,7 +540,7 @@ const FuelOilGreaseRequestPage = () => {
       isReadOnlyForTypeSelect,
       options: options?.map(opt => opt.value) || [],
     });
-
+    
     return (
       <div className="p-4 border border-gray-300 rounded-lg bg-white shadow">
         <h3 className="text-lg font-semibold mb-3 text-gray-800">{title}</h3>
@@ -628,6 +667,14 @@ const FuelOilGreaseRequestPage = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-start mb-6">
@@ -653,36 +700,6 @@ const FuelOilGreaseRequestPage = () => {
         </div>
       </div>
 
-      <div className="my-6 p-4 bg-white shadow rounded-lg">
-        <label htmlFor="roleSwitcher" className="block text-sm font-medium text-gray-700">Current Role:</label>
-        <select
-          id="roleSwitcher"
-          value={currentRole}
-          onChange={(e) => {
-            setCurrentRole(e.target.value as Role);
-            setMechanicView('newRequest');
-            handleClearSelection();
-          }}
-          className="mt-1 block w-full md:w-1/3 p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="Mechanic">Mechanic</option>
-          <option value="HeadMechanic">Head of Mechanic</option>
-          <option value="NezekOfficial">NEZEK Official</option>
-        </select>
-      </div>
-
-      {/* {currentRole === 'Mechanic' && (
-        <div className="my-6 p-4 bg-white shadow rounded-lg">
-          <label htmlFor="mechanicName" className="block text-sm font-medium text-gray-700">Mechanic Name</label>
-          <input
-            type="text"
-            id="mechanicName"
-            value={mechanicName}
-            onChange={(e) => setMechanicName(e.target.value)}
-            className="mt-1 block w-full md:w-1/3 p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-      )} */}
 
       {currentRole === 'Mechanic' && (
         <div className="my-6 p-4 bg-white shadow rounded-lg flex space-x-2">
@@ -847,19 +864,6 @@ const FuelOilGreaseRequestPage = () => {
                     {isLoading && formData.headMechanicApproved !== true ? <FiLoader className="animate-spin mr-2" /> : null}
                     Approve Request
                   </button>
-                  {/* <button
-                    type="button"
-                    onClick={async () => {
-                      const updatedForm = { ...formData, headMechanicApproved: false };
-                      setFormData(updatedForm);
-                      await handleSubmit(undefined, updatedForm);
-                    }}
-                    disabled={isLoading || formData.headMechanicApproved !== null || formData.status !== 'PENDING'}
-                    className="btn-danger flex items-center transition-colors duration-150"
-                  >
-                    {isLoading && formData.headMechanicApproved !== false ? <FiLoader className="animate-spin mr-2" /> : null}
-                    Reject Request
-                  </button> */}
                 </div>
                 {formData.headMechanicApproved !== null && <p className="mt-2 text-sm">Status by Head Mechanic: {formData.headMechanicApproved ? "Approved" : "Rejected"}</p>}
               </div>
@@ -891,19 +895,6 @@ const FuelOilGreaseRequestPage = () => {
                     {isLoading && formData.nezekOfficialStatus !== 'approved' ? <FiLoader className="animate-spin mr-2" /> : null}
                     Approve & Finalize
                   </button>
-                  {/* <button
-                    type="button"
-                    onClick={async () => {
-                      const updatedForm = { ...formData, nezekOfficialStatus: 'rejected' as const };
-                      setFormData(updatedForm);
-                      await handleSubmit(undefined, updatedForm);
-                    }}
-                    disabled={isLoading || formData.nezekOfficialStatus !== 'pending' || formData.headMechanicApproved !== true || formData.status !== 'CHECKED'}
-                    className="btn-danger flex items-center transition-colors duration-150"
-                  >
-                    {isLoading && formData.nezekOfficialStatus !== 'rejected' ? <FiLoader className="animate-spin mr-2" /> : null}
-                    Reject Request
-                  </button> */}
                 </div>
                 {(formData.nezekOfficialStatus !== 'pending' || formData.headMechanicApproved !== true || formData.status !== 'CHECKED') && !isLoading && (
                   <p className="mt-2 text-sm text-gray-600">

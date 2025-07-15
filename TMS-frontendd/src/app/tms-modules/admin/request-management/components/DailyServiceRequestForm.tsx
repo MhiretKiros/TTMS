@@ -85,9 +85,21 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
   const [selectedRequest, setSelectedRequest] = useState<DailyServiceRequest | null>(null);
   const [showUserModal, setShowUserModal] = useState(actorType !== 'user');
   const [showServiceModal, setShowServiceModal] = useState(false);
-  const [driverNameFilter, setDriverNameFilter] = useState('');
-  const [driverSearchQuery, setDriverSearchQuery] = useState('');
   const [showReason, setShowReason] = useState(false);
+
+  // Get driver name from localStorage
+  const [driverName, setDriverName] = useState(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        return parsedUser.name || '';
+      } catch {
+        return '';
+      }
+    }
+    return '';
+  });
 
   // Plate search functionality
   interface VehicleSuggestion {
@@ -225,16 +237,17 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       try {
         let data;
         if (actorType === 'driver') {
+          // Load all ASSIGNED requests for the current driver
           data = await DailyServiceApi.getDriverRequests();
+          data = data.filter(request => 
+            request.status === 'ASSIGNED' && 
+            request.driverName?.toLowerCase() === driverName.toLowerCase()
+          );
+          setRequests(data);
+          setFilteredRequests(data);
         } else {
           data = await DailyServiceApi.getPendingRequests();
-        }
-        
-        setRequests(data);
-        
-        if (actorType === 'driver') {
-          setFilteredRequests([]);
-        } else {
+          setRequests(data);
           setFilteredRequests(data);
         }
         
@@ -250,7 +263,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       }
     };
     loadRequests();
-  }, [requestId, actorType]);
+  }, [requestId, actorType, driverName]);
   
   useEffect(() => {
     if (selectedRequest) {
@@ -258,40 +271,40 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
     }
   }, [selectedRequest]);
 
-  //searching functionality
-  useEffect(() => {
-    if (actorType === 'driver') {
-      if (driverSearchQuery.trim() === '') {
-        setFilteredRequests([]);
-      } else {
-        const filtered = requests.filter(request => {
-          return request.driverName?.trim() === driverSearchQuery.trim();
-        });
-        setFilteredRequests(filtered);
-      }
-    } else {
-      if (searchQuery.trim() === '') {
-        setFilteredRequests(requests);
-      } else {
-        const query = searchQuery.toLowerCase().trim();
-        const filtered = requests.filter(request => {
-          const fieldsToSearch = [
-            request.startingPlace,
-            request.claimantName,
-            request.status,
-            ...(request.travelers || [])
-          ];
+  // //searching functionality
+  // useEffect(() => {
+  //   if (actorType === 'driver') {
+  //     if (driverSearchQuery.trim() === '') {
+  //       setFilteredRequests([]);
+  //     } else {
+  //       const filtered = requests.filter(request => {
+  //         return request.driverName?.trim() === driverSearchQuery.trim();
+  //       });
+  //       setFilteredRequests(filtered);
+  //     }
+  //   } else {
+  //     if (searchQuery.trim() === '') {
+  //       setFilteredRequests(requests);
+  //     } else {
+  //       const query = searchQuery.toLowerCase().trim();
+  //       const filtered = requests.filter(request => {
+  //         const fieldsToSearch = [
+  //           request.startingPlace,
+  //           request.claimantName,
+  //           request.status,
+  //           ...(request.travelers || [])
+  //         ];
           
-          return fieldsToSearch.some(field => {
-            if (!field) return false;
-            const textValue = typeof field === 'string' ? field : field.name || '';
-            return textValue.toLowerCase().includes(query);
-          });
-        });
-        setFilteredRequests(filtered);
-      }
-    }
-  }, [driverSearchQuery, searchQuery, requests, actorType]);
+  //         return fieldsToSearch.some(field => {
+  //           if (!field) return false;
+  //           const textValue = typeof field === 'string' ? field : field.name || '';
+  //           return textValue.toLowerCase().includes(query);
+  //         });
+  //       });
+  //       setFilteredRequests(filtered);
+  //     }
+  //   }
+  // }, [driverSearchQuery, searchQuery, requests, actorType]);
 
   const populateFormData = (request: DailyServiceRequest) => {
     setFormData({
@@ -520,19 +533,19 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       
           if (vehicleType === 'car') {
             response = await axios.put(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.plateNumber}`,
+              `http://localhost:8080/auth/car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
           else if (vehicleType === 'organization') {
             response = await axios.put(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.plateNumber}`,
+              `http://localhost:8080/auth/organization-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
           else if (vehicleType === 'rent') {
             response = await axios.put(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.plateNumber}`,
+              `http://localhost:8080/auth/rent-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           }
@@ -600,19 +613,19 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       
           if (vehicleType === 'car') {
             response = await axios.put(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${formData.plateNumber}`,
+              `http://localhost:8080/auth/car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
           else if (vehicleType === 'organization') {
             response = await axios.put(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/status/${formData.plateNumber}`,
+              `http://localhost:8080/auth/organization-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           } 
           else if (vehicleType === 'rent') {
             response = await axios.put(
-              `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${formData.plateNumber}`,
+              `http://localhost:8080/auth/rent-car/status/${formData.plateNumber}`,
               statusUpdate
             );
           }
@@ -642,7 +655,10 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       showSuccessAlert('Success!', 'Trip details submitted successfully!');
 
       const data = await DailyServiceApi.getDriverRequests();
-      const finishedRequests = data.filter(request => request.status === 'ASSIGNED');
+      const finishedRequests = data.filter(request => 
+            request.status === 'ASSIGNED' && 
+            request.driverName?.toLowerCase() === driverName.toLowerCase()
+          );
       setRequests(finishedRequests);
       setFilteredRequests(finishedRequests);
       closeModals();
@@ -1082,50 +1098,42 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
     </div>
   );
 
-  return (
+ return (
     <>
       {actorType === 'user' ? (
         renderUserForm()
       ) : actorType === 'driver' ? (
         <motion.div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
-          <div className="flex justify-between items-start mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">My Completed Trips</h2>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <FiSearch className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Enter your exact driver name..."
-                value={driverSearchQuery}
-                onChange={(e) => setDriverSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+            My ASSIGNED Trips
+            {driverName && (
+              <span className="text-lg font-normal text-gray-600 ml-2">
+                (Driver: {driverName})
+              </span>
+            )}
+          </h2>
 
           {filteredRequests.length === 0 ? (
             <div className="text-center py-8">
-              {driverSearchQuery.trim() === '' ? (
-                <div className="text-gray-500 max-w-md mx-auto">
-                  <FiSearch className="mx-auto text-3xl mb-4 text-blue-500" />
-                  <h4 className="font-medium text-lg mb-2">Find Your Completed Trips</h4>
-                  <p className="mb-4">
-                    Enter your exact registered driver name to view your trips.
-                  </p>
-                </div>
-              ) : (
-                <div className="text-gray-500 max-w-md mx-auto">
-                  <FiAlertCircle className="mx-auto text-3xl mb-4 text-yellow-500" />
-                  <h4 className="font-medium text-lg mb-2">No Trips Found</h4>
-                  <p className="mb-3">
-                    No completed trips found for: <span className="font-semibold">"{driverSearchQuery}"</span>
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Make sure you entered your name exactly as registered
-                  </p>
-                </div>
-              )}
+              <div className="text-gray-500 max-w-md mx-auto">
+                {requests.length === 0 ? (
+                  <>
+                    <FiAlertCircle className="mx-auto text-3xl mb-4 text-yellow-500" />
+                    <h4 className="font-medium text-lg mb-2">No Trips Found</h4>
+                    <p className="mb-3">
+                      You don't have any ASSIGNED trips currently.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <FiCheckCircle className="mx-auto text-3xl mb-4 text-green-500" />
+                    <h4 className="font-medium text-lg mb-2">No Matching Trips</h4>
+                    <p className="mb-3">
+                      No ASSIGNED trips found for your name.
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           ) : (
             <DriverDailyRequestsTable
@@ -1480,6 +1488,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
                           <input
                             type="text"
                             name="driverName"
+                            onChange={handleChange}
                             placeholder="Auto-filled from plate selection"
                             value={formData.driverName}
                             className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"

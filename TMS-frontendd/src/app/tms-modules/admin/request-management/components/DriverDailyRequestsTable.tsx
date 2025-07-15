@@ -135,26 +135,6 @@ export default function DriverDailyRequestsTable({
           </tbody>
         </motion.table>
       </div>
-
-      {selectedRequest && actorType === 'driver' && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-medium text-blue-800">Trip Details</h4>
-              <p className="text-sm text-blue-700 mt-1">
-                {selectedRequest.startingPlace} → {selectedRequest.endingPlace}
-              </p>
-            </div>
-            <button
-              onClick={handleCompleteTrip}
-              disabled={isUpdating}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isUpdating ? 'Processing...' : 'Confirm Completion'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

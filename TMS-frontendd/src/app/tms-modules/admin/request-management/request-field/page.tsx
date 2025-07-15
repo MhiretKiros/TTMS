@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiTool,
@@ -14,13 +14,56 @@ import DailyServiceRequestForm from '../components/DailyServiceRequestForm';
 
 export default function ServiceRequestPage() {
   const [activeTab, setActiveTab] = useState<'field' | 'daily' | 'service' | 'comment'>('field');
-  const [actorType, setActorType] = useState<'user' | 'driver' | 'manager' | 'corporator'>('user');
+  const [actorType, setActorType] = useState<'user' | 'driver' | 'manager' | 'corporator'>('corporator');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Get user role from localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        const role = user.role?.toUpperCase();
+        
+        // Map role to actorType
+        switch(role) {
+          case 'USER':
+            setActorType('user');
+            break;
+          case 'CORPORATOR':
+            setActorType('corporator');
+            break;
+          case 'DISTRIBUTOR':
+          case 'HEAD_OF_DISTRIBUTOR':
+            setActorType('manager');
+            break;
+          case 'DRIVER':
+            setActorType('driver');
+            break;
+          default:
+            setActorType('corporator');
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        setActorType('user');
+      }
+    }
+    setLoading(false);
+  }, []);
 
   const handleSuccess = () => {
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
   };
+
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -46,8 +89,8 @@ export default function ServiceRequestPage() {
           {[
             { id: 'field', icon: <FiTool className="mr-2" />, label: 'Field Vehicle Request' },
             { id: 'daily', icon: <FiTruck className="mr-2" />, label: 'Daily Vehicle Request' },
-            { id: 'service', icon: <FiTruck className="mr-2" />, label: 'Car Service' },
-            { id: 'comment', icon: <FiMessageSquare className="mr-2" />, label: 'Send Complaint' }
+            // { id: 'service', icon: <FiTruck className="mr-2" />, label: 'Car Service' },
+            // { id: 'comment', icon: <FiMessageSquare className="mr-2" />, label: 'Send Complaint' }
           ].map((tab) => (
             <motion.button
               key={tab.id}
@@ -66,28 +109,6 @@ export default function ServiceRequestPage() {
           ))}
         </motion.div>
 
-        {/* Actor Type Dropdown (only shown for field or daily) */}
-        {(activeTab === 'field' || activeTab === 'daily') && (
-          <div className="mb-6">
-            <label htmlFor="actorType" className="block text-gray-700 font-medium mb-2">
-              Select Actor Type:
-            </label>
-            <select
-              id="actorType"
-              value={actorType}
-              onChange={(e) =>
-                setActorType(e.target.value as 'user' | 'driver' | 'manager' | 'corporator')
-              }
-              className="border border-gray-300 rounded-lg px-4 py-2 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="user">User</option>
-              <option value="driver">Driver</option>
-              <option value="manager">Distributor</option>
-              <option value="corporator">Corporator</option>
-            </select>
-          </div>
-        )}
-
         {/* Tab Content */}
         <AnimatePresence mode="wait">
           <motion.div
@@ -104,8 +125,8 @@ export default function ServiceRequestPage() {
             {activeTab === 'daily' && (
               <DailyServiceRequestForm actorType={actorType} onSuccess={handleSuccess} />
             )}
-            {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
-            {activeTab === 'comment' && <CommentForm onSuccess={handleSuccess} />}
+            {/* {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
+            {activeTab === 'comment' && <CommentForm onSuccess={handleSuccess} />} */}
           </motion.div>
         </AnimatePresence>
       </motion.div>

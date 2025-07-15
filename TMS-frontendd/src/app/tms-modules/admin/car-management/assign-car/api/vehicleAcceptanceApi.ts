@@ -1,7 +1,8 @@
 // src/api/vehicleAcceptanceApi.ts
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+const API_ROOT_URL = process.env.NEXT_PUBLIC_API_ROOT || 'http://localhost:8080';
 interface ApiResponseError {
   message?: string;
   [key: string]: any;

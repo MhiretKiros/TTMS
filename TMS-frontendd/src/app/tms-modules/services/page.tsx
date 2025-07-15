@@ -1,164 +1,390 @@
 "use client";
+import Footer from '@/app/component/Footer';
+import Navbar from '@/app/component/Navbar';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export default function ServicesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Fixed Navigation Bar */}
-      <nav className="bg-white shadow-sm fixed w-full top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <span className="text-xl font-bold text-gray-800">TMS</span>
-            </div>
-            <div className="flex items-center space-x-8">
-              <Link href="/tms-modules" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-sm font-medium">
-                Home
-              </Link>
-              <Link href="/tms-modules/about" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-sm font-medium">
-                About
-              </Link>
-              <Link href="/tms-modules/services" className="text-blue-600 px-3 py-2 text-sm font-medium">
-                Services
-              </Link>
-            </div>
-          </div>
+      <Navbar />
+      
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-r from-blue-700 to-blue-900 text-white pt-32 pb-20 overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('/circuit-pattern.svg')] bg-repeat opacity-20"></div>
         </div>
-      </nav>
-
-      {/* Main Content with padding to account for fixed navbar */}
-      <main className="max-w-7xl mx-auto pt-28 pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Our Services</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Comprehensive solutions tailored to your transportation needs
-          </p>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-4xl md:text-6xl font-bold mb-6"
+          >
+            Comprehensive <span className="text-yellow-300">Solutions</span>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-xl md:text-2xl max-w-3xl mx-auto"
+          >
+            Tailored services to optimize every aspect of your transportation operations
+          </motion.p>
         </div>
+      </div>
 
-        {/* Three Cards Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          {/* Admin Card */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all hover:scale-105 hover:shadow-xl">
-            <div className="p-8 text-center">
-              <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-purple-100 mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Admin Portal</h3>
-              <p className="text-gray-600 mb-6">
-                Complete control over fleet management, user permissions, and system configuration.
-              </p>
-              <Link href="/tms-modules/admin" className="inline-block px-6 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700">
-                Access Portal
-              </Link>
-            </div>
-          </div>
-
-          {/* Driver Card */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all hover:scale-105 hover:shadow-xl">
-            <div className="p-8 text-center">
-              <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-blue-100 mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Driver Portal</h3>
-              <p className="text-gray-600 mb-6">
-                Real-time navigation, vehicle status, and task management for drivers.
-              </p>
-              <Link href="/tms-modules/driver" className="inline-block px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">
-                Access Portal
-              </Link>
-            </div>
-          </div>
-
-          {/* Employee Card */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden transform transition-all hover:scale-105 hover:shadow-xl">
-            <div className="p-8 text-center">
-              <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-green-100 mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Employee Portal</h3>
-              <p className="text-gray-600 mb-6">
-                Transportation requests, scheduling, and complaint submission for employees.
-              </p>
-              <Link href="/tms-modules/employee" className="inline-block px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700">
-                Access Portal
-              </Link>
-            </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        {/* Services Grid */}
+        <div className="mb-16">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Our Core Services</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {coreServices.map((service, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+              >
+                <div className="relative h-48">
+                  <Image 
+                    src={service.image} 
+                    alt={service.title} 
+                    layout="fill" 
+                    objectFit="cover"
+                    className="transition-transform duration-500 hover:scale-105"
+                  />
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center mb-4">
+                    <div className={`p-3 rounded-lg ${service.color} mr-4`}>
+                      <Image 
+                        src={service.icon} 
+                        alt={service.title + " icon"} 
+                        width={24} 
+                        height={24}
+                      />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900">{service.title}</h3>
+                  </div>
+                  <p className="text-gray-600 mb-4">{service.description}</p>
+                  <ul className="space-y-2 mb-4">
+                    {service.features.map((feature, i) => (
+                      <li key={i} className="flex items-start">
+                        <svg className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-gray-600">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href={service.link} className="inline-block mt-4 px-4 py-2 border border-blue-600 text-blue-600 font-medium rounded-lg hover:bg-blue-600 hover:text-white transition-colors">
+                    Learn More
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
 
-        {/* Additional Services Content */}
-        <div className="space-y-8">
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Fleet Management Solutions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="border-l-4 border-blue-500 pl-4">
-                <h3 className="text-xl font-semibold mb-2">Vehicle Tracking</h3>
-                <p className="text-gray-600">Real-time GPS tracking with geofencing capabilities</p>
-              </div>
-              <div className="border-l-4 border-green-500 pl-4">
-                <h3 className="text-xl font-semibold mb-2">Maintenance Scheduling</h3>
-                <p className="text-gray-600">Automated service reminders and history tracking</p>
-              </div>
-              <div className="border-l-4 border-purple-500 pl-4">
-                <h3 className="text-xl font-semibold mb-2">Fuel Management</h3>
-                <p className="text-gray-600">Monitor fuel consumption and reduce costs</p>
-              </div>
+        {/* Features Section */}
+        <div className="bg-white rounded-xl shadow-lg p-8 mb-12">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Advanced Features</h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div>
+              {featuresLeft.map((feature, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  className="mb-8 last:mb-0"
+                >
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 bg-blue-100 p-3 rounded-lg mr-4">
+                      <Image 
+                        src={feature.icon} 
+                        alt={feature.title + " icon"} 
+                        width={24} 
+                        height={24}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
+                      <p className="text-gray-600">{feature.description}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            
+            <div className="relative">
+              <Image 
+                src="/features-dashboard.png" 
+                alt="Features dashboard" 
+                width={600} 
+                height={500}
+                className="rounded-lg shadow-lg"
+              />
+              <motion.div 
+                className="absolute -bottom-4 -right-4 bg-yellow-400 text-blue-900 px-4 py-2 rounded-lg shadow-lg font-bold"
+                initial={{ scale: 0 }}
+                whileInView={{ scale: 1 }}
+                transition={{ delay: 0.4 }}
+                viewport={{ once: true }}
+              >
+                Live Preview
+              </motion.div>
             </div>
           </div>
+        </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Driver Management</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-xl font-semibold mb-3">Performance Analytics</h3>
-                <p className="text-gray-600 mb-4">
-                  Detailed driver scorecards with safety and efficiency metrics
-                </p>
-                <ul className="space-y-2 text-gray-600">
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Real-time driving behavior monitoring</span>
-                  </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Customizable training programs</span>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-3">Compliance Tracking</h3>
-                <p className="text-gray-600 mb-4">
-                  Ensure regulatory compliance with automated documentation
-                </p>
-                <ul className="space-y-2 text-gray-600">
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>License and certification management</span>
-                  </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Automated DOT compliance reporting</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
+        {/* Pricing Section */}
+        <div className="mb-16">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Flexible Pricing Plans</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {pricingPlans.map((plan, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className={`rounded-xl shadow-lg overflow-hidden ${plan.popular ? 'ring-2 ring-blue-500' : ''}`}
+              >
+                {plan.popular && (
+                  <div className="bg-blue-500 text-white text-center py-1 font-bold text-sm">
+                    MOST POPULAR
+                  </div>
+                )}
+                <div className="bg-white p-8">
+                  <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">{plan.name}</h3>
+                  <p className="text-gray-600 text-center mb-6">{plan.description}</p>
+                  
+                  <div className="text-center mb-6">
+                    <span className="text-4xl font-bold text-gray-900">${plan.price}</span>
+                    <span className="text-gray-600">/{plan.period}</span>
+                  </div>
+                  
+                  <ul className="space-y-3 mb-8">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start">
+                        <svg className={`h-5 w-5 mr-2 mt-0.5 flex-shrink-0 ${feature.included ? 'text-green-500' : 'text-gray-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={feature.included ? "M5 13l4 4L19 7" : "M6 18L18 6M6 6l12 12"} />
+                        </svg>
+                        <span className={`${feature.included ? 'text-gray-600' : 'text-gray-400'}`}>{feature.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <button className={`w-full py-3 px-4 rounded-lg font-medium ${plan.popular ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'} transition-colors`}>
+                    Get Started
+                  </button>
+                </div>
+              </motion.div>
+            ))}
           </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl shadow-lg p-12 text-center">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            viewport={{ once: true }}
+            className="text-3xl font-bold mb-4"
+          >
+            Ready to Transform Your Fleet Operations?
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            viewport={{ once: true }}
+            className="text-xl mb-8 max-w-2xl mx-auto"
+          >
+            Schedule a demo with our team to see how our TMS can work for your business.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            viewport={{ once: true }}
+            className="flex flex-col sm:flex-row justify-center gap-4"
+          >
+            <button className="px-8 py-3 bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-bold rounded-lg shadow-lg transition-colors">
+              Request Demo
+            </button>
+            <button className="px-8 py-3 bg-transparent border-2 border-white hover:bg-white hover:text-blue-800 font-bold rounded-lg shadow-lg transition-colors">
+              Contact Sales
+            </button>
+          </motion.div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
+
+const coreServices = [
+  {
+    title: "Fleet Management",
+    description: "Comprehensive tools to manage your entire fleet efficiently and reduce operational costs.",
+    features: [
+      "Real-time vehicle tracking",
+      "Maintenance scheduling",
+      "Fuel management",
+      "Driver performance analytics"
+    ],
+    image: "/fleet-management.jpg",
+    icon: "/steering-wheel.svg",
+    color: "bg-purple-100",
+    link: "/services/fleet-management"
+  },
+  {
+    title: "Route Optimization",
+    description: "AI-powered routing to reduce mileage, fuel costs, and improve delivery times.",
+    features: [
+      "Dynamic routing based on traffic",
+      "Multi-stop optimization",
+      "Geofencing capabilities",
+      "Delivery time estimation"
+    ],
+    image: "/route-optimization.jpg",
+    icon: "/route.svg",
+    color: "bg-blue-100",
+    link: "/services/route-optimization"
+  },
+  {
+    title: "Driver Management",
+    description: "Tools to monitor, train, and improve your driver workforce.",
+    features: [
+      "Electronic logging devices",
+      "Driver scorecards",
+      "Training modules",
+      "Compliance tracking"
+    ],
+    image: "/driver-management.jpg",
+    icon: "/driver.svg",
+    color: "bg-green-100",
+    link: "/services/driver-management"
+  },
+  {
+    title: "Asset Tracking",
+    description: "Monitor all your assets in real-time with advanced IoT sensors.",
+    features: [
+      "Real-time location tracking",
+      "Temperature monitoring",
+      "Shock/vibration alerts",
+      "Theft prevention"
+    ],
+    image: "/asset-tracking.jpg",
+    icon: "/gps.svg",
+    color: "bg-red-100",
+    link: "/services/asset-tracking"
+  },
+  {
+    title: "Reporting & Analytics",
+    description: "Powerful insights to make data-driven decisions for your operations.",
+    features: [
+      "Customizable dashboards",
+      "KPI tracking",
+      "Automated reports",
+      "Predictive analytics"
+    ],
+    image: "/analytics.jpg",
+    icon: "/analytics.svg",
+    color: "bg-yellow-100",
+    link: "/services/analytics"
+  },
+  {
+    title: "Compliance Management",
+    description: "Stay compliant with regulations effortlessly with automated tools.",
+    features: [
+      "ELD compliance",
+      "DOT reporting",
+      "Driver certification tracking",
+      "Audit preparation"
+    ],
+    image: "/compliance.jpg",
+    icon: "/checklist.svg",
+    color: "bg-indigo-100",
+    link: "/services/compliance"
+  }
+];
+
+const featuresLeft = [
+  {
+    title: "Real-time GPS Tracking",
+    description: "Monitor your entire fleet in real-time with live updates every 30 seconds. Set up geofences and receive instant alerts for deviations.",
+    icon: "/gps-icon.svg"
+  },
+  {
+    title: "Predictive Maintenance",
+    description: "Our AI analyzes vehicle data to predict maintenance needs before they become costly repairs, reducing downtime by up to 40%.",
+    icon: "/maintenance-icon.svg"
+  },
+  {
+    title: "Driver Behavior Analysis",
+    description: "Identify risky driving patterns like harsh braking and acceleration to improve safety and reduce fuel consumption.",
+    icon: "/driver-icon.svg"
+  }
+];
+
+const pricingPlans = [
+  {
+    name: "Starter",
+    description: "For small fleets getting started",
+    price: "99",
+    period: "month",
+    popular: false,
+    features: [
+      { text: "Up to 10 vehicles", included: true },
+      { text: "Basic tracking", included: true },
+      { text: "Email support", included: true },
+      { text: "Route optimization", included: false },
+      { text: "Advanced analytics", included: false },
+      { text: "API access", included: false }
+    ]
+  },
+  {
+    name: "Professional",
+    description: "For growing fleets with more needs",
+    price: "299",
+    period: "month",
+    popular: true,
+    features: [
+      { text: "Up to 50 vehicles", included: true },
+      { text: "Advanced tracking", included: true },
+      { text: "24/7 support", included: true },
+      { text: "Route optimization", included: true },
+      { text: "Basic analytics", included: true },
+      { text: "Limited API access", included: false }
+    ]
+  },
+  {
+    name: "Enterprise",
+    description: "For large operations with custom needs",
+    price: "Custom",
+    period: "month",
+    popular: false,
+    features: [
+      { text: "Unlimited vehicles", included: true },
+      { text: "Premium tracking", included: true },
+      { text: "Dedicated support", included: true },
+      { text: "Advanced optimization", included: true },
+      { text: "Full analytics suite", included: true },
+      { text: "Full API access", included: true }
+    ]
+  }
+];
