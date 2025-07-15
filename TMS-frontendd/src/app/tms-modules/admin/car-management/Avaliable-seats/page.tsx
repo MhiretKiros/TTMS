@@ -3,10 +3,11 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from 'react';
-import { FiPlusCircle, FiEye,FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX, FiUserPlus, FiSearch, FiMapPin, FiPlus, FiRefreshCw } from 'react-icons/fi';
+import { FiPlusCircle, FiEye, FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX, FiUserPlus, FiSearch, FiMapPin, FiRefreshCw } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import EmployeeAssignment from './components/EmployeeAssignment';
 
+// --- Type Definitions ---
 type Waypoint = {
   latitude: number;
   longitude: number;
@@ -19,7 +20,7 @@ type Employee = {
   department: string;
 };
 
-type CarSeatInfo = {
+type CarInfo = {
   id: string | number;
   plateNumber: string;
   model: string;
@@ -29,12 +30,45 @@ type CarSeatInfo = {
   destination?: string;
   waypoints?: Waypoint[];
   assignedEmployees: Employee[];
+  carType: 'service' | 'rent';
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+
+// --- Helper Functions ---
+async function fetchLocationName(lat: number, lng: number): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`
+    );
+    if (!response.ok) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    const data = await response.json();
+    return data?.address?.village || data?.address?.town || data?.address?.suburb ||
+           data?.address?.city_district || data?.address?.city || data?.display_name ||
+           `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  } catch (err) {
+    console.error("Reverse geocoding error:", err);
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+}
+
+async function fetchEmployeeDetails(employeeId: string): Promise<Employee> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}`);
+    if (!response.ok) throw new Error(`Failed to fetch employee details for ID: ${employeeId}`);
+    return await response.json();
+  } catch (err) {
+    console.error(`Error fetching details for employee ${employeeId}:`, err);
+    // Return a default object so the UI doesn't crash
+    return { employeeId, name: 'Unknown Employee', department: 'N/A' };
+  }
+}
+
+// --- Main Component ---
 export default function CarSeatCounterPage() {
   const router = useRouter();
-  const [cars, setCars] = useState<CarSeatInfo[]>([]);
-  const [filteredCars, setFilteredCars] = useState<CarSeatInfo[]>([]);
+  const [cars, setCars] = useState<CarInfo[]>([]);
+  const [filteredCars, setFilteredCars] = useState<CarInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -42,134 +76,147 @@ export default function CarSeatCounterPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedCarForAssignment, setSelectedCarForAssignment] = useState<string | number | null>(null);
-  const [assignmentMode, setAssignmentMode] = useState<'single' | 'all'>('all');
-
-  // Helper function to fetch location name
-  async function fetchLocationName(lat: number, lng: number): Promise<string> {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`
-      );
-      if (!response.ok) throw new Error('Failed to fetch location name');
-      const data = await response.json();
-      if (data && data.address) {
-        return data.address.village || data.address.town || data.address.suburb || 
-               data.address.city_district || data.address.city || data.display_name || 
-               `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      }
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    } catch (err) {
-      console.error("Reverse geocoding error:", err);
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    }
-  }
-
-  // Function to fetch employee details by ID
-  async function fetchEmployeeDetails(employeeId: string): Promise<Employee> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch employee details for ID: ${employeeId}`);
-      }
-      return await response.json();
-    } catch (err) {
-      console.error("Error fetching employee details:", err);
-      return {
-        employeeId,
-        name: 'Unknown',
-        department: 'Unknown'
-      };
-    }
-  }
+  const [selectedCarId, setSelectedCarId] = useState<string | number | null>(null);
 
   // Fetch all cars with their seat information, assigned employees, and route data
-  const fetchCarSeatData = async () => {
+  const fetchAllCars = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // First fetch all service cars
-      const carsResponse = await fetch(`${API_BASE_URL}/auth/organization-car/service-buses`);
-      if (!carsResponse.ok) throw new Error('Failed to fetch service cars');
-      const carsData = await carsResponse.json();
-      
-      // Then fetch all assigned employees
-      const assignmentsResponse = await fetch(`${API_BASE_URL}/api/employees`);
+      // Step 1: Fire all API calls in parallel for maximum speed
+      const [serviceCarsResponse, rentCarsResponse, assignmentsResponse, routesResponse, rentCarRoutesResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/auth/organization-car/service-buses`),
+        fetch(`${API_BASE_URL}/auth/rent-car/bus-minibus`),
+        fetch(`${API_BASE_URL}/api/employees`),
+        fetch(`${API_BASE_URL}/api/routes`),
+        fetch(`${API_BASE_URL}/auth/rent-car-routes`), // <-- NEW
+      ]);
+
+      // Step 2: Check all responses for errors before processing
+      if (!serviceCarsResponse.ok) throw new Error('Failed to fetch service cars');
+      if (!rentCarsResponse.ok) throw new Error('Failed to fetch rent cars');
       if (!assignmentsResponse.ok) throw new Error('Failed to fetch employee assignments');
-      const assignmentsData = await assignmentsResponse.json();
-
-      // Then fetch route information
-      const routesResponse = await fetch(`${API_BASE_URL}/api/routes`);
       if (!routesResponse.ok) throw new Error('Failed to fetch routes');
-      const routesData = await routesResponse.json();
+      if (!rentCarRoutesResponse.ok) throw new Error('Failed to fetch rent car routes');
 
+      const [serviceCarsData, rentCarsData, assignmentsData, routesData, rentCarRoutesData] = await Promise.all([
+        serviceCarsResponse.json(),
+        rentCarsResponse.json(),
+        assignmentsResponse.json(),
+        routesResponse.json(),
+        rentCarRoutesResponse.json(),
+      ]);
+      
+      // Step 3: Process Service Cars
       const validAssignments = Array.isArray(assignmentsData) ? assignmentsData : [];
       const validRoutes = Array.isArray(routesData) ? routesData : [];
 
-      // Process the data to combine car info with seat counts, assignments, and route info
-      const processedCars = (carsData.cars || carsData.organizationCarList || [])
-        .filter((car: any) => car.organizationCar && car.organizationCar.plateNumber)
-        .map(async (car: any) => {
-          const carId = car.organizationCar.id;
-          const plateNumber = car.organizationCar.plateNumber;
-          const model = car.organizationCar.model || 'Unknown Model';
-          const totalSeats = car.organizationCar.loadCapacity || 14;
-          
-          // Find all employees assigned to this car and fetch their details
+      const serviceCarPromises = (serviceCarsData.cars || serviceCarsData.organizationCarList || [])
+        .filter((car: any) => car.organizationCar?.plateNumber)
+        .map(async (carData: any) => {
+          const car = carData.organizationCar;
+          const totalSeats = car.loadCapacity || 14;
+
+          // Find employees assigned to this car using the correct field name 'assignedCarPlateNumber'
           const assignedEmployeeIds = validAssignments
-            .filter((assignment: any) => assignment.assignedCarPlateNumber === plateNumber)
+            .filter((assignment: any) => assignment.assignedCarPlateNumber === car.plateNumber)
             .map((assignment: any) => assignment.employeeId);
-
-          // Fetch details for each employee
+          
           const assignedEmployees = await Promise.all(
-            assignedEmployeeIds.map(async (employeeId: string) => {
-              return await fetchEmployeeDetails(employeeId);
-            })
+            assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
           );
-
-          // Find route information for this car
-          const carRoute = validRoutes.find((route: any) => route.plateNumber === plateNumber);
+          
+          // Process route info
+          const carRoute = validRoutes.find((route: any) => route.plateNumber === car.plateNumber);
           let routeInfo = '';
           let destination = '';
           let waypoints: Waypoint[] = [];
 
-          if (carRoute && carRoute.waypoints && Array.isArray(carRoute.waypoints)) {
-            // Get names for all waypoints
+          if (carRoute?.waypoints?.length) {
             waypoints = await Promise.all(
-              carRoute.waypoints.map(async (wp: any) => {
-                const name = await fetchLocationName(Number(wp.latitude), Number(wp.longitude));
-                return {
-                  latitude: Number(wp.latitude),
-                  longitude: Number(wp.longitude),
-                  name
-                };
-              })
+              carRoute.waypoints.map(async (wp: any) => ({
+                latitude: Number(wp.latitude),
+                longitude: Number(wp.longitude),
+                name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+              }))
             );
-
             if (waypoints.length > 0) {
-              routeInfo = waypoints.map(wp => wp.name).join(' → ');
+              routeInfo = waypoints.map(wp => wp.name ?? '').join(' → ');
               destination = waypoints[waypoints.length - 1].name || '';
             }
           }
 
           return {
-            id: carId,
-            plateNumber,
-            model,
+            id: `service-${car.id}`,
+            plateNumber: car.plateNumber,
+            model: car.model || 'Unknown Model',
             totalSeats,
             availableSeats: totalSeats - assignedEmployees.length,
             route: routeInfo,
             destination,
             waypoints,
-            assignedEmployees
+            assignedEmployees,
+            carType: 'service' as const,
           };
         });
+        
+      // Step 4: Process Rent Cars
+      const rentCarPromises = (rentCarsData.rentCarList || rentCarsData.rentCars || rentCarsData.busAndMinibusList || [])
+        .filter((car: any) => car.plateNumber)
+        .map(async (car: any) => {
+           const totalSeats = car.loadCapacity || car.numberOfSeats || 14;
+           const assignedEmployeeIds = validAssignments
+            .filter((assignment: any) => assignment.assignedCarPlateNumber === car.plateNumber)
+            .map((assignment: any) => assignment.employeeId);
 
-      const resolvedCars = await Promise.all(processedCars);
-      setCars(resolvedCars);
-      setFilteredCars(resolvedCars);
+           const assignedEmployees = await Promise.all(
+            assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
+           );
+
+            // --- Use rentCarRoutesData for rent car routes ---
+            const carRoute = (rentCarRoutesData || []).find((route: any) => route.plateNumber === car.plateNumber);
+            let routeInfo = '';
+            let destination = '';
+            let waypoints: Waypoint[] = [];
+
+            if (carRoute?.waypoints?.length) {
+              waypoints = carRoute.waypoints.map((wp: any) => ({
+                latitude: Number(wp.destinationLat),
+                longitude: Number(wp.destinationLng),
+                name: wp.destinationName || `${wp.destinationLat}, ${wp.destinationLng}`,
+              }));
+              if (waypoints.length > 0) {
+                routeInfo = waypoints.map(wp => wp.name ?? '').join(' → ');
+                destination = waypoints[waypoints.length - 1].name || '';
+              }
+            }
+
+            return {
+              id: `rent-${car.id}`,
+              plateNumber: car.plateNumber,
+              model: car.model || 'Unknown Model',
+              totalSeats,
+              availableSeats: totalSeats - assignedEmployees.length,
+              route: routeInfo,
+              destination,
+              waypoints,
+              assignedEmployees,
+              carType: 'rent' as const,
+            };
+        });
+
+      // Step 5: Wait for all processing to finish and combine the results
+      const resolvedServiceCars = await Promise.all(serviceCarPromises);
+      const resolvedRentCars = await Promise.all(rentCarPromises);
+      
+      const allCars = [...resolvedServiceCars, ...resolvedRentCars];
+      
+      setCars(allCars);
+      setFilteredCars(allCars);
+
     } catch (err: any) {
-      console.error("Error fetching car seat data:", err);
-      setError(err.message || "Failed to load car seat information");
+      console.error("Error fetching and processing car data:", err);
+      setError(err.message || "An unexpected error occurred.");
       setCars([]);
       setFilteredCars([]);
     } finally {
@@ -177,24 +224,25 @@ export default function CarSeatCounterPage() {
     }
   };
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchCarSeatData();
-  }, []);
-
   // Filter cars based on search term
   useEffect(() => {
-    if (searchTerm.trim() === '') {
+    const lowercasedFilter = searchTerm.toLowerCase();
+    if (lowercasedFilter === '') {
       setFilteredCars(cars);
     } else {
-      const filtered = cars.filter(car => 
-        car.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        car.destination?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        car.route?.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = cars.filter(car =>
+        car.plateNumber.toLowerCase().includes(lowercasedFilter) ||
+        car.destination?.toLowerCase().includes(lowercasedFilter) ||
+        car.route?.toLowerCase().includes(lowercasedFilter)
       );
       setFilteredCars(filtered);
     }
   }, [searchTerm, cars]);
+
+  // Fetch data on initial component mount
+  useEffect(() => {
+    fetchAllCars();
+  }, []);
 
   const toggleCarExpansion = (carId: string | number) => {
     setExpandedCarId(expandedCarId === carId ? null : carId);
@@ -220,13 +268,11 @@ export default function CarSeatCounterPage() {
 
   const handleAddEmployee = (carId: string | number, plateNumber: string) => {
     setSelectedCarForAssignment(carId);
-    setAssignmentMode('single');
     setShowAssignmentModal(true);
   };
 
   const handleOpenAllCarsAssignment = () => {
     setSelectedCarForAssignment(null);
-    setAssignmentMode('all');
     setShowAssignmentModal(true);
   };
 
@@ -238,6 +284,8 @@ export default function CarSeatCounterPage() {
     router.push('/tms-modules/admin/car-management/service-route-assign/assigned-employees-list');
   };
 
+  const selectedCar = cars.find(car => car.id === selectedCarId);
+
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
       {/* Assignment Modal */}
@@ -246,9 +294,7 @@ export default function CarSeatCounterPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b p-4">
               <h2 className="text-xl font-bold">
-                {assignmentMode === 'single' && selectedCarForAssignment ? 
-                  `Assign Employee to ${cars.find(c => c.id === selectedCarForAssignment)?.plateNumber}` : 
-                  'Assign Employee to Car'}
+                Assign Employee to {cars.find(c => c.id === selectedCarForAssignment)?.plateNumber}
               </h2>
               <button 
                 onClick={() => {
@@ -265,9 +311,9 @@ export default function CarSeatCounterPage() {
                 selectedCarId={selectedCarForAssignment || ''}
                 onAssignmentSuccess={() => {
                   setShowAssignmentModal(false);
-                  fetchCarSeatData();
+                  fetchAllCars();
                 }}
-                singleCarMode={assignmentMode === 'single'}
+                singleCarMode
               />
             </div>
           </div>
@@ -275,7 +321,9 @@ export default function CarSeatCounterPage() {
       )}
 
       <div className="flex justify-between items-center mb-6 border-b pb-3">
-        <h1 className="text-3xl font-bold text-gray-700">Service Car Seat Management</h1>
+        <h1 className="text-3xl font-bold text-gray-700">
+          Service Car Seat Management
+        </h1>
         <div className="flex items-center space-x-2">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -311,7 +359,7 @@ export default function CarSeatCounterPage() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={fetchCarSeatData}
+            onClick={fetchAllCars}
             disabled={isLoading}
             className="flex items-center justify-center px-4 py-2 rounded-lg transition-colors text-sm bg-white disabled:opacity-50"
           >
@@ -324,6 +372,7 @@ export default function CarSeatCounterPage() {
         </div>
       </div>
 
+      
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md flex items-center justify-between">
           <div className="flex items-center">
@@ -388,6 +437,12 @@ export default function CarSeatCounterPage() {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Source
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -427,10 +482,16 @@ export default function CarSeatCounterPage() {
                         {getSeatStatusText(car.availableSeats)}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.carType === 'service' ? 'Service' : 'Rent'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.source === 'rented' ? 'Rented' : 'Organization'}
+                    </td>
                   </tr>
                   {expandedCarId === car.id && (
                     <tr className="bg-gray-50">
-                      <td colSpan={7} className="px-6 py-4">
+                      <td colSpan={9} className="px-6 py-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
                             <h4 className="font-medium text-lg flex items-center mb-2">
@@ -534,4 +595,10 @@ export default function CarSeatCounterPage() {
   );
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+// Example utility inside EmployeeAssignment.tsx
+function getRawCarId(prefixedId: string | number) {
+  if (typeof prefixedId === 'string' && prefixedId.includes('-')) {
+    return prefixedId.split('-')[1]; // returns '123' from 'rent-123'
+  }
+  return prefixedId;
+}
