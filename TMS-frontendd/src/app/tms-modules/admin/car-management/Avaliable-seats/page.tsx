@@ -31,6 +31,7 @@ type CarInfo = {
   waypoints?: Waypoint[];
   assignedEmployees: Employee[];
   carType: 'service' | 'rent';
+  source: 'Organization' | 'Rented';
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
@@ -121,7 +122,7 @@ export default function CarSeatCounterPage() {
           const assignedEmployeeIds = validAssignments
             .filter((assignment: any) => assignment.assignedCarPlateNumber === car.plateNumber)
             .map((assignment: any) => assignment.employeeId);
-          
+
           const assignedEmployees = await Promise.all(
             assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
           );
@@ -157,53 +158,61 @@ export default function CarSeatCounterPage() {
             waypoints,
             assignedEmployees,
             carType: 'service' as const,
+            source: 'Organization',
           };
         });
         
       // Step 4: Process Rent Cars
-      const rentCarPromises = (rentCarsData.rentCarList || rentCarsData.rentCars || rentCarsData.busAndMinibusList || [])
-        .filter((car: any) => car.plateNumber)
-        .map(async (car: any) => {
-           const totalSeats = car.loadCapacity || car.numberOfSeats || 14;
-           const assignedEmployeeIds = validAssignments
-            .filter((assignment: any) => assignment.assignedCarPlateNumber === car.plateNumber)
-            .map((assignment: any) => assignment.employeeId);
+      // Define rawRentCars here
+      const rawRentCars = (rentCarsData.rentCarList || rentCarsData.rentCars || rentCarsData.busAndMinibusList || []).filter((carData: any) => carData.plateNumber || carData.rentCar?.plateNumber);
 
-           const assignedEmployees = await Promise.all(
-            assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
-           );
+      // Rent car processing logic here
+      const rentCarPromises = rawRentCars.map(async (carData: any) => {
+        // Handle both flat and nested 'rentCar' object structures from the API
+        const car = carData.rentCar || carData;
+        const plateNumber = car.plateNumber; // Use plateNumber from the correct object
+        let carDestination = 'N/A';
+        let waypoints: any[] = [];
 
-            // --- Use rentCarRoutesData for rent car routes ---
-            const carRoute = (rentCarRoutesData || []).find((route: any) => route.plateNumber === car.plateNumber);
-            let routeInfo = '';
-            let destination = '';
-            let waypoints: Waypoint[] = [];
+        const routeInfo = (rentCarRoutesData || []).find((r: any) =>
+          r.plateNumber === plateNumber || r.rentCar?.plateNumber === plateNumber,
+        );
+        if (routeInfo && routeInfo.waypoints && routeInfo.waypoints.length > 0) {
+          waypoints = await Promise.all(
+            routeInfo.waypoints.map(async (wp: any) => ({
+              latitude: Number(wp.latitude),
+              longitude: Number(wp.longitude),
+              name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+            })),
+          );
+          carDestination = waypoints[waypoints.length - 1].name || "N/A";
+        }
+        // Rent cars are assumed to have no assigned employees from this system
+        const totalSeats = car.numberOfSeats || 0;
 
-            if (carRoute?.waypoints?.length) {
-              waypoints = carRoute.waypoints.map((wp: any) => ({
-                latitude: Number(wp.destinationLat),
-                longitude: Number(wp.destinationLng),
-                name: wp.destinationName || `${wp.destinationLat}, ${wp.destinationLng}`,
-              }));
-              if (waypoints.length > 0) {
-                routeInfo = waypoints.map(wp => wp.name ?? '').join(' → ');
-                destination = waypoints[waypoints.length - 1].name || '';
-              }
-            }
+        // Fetch assigned employees for rent cars
+        const assignedEmployeeIds = validAssignments
+          .filter((assignment: any) => assignment.carType === 'RENT' && assignment.assignedCarPlateNumber === plateNumber)
+          .map((assignment: any) => assignment.employeeId);
 
-            return {
-              id: `rent-${car.id}`,
-              plateNumber: car.plateNumber,
-              model: car.model || 'Unknown Model',
-              totalSeats,
-              availableSeats: totalSeats - assignedEmployees.length,
-              route: routeInfo,
-              destination,
-              waypoints,
-              assignedEmployees,
-              carType: 'rent' as const,
-            };
-        });
+        const assignedEmployees = await Promise.all(
+          assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
+        );
+
+        return {
+          id: `rent-${car.id}`,
+          plateNumber: plateNumber,
+          model: car.model,
+          totalSeats,
+          availableSeats: totalSeats - assignedEmployees.length, // Calculate available seats
+          route: waypoints.length > 0 ? waypoints.map(wp => wp.name ?? "").join(" → ") : "N/A",
+          destination: carDestination,
+          waypoints,
+          assignedEmployees: assignedEmployees,
+          carType: 'rent' as const,
+          source: 'Rented',
+        };
+      });
 
       // Step 5: Wait for all processing to finish and combine the results
       const resolvedServiceCars = await Promise.all(serviceCarPromises);
@@ -486,7 +495,7 @@ export default function CarSeatCounterPage() {
                       {car.carType === 'service' ? 'Service' : 'Rent'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {car.source === 'rented' ? 'Rented' : 'Organization'}
+                      {car.source}
                     </td>
                   </tr>
                   {expandedCarId === car.id && (
@@ -538,7 +547,7 @@ export default function CarSeatCounterPage() {
                           
                           <div>
                             <h4 className="font-medium text-lg flex items-center mb-2">
-                              <FiMapPin className="mr-2" /> Route Details
+                              <FiMapPin className="mr-2" /> Route Details 
                             </h4>
                             {car.waypoints && car.waypoints.length > 0 ? (
                               <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
@@ -595,7 +604,7 @@ export default function CarSeatCounterPage() {
   );
 }
 
-// Example utility inside EmployeeAssignment.tsx
+
 function getRawCarId(prefixedId: string | number) {
   if (typeof prefixedId === 'string' && prefixedId.includes('-')) {
     return prefixedId.split('-')[1]; // returns '123' from 'rent-123'
