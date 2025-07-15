@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { FiAlertCircle, FiCheckCircle, FiLoader, FiSend, FiEdit, FiList, FiXCircle } from 'react-icons/fi';
 import { fetchFuelRequests, headMechanicReview, nezekReview } from './services';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const FUEL_REQUEST_API_URL = `${API_BASE_URL}/api/fuel-requests`;
 
 interface RequestFillDetails {
@@ -90,6 +89,10 @@ const RequestFillColumn: React.FC<RequestFillColumnProps> = ({ title, data, onCh
     onChange(name as keyof RequestFillDetails, value);
   };
 
+  // Calculate total amount
+  const totalAmount =
+    (parseFloat(data.amount) || 0) * (parseFloat(data.price) || 0);
+
   return (
     <div className="p-3 border border-gray-200 rounded-md">
       <h4 className="text-md font-semibold mb-2">{title}</h4>
@@ -129,6 +132,16 @@ const RequestFillColumn: React.FC<RequestFillColumnProps> = ({ title, data, onCh
             readOnly={isReadOnly}
             step="0.01"
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Total Amount</label>
+          <input
+            type="number"
+            value={totalAmount}
+            readOnly
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 cursor-not-allowed"
+            tabIndex={-1}
           />
         </div>
       </div>
@@ -585,7 +598,7 @@ const FuelOilGreaseRequestPage = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{req.mechanicName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   {req.headMechanicApproved === true ? <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Approved</span> :
-                   req.headMechanicApproved === false ? <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Rejected</span> :
+                  //  req.headMechanicApproved === false ? <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Rejected</span> :
                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -834,7 +847,7 @@ const FuelOilGreaseRequestPage = () => {
                     {isLoading && formData.headMechanicApproved !== true ? <FiLoader className="animate-spin mr-2" /> : null}
                     Approve Request
                   </button>
-                  <button
+                  {/* <button
                     type="button"
                     onClick={async () => {
                       const updatedForm = { ...formData, headMechanicApproved: false };
@@ -846,7 +859,7 @@ const FuelOilGreaseRequestPage = () => {
                   >
                     {isLoading && formData.headMechanicApproved !== false ? <FiLoader className="animate-spin mr-2" /> : null}
                     Reject Request
-                  </button>
+                  </button> */}
                 </div>
                 {formData.headMechanicApproved !== null && <p className="mt-2 text-sm">Status by Head Mechanic: {formData.headMechanicApproved ? "Approved" : "Rejected"}</p>}
               </div>
@@ -878,7 +891,7 @@ const FuelOilGreaseRequestPage = () => {
                     {isLoading && formData.nezekOfficialStatus !== 'approved' ? <FiLoader className="animate-spin mr-2" /> : null}
                     Approve & Finalize
                   </button>
-                  <button
+                  {/* <button
                     type="button"
                     onClick={async () => {
                       const updatedForm = { ...formData, nezekOfficialStatus: 'rejected' as const };
@@ -890,7 +903,7 @@ const FuelOilGreaseRequestPage = () => {
                   >
                     {isLoading && formData.nezekOfficialStatus !== 'rejected' ? <FiLoader className="animate-spin mr-2" /> : null}
                     Reject Request
-                  </button>
+                  </button> */}
                 </div>
                 {(formData.nezekOfficialStatus !== 'pending' || formData.headMechanicApproved !== true || formData.status !== 'CHECKED') && !isLoading && (
                   <p className="mt-2 text-sm text-gray-600">

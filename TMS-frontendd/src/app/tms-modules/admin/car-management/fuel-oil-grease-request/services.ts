@@ -2,7 +2,7 @@ type Role = 'Mechanic' | 'HeadMechanic' | 'NezekOfficial';
 
 // Fetch requests based on role
 export const fetchFuelRequests = async (role: Role, mechanicName?: string) => {
-  let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests`;
+  let url = 'http://172.20.137.176:8080/api/fuel-requests';
 
   if (role === 'Mechanic') {
     // Mechanics fetch only their own requests
@@ -28,7 +28,7 @@ export const fetchFuelRequests = async (role: Role, mechanicName?: string) => {
 
 // Fetch draft requests (for mechanics to edit their own drafts)
 export const fetchDraftRequests = async (mechanicName: string) => {
-  const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests/mechanic/${encodeURIComponent(mechanicName)}`;
+  const url = `http://172.20.137.176:8080/api/fuel-requests/mechanic/${encodeURIComponent(mechanicName)}`;
   const token = localStorage.getItem('token');
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -41,7 +41,7 @@ export const fetchDraftRequests = async (mechanicName: string) => {
 
 // Fetch checked requests (for NezekOfficial or Admin)
 export const fetchCheckedRequests = async () => {
-  const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests/checked`;
+  const url = `http://172.20.137.176:8080/api/fuel-requests/checked`;
   const token = localStorage.getItem('token');
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ export const fetchCheckedRequests = async () => {
 
 // Fetch approved requests (for StoreKeeper or Admin)
 export const fetchApprovedRequests = async () => {
-  const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests/approved`;
+  const url = `http://172.20.137.176:8080/api/fuel-requests/approved`;
   const token = localStorage.getItem('token');
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ export const hasPermission = (requiredRoles: Role[], userRole?: Role) => {
 
 // Head Mechanic review (edit + approve/reject)
 export const headMechanicReview = async (id: string | number, data: any) => {
-  const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests/${id}/head-mechanic-review`;
+  const url = `http://172.20.137.176:8080/api/fuel-requests/${id}/head-mechanic-review`;
   const token = localStorage.getItem('token');
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export const headMechanicReview = async (id: string | number, data: any) => {
 
 // Nezek Official review (edit + approve/deny)
 export const nezekReview = async (id: string | number, data: any) => {
-  const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests/${id}/nezek-review`;
+  const url = `http://172.20.137.176:8080/api/fuel-requests/${id}/nezek-review`;
   const token = localStorage.getItem('token');
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ export const nezekReview = async (id: string | number, data: any) => {
 
 // Fulfill request (for StoreKeeper or Mechanic after approval)
 export const fulfillRequest = async (id: string | number, data: any) => {
-  const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/fuel-requests/${id}/fulfill`;
+  const url = `http://172.20.137.176:8080/api/fuel-requests/${id}/fulfill`;
   const token = localStorage.getItem('token');
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
