@@ -3,11 +3,11 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from 'react';
-import { FiPlusCircle, FiEye, FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX, FiUserPlus, FiSearch, FiMapPin, FiPlus, FiRefreshCw, FiPrinter } from 'react-icons/fi';
+import { FiPlusCircle, FiEye, FiTruck, FiUsers, FiAlertCircle, FiCheckCircle, FiLoader, FiX, FiUserPlus, FiSearch, FiMapPin, FiRefreshCw } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import EmployeeAssignment from './components/EmployeeAssignment';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 
+// --- Type Definitions ---
 type Waypoint = {
   latitude: number;
   longitude: number;
@@ -18,10 +18,9 @@ type Employee = {
   employeeId: string;
   name: string;
   department: string;
-  address?: string;
 };
 
-type CarSeatInfo = {
+type CarInfo = {
   id: string | number;
   plateNumber: string;
   model: string;
@@ -31,205 +30,46 @@ type CarSeatInfo = {
   destination?: string;
   waypoints?: Waypoint[];
   assignedEmployees: Employee[];
+  carType: 'service' | 'rent';
+  source: 'Organization' | 'Rented';
 };
 
-const idCardStyles = StyleSheet.create({
-  page: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100%',
-    backgroundColor: '#ffffff'
-  },
-  card: {
-    width: '50%',
-    height: '50%',
-    padding: 8,
-    backgroundColor: 'white',
-    border: '1px solid #003366',
-    borderRadius: 5,
-    boxShadow: '0 0 5px rgba(0,0,0,0.2)',
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  header: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 3,
-    paddingBottom: 3,
-    borderBottom: '1px solid #003366'
-  },
-  logo: {
-    width: 20,
-    height: 20
-  },
-  headerText: {
-    textAlign: 'right'
-  },
-  orgName: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: '#003366'
-  },
-  contactInfo: {
-    fontSize: 5,
-    color: '#666'
-  },
-  cardTitle: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    margin: '3px 0',
-    color: '#003366'
-  },
-  content: {
-    display: 'flex',
-    flexDirection: 'row',
-    flexGrow: 1,
-    marginBottom: 3
-  },
-  photoSection: {
-    width: '30%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
-  },
-  photoPlaceholder: {
-    width: '80%',
-    height: 25,
-    backgroundColor: '#f0f0f0',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontSize: 5,
-    border: '1px solid #ddd',
-    marginBottom: 3
-  },
-  infoSection: {
-    width: '70%'
-  },
-  row: {
-    display: 'flex',
-    flexDirection: 'row',
-    marginBottom: 2
-  },
-  label: {
-    width: 22,
-    fontSize: 5.5,
-    fontWeight: 'bold',
-    color: '#003366'
-  },
-  value: {
-    fontSize: 5.5,
-    flex: 1
-  },
-  footer: {
-    fontSize: 5,
-    textAlign: 'center',
-    marginTop: 3,
-    color: '#666',
-    borderTop: '1px solid #eee',
-    paddingTop: 2
-  },
-  barcode: {
-    height: 12,
-    backgroundColor: '#f5f5f5',
-    marginTop: 3,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontSize: 5
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+
+// --- Helper Functions ---
+async function fetchLocationName(lat: number, lng: number): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`
+    );
+    if (!response.ok) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    const data = await response.json();
+    return data?.address?.village || data?.address?.town || data?.address?.suburb ||
+           data?.address?.city_district || data?.address?.city || data?.display_name ||
+           `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  } catch (err) {
+    console.error("Reverse geocoding error:", err);
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
-});
+}
 
-const EmployeeIDCardPDF = ({ employee, car, endDate, giverName }: { 
-  employee: Employee, 
-  car: CarSeatInfo,
-  endDate: string,
-  giverName: string 
-}) => (
-  <Document>
-    <Page size="A4" style={idCardStyles.page}>
-      <View style={idCardStyles.card}>
-        {/* Header with logo and contact info */}
-        <View style={idCardStyles.header}>
-          <Image src="/images/insa-logo.png" style={idCardStyles.logo} />
-          <View style={idCardStyles.headerText}>
-            <Text style={idCardStyles.orgName}>INFORMATION NETWORK SECURITY ADMINISTRATION</Text>
-            <Text style={idCardStyles.contactInfo}>Phone: +251 11 123 4567</Text>
-            <Text style={idCardStyles.contactInfo}>Email: info@insa.gov.et</Text>
-            <Text style={idCardStyles.contactInfo}>P.O.Box: 1234, Addis Ababa</Text>
-          </View>
-        </View>
+async function fetchEmployeeDetails(employeeId: string): Promise<Employee> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}`);
+    if (!response.ok) throw new Error(`Failed to fetch employee details for ID: ${employeeId}`);
+    return await response.json();
+  } catch (err) {
+    console.error(`Error fetching details for employee ${employeeId}:`, err);
+    // Return a default object so the UI doesn't crash
+    return { employeeId, name: 'Unknown Employee', department: 'N/A' };
+  }
+}
 
-        <Text style={idCardStyles.cardTitle}>SERVICE ACCESS ID</Text>
-
-        <View style={idCardStyles.content}>
-          <View style={idCardStyles.photoSection}>
-            <View style={idCardStyles.photoPlaceholder}>
-              <Text>PHOTO</Text>
-            </View>
-          </View>
-
-          <View style={idCardStyles.infoSection}>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>Name:</Text>
-              <Text style={idCardStyles.value}>{employee.name}</Text>
-            </View>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>ID:</Text>
-              <Text style={idCardStyles.value}>{employee.employeeId}</Text>
-            </View>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>Address:</Text>
-              <Text style={idCardStyles.value}>{employee.address || 'Not specified'}</Text>
-            </View>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>Dept:</Text>
-              <Text style={idCardStyles.value}>{employee.department}</Text>
-            </View>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>Car:</Text>
-              <Text style={idCardStyles.value}>{car.plateNumber}</Text>
-            </View>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>Dest:</Text>
-              <Text style={idCardStyles.value}>{car.destination || 'Not specified'}</Text>
-            </View>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>Start:</Text>
-              <Text style={idCardStyles.value}>
-                {new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: '2-digit'})}
-              </Text>
-            </View>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>End:</Text>
-              <Text style={idCardStyles.value}>
-                {endDate ? new Date(endDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: '2-digit'}) : 'N/A'}
-              </Text>
-            </View>
-            <View style={idCardStyles.row}>
-              <Text style={idCardStyles.label}>Issuer:</Text>
-              <Text style={idCardStyles.value}>{giverName}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={idCardStyles.barcode}>
-          <Text>ID: {employee.employeeId}</Text>
-        </View>
-        <Text style={idCardStyles.footer}>Must be presented when accessing services</Text>
-      </View>
-    </Page>
-  </Document>
-);
-
+// --- Main Component ---
 export default function CarSeatCounterPage() {
   const router = useRouter();
-  const [cars, setCars] = useState<CarSeatInfo[]>([]);
-  const [filteredCars, setFilteredCars] = useState<CarSeatInfo[]>([]);
+  const [cars, setCars] = useState<CarInfo[]>([]);
+  const [filteredCars, setFilteredCars] = useState<CarInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -237,152 +77,155 @@ export default function CarSeatCounterPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedCarForAssignment, setSelectedCarForAssignment] = useState<string | number | null>(null);
-  const [assignmentMode, setAssignmentMode] = useState<'single' | 'all'>('all');
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [selectedCarDetails, setSelectedCarDetails] = useState<CarSeatInfo | null>(null);
-  const [endDate, setEndDate] = useState<string>('');
-  const [giverName, setGiverName] = useState<string>('');
-
-  // Initialize giver name from localStorage
-  useEffect(() => {
-    const name = localStorage.getItem('userName') || 'Admin';
-    setGiverName(name);
-  }, []);
-
-  // Helper function to fetch location name
-  async function fetchLocationName(lat: number, lng: number): Promise<string> {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`
-      );
-      if (!response.ok) throw new Error('Failed to fetch location name');
-      const data = await response.json();
-      if (data && data.address) {
-        return data.address.village || data.address.town || data.address.suburb || 
-               data.address.city_district || data.address.city || data.display_name || 
-               `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      }
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    } catch (err) {
-      console.error("Reverse geocoding error:", err);
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    }
-  }
-
-  // Function to fetch employee details by ID
-  async function fetchEmployeeDetails(employeeId: string): Promise<Employee> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch employee details for ID: ${employeeId}`);
-      }
-      const data = await response.json();
-      return {
-        employeeId: data.employeeId || employeeId,
-        name: data.name || 'Unknown',
-        department: data.department || 'Unknown',
-        address: data.address || 'Not specified'
-      };
-    } catch (err) {
-      console.error("Error fetching employee details:", err);
-      return {
-        employeeId,
-        name: 'Unknown',
-        department: 'Unknown',
-        address: 'Not specified'
-      };
-    }
-  }
+  const [selectedCarId, setSelectedCarId] = useState<string | number | null>(null);
 
   // Fetch all cars with their seat information, assigned employees, and route data
-  const fetchCarSeatData = async () => {
+  const fetchAllCars = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // First fetch all service cars
-      const carsResponse = await fetch(`${API_BASE_URL}/auth/organization-car/service-buses`);
-      if (!carsResponse.ok) throw new Error('Failed to fetch service cars');
-      const carsData = await carsResponse.json();
-      
-      // Then fetch all assigned employees
-      const assignmentsResponse = await fetch(`${API_BASE_URL}/api/employees`);
+      // Step 1: Fire all API calls in parallel for maximum speed
+      const [serviceCarsResponse, rentCarsResponse, assignmentsResponse, routesResponse, rentCarRoutesResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/auth/organization-car/service-buses`),
+        fetch(`${API_BASE_URL}/auth/rent-car/bus-minibus`),
+        fetch(`${API_BASE_URL}/api/employees`),
+        fetch(`${API_BASE_URL}/api/routes`),
+        fetch(`${API_BASE_URL}/auth/rent-car-routes`), // <-- NEW
+      ]);
+
+      // Step 2: Check all responses for errors before processing
+      if (!serviceCarsResponse.ok) throw new Error('Failed to fetch service cars');
+      if (!rentCarsResponse.ok) throw new Error('Failed to fetch rent cars');
       if (!assignmentsResponse.ok) throw new Error('Failed to fetch employee assignments');
-      const assignmentsData = await assignmentsResponse.json();
-
-      // Then fetch route information
-      const routesResponse = await fetch(`${API_BASE_URL}/api/routes`);
       if (!routesResponse.ok) throw new Error('Failed to fetch routes');
-      const routesData = await routesResponse.json();
+      if (!rentCarRoutesResponse.ok) throw new Error('Failed to fetch rent car routes');
 
+      const [serviceCarsData, rentCarsData, assignmentsData, routesData, rentCarRoutesData] = await Promise.all([
+        serviceCarsResponse.json(),
+        rentCarsResponse.json(),
+        assignmentsResponse.json(),
+        routesResponse.json(),
+        rentCarRoutesResponse.json(),
+      ]);
+      
+      // Step 3: Process Service Cars
       const validAssignments = Array.isArray(assignmentsData) ? assignmentsData : [];
       const validRoutes = Array.isArray(routesData) ? routesData : [];
 
-      // Process the data to combine car info with seat counts, assignments, and route info
-      const processedCars = (carsData.cars || carsData.organizationCarList || [])
-        .filter((car: any) => car.organizationCar && car.organizationCar.plateNumber)
-        .map(async (car: any) => {
-          const carId = car.organizationCar.id;
-          const plateNumber = car.organizationCar.plateNumber;
-          const model = car.organizationCar.model || 'Unknown Model';
-          const totalSeats = car.organizationCar.loadCapacity || 14;
-          
-          // Find all employees assigned to this car and fetch their details
+      const serviceCarPromises = (serviceCarsData.cars || serviceCarsData.organizationCarList || [])
+        .filter((car: any) => car.organizationCar?.plateNumber)
+        .map(async (carData: any) => {
+          const car = carData.organizationCar;
+          const totalSeats = car.loadCapacity || 14;
+
+          // Find employees assigned to this car using the correct field name 'assignedCarPlateNumber'
           const assignedEmployeeIds = validAssignments
-            .filter((assignment: any) => assignment.assignedCarPlateNumber === plateNumber)
+            .filter((assignment: any) => assignment.assignedCarPlateNumber === car.plateNumber)
             .map((assignment: any) => assignment.employeeId);
 
-          // Fetch details for each employee
           const assignedEmployees = await Promise.all(
-            assignedEmployeeIds.map(async (employeeId: string) => {
-              return await fetchEmployeeDetails(employeeId);
-            })
+            assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
           );
-
-          // Find route information for this car
-          const carRoute = validRoutes.find((route: any) => route.plateNumber === plateNumber);
+          
+          // Process route info
+          const carRoute = validRoutes.find((route: any) => route.plateNumber === car.plateNumber);
           let routeInfo = '';
           let destination = '';
           let waypoints: Waypoint[] = [];
 
-          if (carRoute && carRoute.waypoints && Array.isArray(carRoute.waypoints)) {
-            // Get names for all waypoints
+          if (carRoute?.waypoints?.length) {
             waypoints = await Promise.all(
-              carRoute.waypoints.map(async (wp: any) => {
-                const name = await fetchLocationName(Number(wp.latitude), Number(wp.longitude));
-                return {
-                  latitude: Number(wp.latitude),
-                  longitude: Number(wp.longitude),
-                  name
-                };
-              })
+              carRoute.waypoints.map(async (wp: any) => ({
+                latitude: Number(wp.latitude),
+                longitude: Number(wp.longitude),
+                name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+              }))
             );
-
             if (waypoints.length > 0) {
-              routeInfo = waypoints.map(wp => wp.name).join(' → ');
+              routeInfo = waypoints.map(wp => wp.name ?? '').join(' → ');
               destination = waypoints[waypoints.length - 1].name || '';
             }
           }
 
           return {
-            id: carId,
-            plateNumber,
-            model,
+            id: `service-${car.id}`,
+            plateNumber: car.plateNumber,
+            model: car.model || 'Unknown Model',
             totalSeats,
             availableSeats: totalSeats - assignedEmployees.length,
             route: routeInfo,
             destination,
             waypoints,
-            assignedEmployees
+            assignedEmployees,
+            carType: 'service' as const,
+            source: 'Organization',
           };
         });
+        
+      // Step 4: Process Rent Cars
+      // Define rawRentCars here
+      const rawRentCars = (rentCarsData.rentCarList || rentCarsData.rentCars || rentCarsData.busAndMinibusList || []).filter((carData: any) => carData.plateNumber || carData.rentCar?.plateNumber);
 
-      const resolvedCars = await Promise.all(processedCars);
-      setCars(resolvedCars);
-      setFilteredCars(resolvedCars);
+      // Rent car processing logic here
+      const rentCarPromises = rawRentCars.map(async (carData: any) => {
+        // Handle both flat and nested 'rentCar' object structures from the API
+        const car = carData.rentCar || carData;
+        const plateNumber = car.plateNumber; // Use plateNumber from the correct object
+        let carDestination = 'N/A';
+        let waypoints: any[] = [];
+
+        const routeInfo = (rentCarRoutesData || []).find((r: any) =>
+          r.plateNumber === plateNumber || r.rentCar?.plateNumber === plateNumber,
+        );
+        if (routeInfo && routeInfo.waypoints && routeInfo.waypoints.length > 0) {
+          waypoints = await Promise.all(
+            routeInfo.waypoints.map(async (wp: any) => ({
+              latitude: Number(wp.latitude),
+              longitude: Number(wp.longitude),
+              name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+            })),
+          );
+          carDestination = waypoints[waypoints.length - 1].name || "N/A";
+        }
+        // Rent cars are assumed to have no assigned employees from this system
+        const totalSeats = car.numberOfSeats || 0;
+
+        // Fetch assigned employees for rent cars
+        const assignedEmployeeIds = validAssignments
+          .filter((assignment: any) => assignment.carType === 'RENT' && assignment.assignedCarPlateNumber === plateNumber)
+          .map((assignment: any) => assignment.employeeId);
+
+        const assignedEmployees = await Promise.all(
+          assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
+        );
+
+        return {
+          id: `rent-${car.id}`,
+          plateNumber: plateNumber,
+          model: car.model,
+          totalSeats,
+          availableSeats: totalSeats - assignedEmployees.length, // Calculate available seats
+          route: waypoints.length > 0 ? waypoints.map(wp => wp.name ?? "").join(" → ") : "N/A",
+          destination: carDestination,
+          waypoints,
+          assignedEmployees: assignedEmployees,
+          carType: 'rent' as const,
+          source: 'Rented',
+        };
+      });
+
+      // Step 5: Wait for all processing to finish and combine the results
+      const resolvedServiceCars = await Promise.all(serviceCarPromises);
+      const resolvedRentCars = await Promise.all(rentCarPromises);
+      
+      const allCars = [...resolvedServiceCars, ...resolvedRentCars];
+      
+      setCars(allCars);
+      setFilteredCars(allCars);
+
     } catch (err: any) {
-      console.error("Error fetching car seat data:", err);
-      setError(err.message || "Failed to load car seat information");
+      console.error("Error fetching and processing car data:", err);
+      setError(err.message || "An unexpected error occurred.");
       setCars([]);
       setFilteredCars([]);
     } finally {
@@ -390,24 +233,25 @@ export default function CarSeatCounterPage() {
     }
   };
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchCarSeatData();
-  }, []);
-
   // Filter cars based on search term
   useEffect(() => {
-    if (searchTerm.trim() === '') {
+    const lowercasedFilter = searchTerm.toLowerCase();
+    if (lowercasedFilter === '') {
       setFilteredCars(cars);
     } else {
-      const filtered = cars.filter(car => 
-        car.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        car.destination?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        car.route?.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = cars.filter(car =>
+        car.plateNumber.toLowerCase().includes(lowercasedFilter) ||
+        car.destination?.toLowerCase().includes(lowercasedFilter) ||
+        car.route?.toLowerCase().includes(lowercasedFilter)
       );
       setFilteredCars(filtered);
     }
   }, [searchTerm, cars]);
+
+  // Fetch data on initial component mount
+  useEffect(() => {
+    fetchAllCars();
+  }, []);
 
   const toggleCarExpansion = (carId: string | number) => {
     setExpandedCarId(expandedCarId === carId ? null : carId);
@@ -433,13 +277,11 @@ export default function CarSeatCounterPage() {
 
   const handleAddEmployee = (carId: string | number, plateNumber: string) => {
     setSelectedCarForAssignment(carId);
-    setAssignmentMode('single');
     setShowAssignmentModal(true);
   };
 
   const handleOpenAllCarsAssignment = () => {
     setSelectedCarForAssignment(null);
-    setAssignmentMode('all');
     setShowAssignmentModal(true);
   };
 
@@ -451,11 +293,7 @@ export default function CarSeatCounterPage() {
     router.push('/tms-modules/admin/car-management/service-route-assign/assigned-employees-list');
   };
 
-  const handlePrintId = (employee: Employee, car: CarSeatInfo) => {
-    setSelectedEmployee(employee);
-    setSelectedCarDetails(car);
-    setShowPrintModal(true);
-  };
+  const selectedCar = cars.find(car => car.id === selectedCarId);
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-md">
@@ -465,9 +303,7 @@ export default function CarSeatCounterPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b p-4">
               <h2 className="text-xl font-bold">
-                {assignmentMode === 'single' && selectedCarForAssignment ? 
-                  `Assign Employee to ${cars.find(c => c.id === selectedCarForAssignment)?.plateNumber}` : 
-                  'Assign Employee to Car'}
+                Assign Employee to {cars.find(c => c.id === selectedCarForAssignment)?.plateNumber}
               </h2>
               <button 
                 onClick={() => {
@@ -484,110 +320,19 @@ export default function CarSeatCounterPage() {
                 selectedCarId={selectedCarForAssignment || ''}
                 onAssignmentSuccess={() => {
                   setShowAssignmentModal(false);
-                  fetchCarSeatData();
+                  fetchAllCars();
                 }}
-                singleCarMode={assignmentMode === 'single'}
+                singleCarMode
               />
             </div>
           </div>
         </div>
       )}
 
-      {/* Print ID Modal */}
-      {showPrintModal && selectedEmployee && selectedCarDetails && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-            <div className="flex justify-between items-center border-b p-4">
-              <h2 className="text-xl font-bold">Print Service Access ID</h2>
-              <button 
-                onClick={() => {
-                  setShowPrintModal(false);
-                  setSelectedEmployee(null);
-                  setSelectedCarDetails(null);
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FiX className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-4">Employee Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="flex">
-                    <span className="w-32 font-medium">Full Name:</span>
-                    <span>{selectedEmployee.name}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="w-32 font-medium">Employee ID:</span>
-                    <span>{selectedEmployee.employeeId}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="w-32 font-medium">Address:</span>
-                    <span>{selectedEmployee.address || 'Not specified'}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="w-32 font-medium">Assigned Car:</span>
-                    <span>{selectedCarDetails.plateNumber}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="w-32 font-medium">Destination:</span>
-                    <span>{selectedCarDetails.destination || 'Not specified'}</span>
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-semibold mb-4">ID Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex">
-                    <span className="w-32 font-medium">Service Start:</span>
-                    <span>{new Date().toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="w-32 font-medium">Service End:</span>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="border rounded px-2 py-1"
-                    />
-                  </div>
-                  <div className="flex">
-                    <span className="w-32 font-medium">Issued By:</span>
-                    <span>{giverName}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-center">
-                <PDFDownloadLink
-                  document={
-                    <EmployeeIDCardPDF 
-                      employee={selectedEmployee} 
-                      car={selectedCarDetails}
-                      endDate={endDate}
-                      giverName={giverName}
-                    />
-                  }
-                  fileName={`insa_service_id_${selectedEmployee.employeeId}.pdf`}
-                  className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  {({ loading }) => (
-                    loading ? 'Preparing PDF...' : (
-                      <>
-                        <FiPrinter className="mr-2" />
-                        Print ID Card
-                      </>
-                    )
-                  )}
-                </PDFDownloadLink>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex justify-between items-center mb-6 border-b pb-3">
-        <h1 className="text-3xl font-bold text-gray-700">Service Car Seat Management</h1>
+        <h1 className="text-3xl font-bold text-gray-700">
+          Service Car Seat Management
+        </h1>
         <div className="flex items-center space-x-2">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -623,7 +368,7 @@ export default function CarSeatCounterPage() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={fetchCarSeatData}
+            onClick={fetchAllCars}
             disabled={isLoading}
             className="flex items-center justify-center px-4 py-2 rounded-lg transition-colors text-sm bg-white disabled:opacity-50"
           >
@@ -636,6 +381,7 @@ export default function CarSeatCounterPage() {
         </div>
       </div>
 
+      
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md flex items-center justify-between">
           <div className="flex items-center">
@@ -700,6 +446,12 @@ export default function CarSeatCounterPage() {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Source
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -739,10 +491,16 @@ export default function CarSeatCounterPage() {
                         {getSeatStatusText(car.availableSeats)}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.carType === 'service' ? 'Service' : 'Rent'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {car.source}
+                    </td>
                   </tr>
                   {expandedCarId === car.id && (
                     <tr className="bg-gray-50">
-                      <td colSpan={7} className="px-6 py-4">
+                      <td colSpan={9} className="px-6 py-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
                             <h4 className="font-medium text-lg flex items-center mb-2">
@@ -758,7 +516,6 @@ export default function CarSeatCounterPage() {
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
-                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
@@ -767,17 +524,6 @@ export default function CarSeatCounterPage() {
                                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{employee.name}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{employee.department}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{employee.employeeId}</td>
-                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handlePrintId(employee, car);
-                                            }}
-                                            className="text-blue-600 hover:text-blue-800 flex items-center"
-                                          >
-                                            <FiPrinter className="mr-1" /> Print ID
-                                          </button>
-                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -801,7 +547,7 @@ export default function CarSeatCounterPage() {
                           
                           <div>
                             <h4 className="font-medium text-lg flex items-center mb-2">
-                              <FiMapPin className="mr-2" /> Route Details
+                              <FiMapPin className="mr-2" /> Route Details 
                             </h4>
                             {car.waypoints && car.waypoints.length > 0 ? (
                               <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
@@ -858,4 +604,10 @@ export default function CarSeatCounterPage() {
   );
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+
+function getRawCarId(prefixedId: string | number) {
+  if (typeof prefixedId === 'string' && prefixedId.includes('-')) {
+    return prefixedId.split('-')[1]; // returns '123' from 'rent-123'
+  }
+  return prefixedId;
+}

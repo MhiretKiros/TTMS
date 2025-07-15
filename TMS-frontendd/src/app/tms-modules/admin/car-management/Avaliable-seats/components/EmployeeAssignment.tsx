@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { FiUser, FiTruck, FiSearch, FiSave, FiLoader, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string; // Assuming Spring Boot runs on port 8080
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 
 type Employee = {
   employeeId: string | number;
@@ -14,37 +14,34 @@ type Employee = {
 };
 
 type Car = {
-  id: string | number;
+  id: string; // always prefixed: 'service-1' or 'rent-1'
   plateNumber: string;
   model?: string;
   destination?: string;
+  carType: 'service' | 'rent';
 };
 
 interface EmployeeCarAssignmentProps {
-  selectedCarId?: string | number; // Optional prop for pre-selected car
-  onAssignmentSuccess?: () => void; // Optional callback for successful assignment
-  singleCarMode?: boolean; // New prop to control whether to show only the selected car
+  selectedCarId?: string;
+  onAssignmentSuccess?: () => void;
+  singleCarMode?: boolean;
 }
 
-export default function EmployeeCarAssignmentPage({ 
-  selectedCarId: initialSelectedCarId = '', 
+export default function EmployeeCarAssignmentPage({
+  selectedCarId: initialSelectedCarId = '',
   onAssignmentSuccess,
-  singleCarMode = false // Default to false to show all cars
+  singleCarMode = false
 }: EmployeeCarAssignmentProps) {
-  // Employee state for ID search
   const [employeeIdToSearch, setEmployeeIdToSearch] = useState('');
   const [foundEmployee, setFoundEmployee] = useState<Employee | null>(null);
   const [isFindingEmployeeById, setIsFindingEmployeeById] = useState(false);
   const [findEmployeeByIdError, setFindEmployeeByIdError] = useState<string | null>(null);
-
   const [cars, setCars] = useState<Car[]>([]);
-  const [selectedCarId, setSelectedCarId] = useState<string | number | ''>(initialSelectedCarId);
+  const [selectedCarId, setSelectedCarId] = useState<string>(initialSelectedCarId);
   const [carSearchQuery, setCarSearchQuery] = useState('');
-
   const [employeeVillageInfo, setEmployeeVillageInfo] = useState('');
   const [isLoadingCars, setIsLoadingCars] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const router = useRouter();
@@ -98,34 +95,49 @@ export default function EmployeeCarAssignmentPage({
 
   // Fetch Serviceable Cars
   useEffect(() => {
-    const fetchServiceCars = async () => {
+    const fetchAllCars = async () => {
       setIsLoadingCars(true);
       setError(null);
       try {
-        // Fetch service buses
-        const serviceBusesRes = await fetch(`${API_BASE_URL}/auth/organization-car/service-buses`);
+        // Fetch both organization and rent cars
+        const [serviceBusesRes, rentCarsRes, assignedRoutesRes, rentCarRoutesRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/auth/organization-car/service-buses`),
+          fetch(`${API_BASE_URL}/auth/rent-car/bus-minibus`),
+          fetch(`${API_BASE_URL}/api/routes`),
+          fetch(`${API_BASE_URL}/auth/rent-car-routes`),
+        ]);
         if (!serviceBusesRes.ok) throw new Error('Failed to fetch service cars');
-        const serviceBusesData = await serviceBusesRes.json();
+        if (!rentCarsRes.ok) throw new Error('Failed to fetch rent cars');
+        if (!assignedRoutesRes.ok) throw new Error('Failed to fetch assigned routes');
+        if (!rentCarRoutesRes.ok) throw new Error('Failed to fetch rent car routes');
+
+        const [serviceBusesData, rentCarsData, assignedRoutesData, rentCarRoutesData] = await Promise.all([
+          serviceBusesRes.json(),
+          rentCarsRes.json(),
+          assignedRoutesRes.json(),
+          rentCarRoutesRes.json(),
+        ]);
+
+        // --- Organization cars ---
         let rawServiceBuses = (serviceBusesData.cars || serviceBusesData.organizationCarList || [])
           .filter((bus: any) => bus.organizationCar && bus.organizationCar.plateNumber);
 
+        // --- Rent cars ---
+        let rawRentCars = (rentCarsData.rentCarList || rentCarsData.rentCars || rentCarsData.busAndMinibusList || [])
+          .filter((car: any) => car.plateNumber);
+
         // If in single car mode, filter to only the selected car
         if (singleCarMode && initialSelectedCarId) {
-          rawServiceBuses = rawServiceBuses.filter((bus: any) => bus.organizationCar.id === initialSelectedCarId);
+          rawServiceBuses = rawServiceBuses.filter((bus: any) => `service-${bus.organizationCar.id}` === initialSelectedCarId);
+          rawRentCars = rawRentCars.filter((car: any) => `rent-${car.id}` === initialSelectedCarId);
         }
 
-        // Fetch assigned routes data
-        const assignedRoutesRes = await fetch(`${API_BASE_URL}/api/routes`);
-        if (!assignedRoutesRes.ok) throw new Error('Failed to fetch assigned routes');
-        const assignedRoutesData = await assignedRoutesRes.json();
-        const rawAssignedRoutes: any[] = assignedRoutesData || [];
-
-        // Process and combine data
+        // --- Process organization cars ---
         const carsWithDestinationsPromises = rawServiceBuses.map(async (bus: any) => {
           const plateNumber = bus.organizationCar.plateNumber;
           let carDestination = bus.organizationCar.destination || 'N/A';
 
-          const routeInfo = rawAssignedRoutes.find(r => r.plateNumber === plateNumber);
+          const routeInfo = (assignedRoutesData || []).find((r: any) => r.plateNumber === plateNumber);
           if (routeInfo && routeInfo.waypoints && routeInfo.waypoints.length > 0) {
             const lastWaypoint = routeInfo.waypoints[routeInfo.waypoints.length - 1];
             if (lastWaypoint && typeof lastWaypoint.latitude === 'number' && typeof lastWaypoint.longitude === 'number') {
@@ -134,19 +146,45 @@ export default function EmployeeCarAssignmentPage({
           }
 
           return {
-            id: bus.organizationCar.id,
+            id: `service-${bus.organizationCar.id}`,
             plateNumber: plateNumber,
             model: bus.organizationCar.model,
             destination: carDestination,
+            carType: 'service' as const,
           };
         });
 
-        const carsData: Car[] = await Promise.all(carsWithDestinationsPromises);
-        setCars(carsData);
+        // --- Process rent cars ---
+        const rentCarsWithDestinationsPromises = rawRentCars.map(async (car: any) => {
+          const plateNumber = car.plateNumber;
+          let carDestination = 'N/A';
+
+          const routeInfo = (rentCarRoutesData || []).find((r: any) => r.plateNumber === plateNumber);
+          if (routeInfo && routeInfo.waypoints && routeInfo.waypoints.length > 0) {
+            const lastWaypoint = routeInfo.waypoints[routeInfo.waypoints.length - 1];
+            if (lastWaypoint && typeof lastWaypoint.latitude === 'number' && typeof lastWaypoint.longitude === 'number') {
+              carDestination = await fetchLocationName(Number(lastWaypoint.latitude), Number(lastWaypoint.longitude));
+            }
+          }
+
+          return {
+            id: `rent-${car.id}`,
+            plateNumber: plateNumber,
+            model: car.model,
+            destination: carDestination,
+            carType: 'rent' as const,
+          };
+        });
+
+        const orgCars: Car[] = await Promise.all(carsWithDestinationsPromises);
+        const rentCars: Car[] = await Promise.all(rentCarsWithDestinationsPromises);
+
+        const allCars = [...orgCars, ...rentCars];
+        setCars(allCars);
 
         // If initialSelectedCarId was provided and exists in the fetched cars, keep it selected
         if (initialSelectedCarId) {
-          const carExists = carsData.some(car => car.id === initialSelectedCarId);
+          const carExists = allCars.some(car => car.id === initialSelectedCarId);
           if (carExists) {
             setSelectedCarId(initialSelectedCarId);
           }
@@ -159,7 +197,7 @@ export default function EmployeeCarAssignmentPage({
         setIsLoadingCars(false);
       }
     };
-    fetchServiceCars();
+    fetchAllCars();
   }, [initialSelectedCarId, singleCarMode]);
 
   const filteredCars = useMemo(() => {
@@ -179,22 +217,24 @@ export default function EmployeeCarAssignmentPage({
     setSuccessMessage(null);
 
     try {
-      if (!foundEmployee || !foundEmployee.employeeId) {
-        throw new Error("Employee details are missing or invalid for assignment.");
+      if (!foundEmployee?.employeeId) {
+        throw new Error("Employee details are missing or invalid.");
       }
 
       const selectedCarObject = cars.find(car => car.id === selectedCarId);
-      if (!selectedCarObject || !selectedCarObject.plateNumber) {
-        setError("Selected car details are missing or invalid (cannot find plate number).");
-        setIsAssigning(false);
-        return;
+      if (!selectedCarObject) {
+        throw new Error("Selected car could not be found. Please select again.");
       }
 
+      // --- CRITICAL: include carType for backend ---
       const payload = {
         employeeId: String(foundEmployee.employeeId),
-        carPlateNumber: String(selectedCarObject.plateNumber),
+        carPlateNumber: selectedCarObject.plateNumber,
         villageName: employeeVillageInfo,
+        carType: selectedCarObject.carType === 'service' ? 'ORGANIZATION' : 'RENT'
       };
+
+      console.log('Final assignment payload being sent to backend:', payload);
 
       const response = await fetch(`${API_BASE_URL}/api/employees/assign-car`, {
         method: 'POST',
@@ -206,18 +246,16 @@ export default function EmployeeCarAssignmentPage({
         const errorData = await response.json().catch(() => ({ message: "Assignment failed. Unknown server error." }));
         throw new Error(errorData.message || `Assignment failed. Status: ${response.status}`);
       }
-      
-      const assignmentResult = await response.json();
-      console.log('Assignment successful, backend response:', assignmentResult);
 
-      setSuccessMessage(`Car successfully assigned to ${assignmentResult.name || foundEmployee.name}. An email notification has been sent.`);
+      const assignmentResult = await response.json();
+      setSuccessMessage(`Car successfully assigned to ${assignmentResult.name || foundEmployee.name}.`);
+
       setFoundEmployee(null);
       setEmployeeIdToSearch('');
-      setSelectedCarId(initialSelectedCarId || ''); // Reset to initialSelectedCarId if provided
+      setSelectedCarId(initialSelectedCarId || '');
       setEmployeeVillageInfo('');
       setCarSearchQuery('');
 
-      // Call the success callback if provided
       if (onAssignmentSuccess) {
         onAssignmentSuccess();
       }
@@ -234,11 +272,11 @@ export default function EmployeeCarAssignmentPage({
       <div className="flex justify-between items-center mb-6 border-b pb-3">
         <h1 className="text-3xl font-bold text-gray-700">Assign Car to Employee for Service</h1>
         <button
-            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            onClick={() => router.push('/tms-modules/admin/car-management/service-route-assign/assigned-employees-list')}
-          >
-            View Assigned Employees
-          </button>
+          className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          onClick={() => router.push('/tms-modules/admin/car-management/service-route-assign/assigned-employees-list')}
+        >
+          View Assigned Employees
+        </button>
       </div>
 
       {error && (
@@ -273,7 +311,7 @@ export default function EmployeeCarAssignmentPage({
               disabled={isAssigning || isFindingEmployeeById}
               onKeyDown={(e) => e.key === 'Enter' && !isFindingEmployeeById && employeeIdToSearch.trim() && handleFindEmployeeById()}
             />
-            
+
             <button
               onClick={handleFindEmployeeById}
               disabled={isAssigning || isFindingEmployeeById || !employeeIdToSearch.trim()}
@@ -284,7 +322,7 @@ export default function EmployeeCarAssignmentPage({
           </div>
           {isFindingEmployeeById && <p className="text-xs text-gray-500 mt-1 flex items-center"><FiLoader className="animate-spin mr-1 h-3 w-3" />Searching...</p>}
           {findEmployeeByIdError && <p className="text-xs text-red-600 mt-1 flex items-center"><FiAlertCircle className="mr-1 h-3 w-3" /> {findEmployeeByIdError}</p>}
-          
+
           {foundEmployee && !isFindingEmployeeById && (
             <div className="mt-3 p-3 border border-gray-200 rounded-md bg-gray-50 space-y-2">
               <div className="flex justify-between items-center">
@@ -342,9 +380,7 @@ export default function EmployeeCarAssignmentPage({
                   {filteredCars.map(car => (
                     <li
                       key={car.id}
-                      onClick={() => {
-                        setSelectedCarId(car.id);
-                      }}
+                      onClick={() => setSelectedCarId(car.id)}
                       className={`p-2 cursor-pointer hover:bg-blue-100 ${selectedCarId === car.id ? 'bg-blue-200' : ''}`}
                     >
                       {car.plateNumber} ({car.destination || 'N/A'})
@@ -380,7 +416,7 @@ export default function EmployeeCarAssignmentPage({
       {/* Assign Button */}
       <button
         onClick={handleAssign}
-        disabled={!foundEmployee || !selectedCarId || isAssigning || isFindingEmployeeById || isLoadingCars}        
+        disabled={!foundEmployee || !selectedCarId || isAssigning || isFindingEmployeeById || isLoadingCars}
         className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isAssigning ? <FiLoader className="animate-spin mr-2" /> : <FiSave className="mr-2" />}
