@@ -5,11 +5,12 @@ import { useNotification } from '../contexts/NotificationContext';
 import { 
   FiSearch, FiBell, FiRefreshCw, FiSettings, 
   FiHelpCircle, FiLogOut, FiUser, 
-  FiLock
+  FiLock, FiX, FiCheck
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import Link from 'next/link';
 
 interface User {
   name: string;
@@ -29,6 +30,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [formData, setFormData] = useState({
     myUsername: '',
     currentPassword: '',
@@ -37,7 +39,17 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   });
   const [loading, setLoading] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const { unassignedInspectedBusesCount, newRegisteredCarsCount, isLoadingNotifications, refreshNotifications } = useNotification();
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  
+  const { 
+    notifications, 
+    unreadCount,
+    isLoading: isLoadingNotifications,
+    markAsRead,
+    markAllAsRead,
+    fetchNotifications,
+    refreshNotifications
+  } = useNotification();
   
   const [currentUser, setCurrentUser] = useState<User>(() => {
     const storedUser = localStorage.getItem('user');
@@ -75,6 +87,9 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -223,25 +238,103 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
           onClick={() => {
             refreshNotifications();
-            window.location.reload();
           }}
           aria-label="Refresh"
         >
           <FiRefreshCw className="h-5 w-5" />
         </button>
         
-        <div className="relative">
+        <div className="relative" ref={notificationsRef}>
           <button 
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+            className="p-2 rounded-full hover:bg-gray-100 text-gray-600 relative"
+            onClick={() => {
+              setIsNotificationsOpen(!isNotificationsOpen);
+              if (!isNotificationsOpen) {
+                fetchNotifications();
+              }
+            }}
             aria-label="Notifications"
           >
             <FiBell className="h-5 w-5" />
-            {!isLoadingNotifications && (unassignedInspectedBusesCount > 0 || newRegisteredCarsCount > 0) && (
-              <span className="absolute top-0 right-0 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center transform -translate-y-1/2 translate-x-1/2" aria-live="polite" aria-atomic="true">
-                {unassignedInspectedBusesCount + newRegisteredCarsCount}
+            {!isLoadingNotifications && unreadCount > 0 && (
+              <span className="absolute top-0 right-0 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center transform -translate-y-1/2 translate-x-1/2">
+                {unreadCount}
               </span>
             )}
           </button>
+
+          <AnimatePresence>
+            {isNotificationsOpen && (
+              <motion.div 
+                className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 max-h-96 overflow-y-auto"
+                variants={dropdownVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                  <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={async () => {
+                        await markAllAsRead();
+                        setIsNotificationsOpen(false);
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      Mark all as read
+                    </button>
+                    <button 
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <FiX className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-sm text-gray-500">
+                    No new notifications
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {notifications.map(notification => (
+                      <div 
+                        key={notification.id} 
+                        className={`px-4 py-3 hover:bg-gray-50 ${notification.read ? 'bg-gray-50' : 'bg-white'}`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <Link 
+                            href={notification.link}
+                            onClick={async () => {
+                              await markAsRead(notification.id);
+                              setIsNotificationsOpen(false);
+                            }}
+                            className="text-sm font-medium text-gray-900 hover:text-blue-600 flex-1"
+                          >
+                            {notification.message}
+                          </Link>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await markAsRead(notification.id);
+                            }}
+                            className="ml-2 text-xs text-gray-400 hover:text-gray-600"
+                          >
+                            {notification.read ? <FiCheck className="h-3 w-3" /> : <FiX className="h-3 w-3" />}
+                          </button>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         
         <button 

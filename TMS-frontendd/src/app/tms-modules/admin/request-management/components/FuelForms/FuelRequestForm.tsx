@@ -12,6 +12,7 @@ import {
   FiSearch, FiArrowRight, FiX
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNotification } from '@/app/contexts/NotificationContext';
 
 interface Traveler {
   id?: number;
@@ -68,7 +69,8 @@ export const FuelRequestForm = ({
     paymentType: defaultValues?.accountNumber ? 'cash' : 'fuel', // New field
 
   });
-  
+
+  const { addNotification } = useNotification();
   const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
   const [apiError, setApiError] = useState('');
 
@@ -125,6 +127,17 @@ if(response){
   showSuccessAlert('Success!', 'Fuel request submitted successfully');
     onSuccess();
 }
+
+try {
+      await addNotification(
+        `New Fule Request Added`,
+        `/tms-modules/admin/request-management`,
+        'NEZEK'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
     
   } catch (error: any) {
     setApiError(error.message || 'Failed to save service information');

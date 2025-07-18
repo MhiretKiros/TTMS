@@ -16,7 +16,9 @@
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@heroicons/react": "^2.2.0",
+    "@hookform/resolvers": "^5.1.1",
     "@mui/x-data-grid": "^8.5.0",
+    "@prisma/client": "^6.12.0",
     "@react-google-maps/api": "^2.20.6",
     "@react-pdf/renderer": "^4.3.0",
     "@sweetalert2/theme-material-ui": "^5.0.27",
@@ -31,13 +33,15 @@
     "react": "^19.0.0",
     "react-calendar": "^6.0.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "^7.60.0",
     "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.6.0",
     "react-to-print": "^3.1.0",
     "recharts": "^2.15.2",
-    "sweetalert2": "^11.17.2"
+    "sweetalert2": "^11.17.2",
+    "zod": "^4.0.5"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.18",

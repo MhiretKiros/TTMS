@@ -3,6 +3,7 @@
 import axios from 'axios';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNotification } from '@/app/contexts/NotificationContext';
 
 interface Car {
   id: number | string;
@@ -90,6 +91,8 @@ export default function RentalRequestForm() {
     mobilityIssue: 'no',
     gender: 'male'
   });
+
+  const { addNotification } = useNotification();
   const [totalPercentage, setTotalPercentage] = useState<number>(0);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
   const [assignmentResult, setAssignmentResult] = useState<AssignmentResult | null>(null);
@@ -571,6 +574,17 @@ const checkForAutoAssignments = useCallback(async () => {
         assignmentDate: new Date().toISOString().split('T')[0] 
       });
   
+       try {
+      await addNotification(
+        `New vehicle has been assigned to ${formData.requesterName} needs Approved`,
+        `/tms-modules/admin/car-management/assign-car`,
+        'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
+      );
+      
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
       // Refresh data
       await fetchAllData();
       
@@ -674,6 +688,17 @@ const checkForAutoAssignments = useCallback(async () => {
         gender: 'male'
       });
   
+      try {
+      await addNotification(
+        `New vehicle has been assigned to ${formData.requesterName} needs Approved`,
+        `/tms-modules/admin/car-management/assign-car`,
+        'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
+      );
+      
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
       setShowConfirmation(false);
       setShowSuccessModal(true);
       setProposedCar(null);

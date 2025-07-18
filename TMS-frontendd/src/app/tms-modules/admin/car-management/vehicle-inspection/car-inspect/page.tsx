@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheck, FiX, FiAlertTriangle, FiChevronRight, FiInfo } from 'react-icons/fi';
 // Consider using a toast library for better user feedback
 import { Toaster, toast } from 'react-hot-toast';
+import { useNotification } from '@/app/contexts/NotificationContext';
 
 // Enums (InspectionStatus, ServiceStatus, SeverityLevel) remain the same
 enum InspectionStatus {
@@ -399,6 +400,7 @@ const Phase1MechanicalInspection = React.memo(({
         serviceStatus: ServiceStatus.NotReady,
         rejectionReason: reason // Use the determined reason
       }));
+      
       setShowFailAlert(true); // Show the failure modal, DO NOT proceed
     }
     setIsLoading(false);
@@ -418,7 +420,6 @@ const Phase1MechanicalInspection = React.memo(({
   // --- Determine button label based on the new logic ---
   const allMechanicalItemsPassed = Object.values(inspection.mechanical).every(value => value === true);
   const criticalItemsPassed = checkMechanicalPass(); // Re-use the critical check result
-
   const nextButtonLabel = allMechanicalItemsPassed
     ? 'Continue to Body Inspection'
     : !criticalItemsPassed
@@ -516,7 +517,7 @@ export default function CarInspectPage() {
   const searchParams = useSearchParams();
   const plateNumber = searchParams.get('plateNumber');
   const carTypeParam = searchParams.get('type') as CarType | null;
-
+  const { addNotification } = useNotification();
   const [phase, setPhase] = useState<1 | 2 | 3>(1);
   const [inspectorName, setInspectorName] = useState('');
   const [inspection, setInspection] = useState<InspectionResultState>({
@@ -764,7 +765,31 @@ export default function CarInspectPage() {
 
       if (result && result.id && payload.plateNumber) { // Ensure ID and plateNumber exist
         toast.success('Inspection submitted successfully!');
-
+      if (carTypeParam !== 'organization') {  
+        try {
+              await addNotification(
+                `New Automobile Vehicle Inspected Successfully for ${payload.plateNumber}`,
+                `/tms-modules/admin/car-management/assign-car`,
+                'DISTRIBUTOR' // Role that should see this notification
+              );
+              
+            } catch (notificationError) {
+              console.error('Failed to add notification:', notificationError);
+              // Optionally show error to user
+            }
+          }else{
+            try {
+              await addNotification(
+                `New Service Vehicle Inspected Successfully for ${payload.plateNumber}`,
+                `/tms-modules/admin/car-management/assign-route`,
+                'DISTRIBUTOR' // Role that should see this notification
+              );
+              
+            } catch (notificationError) {
+              console.error('Failed to add notification:', notificationError);
+              // Optionally show error to user
+            }
+          }
         // 2. Update the car's status - NOW WE WAIT for this to finish
         console.log("Waiting for car status update...");
         // --- MODIFIED CALL: Pass payload.serviceStatus ---

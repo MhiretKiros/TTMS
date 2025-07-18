@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { FiActivity, FiBriefcase, FiCheckCircle, FiChevronDown, FiUser } from 'react-icons/fi';
-
+import { useNotification } from '@/app/contexts/NotificationContext';
 interface Car {
   id: number | string;
   plateNumber: string;
@@ -65,7 +65,6 @@ const parseMotorCapacity = (motorCapacity: string): number => {
   const numericValue = parseInt(motorCapacity.replace(/\D/g, ''), 10);
   return isNaN(numericValue) ? 0 : numericValue;
 };
-
 const travelPoints = { low: 15, medium: 25, high: 35 };
 const noticePoints = { low: 35, medium: 45, high: 55 };
 
@@ -127,6 +126,7 @@ export default function AssignCarManagerForm() {
     selectedModels: []
   });
 
+  const {addNotification } = useNotification();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCarModelDropdown, setShowCarModelDropdown] = useState(false);
   const [totalPercentage, setTotalPercentage] = useState<number>(0);
@@ -412,6 +412,19 @@ export default function AssignCarManagerForm() {
           numberOfCar
         });
         
+        if (isFullyAssigned) {
+           try {
+      await addNotification(
+        `New vehicle has been assigned to ${formData.requesterName} needs Approved`,
+        `/tms-modules/admin/car-management/assign-car`,
+        'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
+      );
+      
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
+        }
         setShowConfirmation(false);
         setShowSuccessModal(true);
         resetForm();

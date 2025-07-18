@@ -11,6 +11,7 @@ import { TravelApi, TravelRequest } from '../api/handlers';
 import RequestsTable from './RequestsTable';
 import { FuelRequestForm } from '../components/FuelForms/FuelRequestForm';
 import axios from 'axios';
+import { useNotification } from '@/app/contexts/NotificationContext';
 
 const showSuccessAlert = (title: string, message: string) => {
   Swal.fire({
@@ -77,6 +78,7 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED'| 'InspectedAndRead'| 'ACCEPTED',
   });
 
+  const { addNotification } = useNotification();
   const [showCargoDropdown, setShowCargoDropdown] = useState(false);
   const [selectedCargoTypes, setSelectedCargoTypes] = useState<string[]>([]);
   const [vehicleType, setVehicleType] = useState('' as 'car' | 'organization' | 'rent' | '');
@@ -526,7 +528,21 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
         'Success!', 
         `Request has been ${status.toLowerCase()} successfully`
       );
-      
+
+if(status=="APPROVED"){
+
+   try {
+      await addNotification(
+        `New Request Approved`,
+        `/tms-modules/admin/request-management/request-field`,
+        'DISTRIBUTOR'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
+}
+     
       const data = await TravelApi.getRequests(actorType);
       setRequests(data);
       setFilteredRequests(data);
@@ -607,6 +623,17 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
         'Success!', 
         `Travel request ${requestId ? 'updated' : 'submitted'} successfully!`
       );
+
+try {
+      await addNotification(
+        `New Request Added`,
+        `/tms-modules/admin/request-management/request-field`,
+        'CORPORATOR'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
 
       if (actorType === 'user') {
         window.location.reload();
@@ -774,6 +801,17 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
       };
 
       await TravelApi.completeTravelRequest(completionData);
+
+      try {
+      await addNotification(
+        `New Driver Submit Added`,
+        `/tms-modules/admin/request-management/request-field`,
+        'DISTRIBUTOR'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
 
       if (vehicleType && formData.vehicleDetails) {
         try {

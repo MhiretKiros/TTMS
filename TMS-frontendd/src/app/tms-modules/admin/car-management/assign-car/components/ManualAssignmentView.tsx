@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 import '@sweetalert2/theme-material-ui/material-ui.css';
 import axios from 'axios';
 import VehicleAcceptanceForm from './VehicleAcceptanceForm';
-
+import { useNotification } from '@/app/contexts/NotificationContext';
 // --- Types, State, Reducer ---
 export interface Car {
   id: string;
@@ -151,6 +151,7 @@ export default function ManualAssignmentView() {
   const [requestSearchTerm, setRequestSearchTerm] = useState('');
   const [filteredCars, setFilteredCars] = useState<Car[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<PendingRequest[]>([]);
+  const { addNotification } = useNotification();
 
   const parseMotorCapacity = (motorCapacity: string = ''): number => {
     if (!motorCapacity) return 0;
@@ -441,6 +442,19 @@ export default function ManualAssignmentView() {
             timer: 2000,
             showConfirmButton: false,
           });
+
+           try {
+            await addNotification(
+              `New vehicle has been assigned needs Approved`,
+              `/tms-modules/admin/car-management/assign-car`,
+              'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
+            );
+            
+          } catch (notificationError) {
+            console.error('Failed to add notification:', notificationError);
+            // Optionally show error to user
+          }
+
         } else {
           // For In_transfer, just update UI and prompt for acceptance form
           dispatch({
@@ -453,6 +467,18 @@ export default function ManualAssignmentView() {
             text: `The car has been marked as "In_transfer" and ready for acceptance. The request status has been updated to "Waiting". You can proceed to the vehicle acceptance form.`,
             icon: 'success',
           });
+
+           try {
+              await addNotification(
+                `New vehicle has been Approved and it is in waiting to needs Acceptance`,
+                `/tms-modules/admin/car-management/assign-car`,
+                'DISTRIBUTOR' // Role that should see this notification
+              );
+              
+            } catch (notificationError) {
+              console.error('Failed to add notification:', notificationError);
+              // Optionally show error to user
+            }
 
           dispatch({ type: 'RESET_SELECTION' });
         }

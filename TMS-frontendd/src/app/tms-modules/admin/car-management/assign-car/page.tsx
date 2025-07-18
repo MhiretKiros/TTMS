@@ -1,4 +1,5 @@
 'use client';
+import {useNotification} from '@/app/contexts/NotificationContext';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -69,6 +70,7 @@ interface Assignment {
 }
 
 export default function CarAssignment() {
+  const { addNotification } = useNotification();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('assigned');
   const [actorType, setActorType] = useState<ActorType>('manager');
@@ -297,8 +299,33 @@ export default function CarAssignment() {
             )
           );
         }
+
+        try {
+              await addNotification(
+                `Vehicle with plate number ${selectedRequest.car?.plateNumber || selectedRequest.rentCar?.plateNumber} has been Rejected and set to Pending. Please check the status of the vehicle and reassign`,
+                `/tms-modules/admin/car-management/assign-car`,
+                'DISTRIBUTOR' // Role that should see this notification
+              );
+              
+            } catch (notificationError) {
+              console.error('Failed to add notification:', notificationError);
+              // Optionally show error to user
+            }
       }
 
+      if (status === 'Approved') {
+        try {
+              await addNotification(
+                `Vehicle with plate number ${selectedRequest.car?.plateNumber || selectedRequest.rentCar?.plateNumber} has been Approved and set to Approved. Please proceed with the acceptance of the vehicle`,
+                `/tms-modules/admin/car-management/assign-car`,
+                'DISTRIBUTOR' // Role that should see this notification
+              );
+              
+            } catch (notificationError) {
+              console.error('Failed to add notification:', notificationError);
+              // Optionally show error to user
+            }
+      }
       // Show success message
       await showSuccessAlert(
         status === 'Approved'

@@ -1,4 +1,5 @@
 'use client';
+import { useNotification } from '@/app/contexts/NotificationContext';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -81,6 +82,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     ]
   });
 
+  const { addNotification } = useNotification();
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<MaintenanceRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -487,6 +489,12 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       });
       setFilePreviews([]);
       setReturnFilePreviews([]);
+
+      await addNotification(
+      'New Automobile Vehicle Registered', 
+      '/tms-modules/admin/car-management/vehicle-inspection', 
+      'INSPECTOR' // Role that should see this notification
+    );
     } catch (error: any) {
       setApiError(error.response?.data?.message || `Failed to ${requestId ? 'update' : 'submit'} request`);
     } finally {
@@ -518,6 +526,28 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         `Request has been ${status.toLowerCase()} successfully`
       );
       
+      if(status === 'APPROVED') {
+        await addNotification(
+          `New Maintainance Request Approved By Head Of Mechanic`,
+          `/tms-modules/admin/car-management/maintenance`,
+          'INSPECTOR' // Role that should see this notification
+        );
+      }
+
+      if(status === 'CHECKED') {
+      try {
+      await addNotification(
+        `New Maintainance Request Approved By Distributor`,
+        `/tms-modules/admin/car-management/maintenance`,
+        'HEAD_OF_MECHANIC' // Role that should see this notification
+      );
+      
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
+
+   }
       const data = await axios.get(
         actorType === 'distributor' ? `${API_BASE_URL}/distributor` : 
         actorType === 'maintenance' ? `${API_BASE_URL}/maintenance` : 
@@ -581,6 +611,18 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         'Success!', 
         'Acceptance form submitted successfully and car status updated'
       );
+
+       try {
+      await addNotification(
+        `Vehicle ${selectedRequest.plateNumber} acccepted successfully for mentainance`,
+        `/tms-modules/admin/car-management/approved-maintenance-requests`,
+        'INSPECTOR'
+      );
+
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
       
       const data = await axios.get(`${API_BASE_URL}/driver`).then(res => res.data);
       setRequests(data);
@@ -659,6 +701,16 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         'Vehicle return process completed successfully'
       );
       
+      try {
+      await addNotification(
+        `Vehicle ${selectedRequest.plateNumber} returned successfully from mentainance`,
+        `/tms-modules/admin/car-management/maintenance`,
+        'DRIVER'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
       // Refresh requests
       const data = await axios.get(
         actorType === 'driver' ? `${API_BASE_URL}/driver` :

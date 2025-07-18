@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheck, FiX, FiUpload, FiTrash2, FiPlus, FiMinus, FiDownload, FiEye } from 'react-icons/fi';
 import { createVehicleAcceptance, updateVehicleAcceptance, getVehicleAcceptanceByAssignment, updateAssignmentStatus, updateRentCarStatus, updateCarStatus } from '../api/vehicleAcceptanceApi';
 import Swal from 'sweetalert2';
+import { useNotification } from '@/app/contexts/NotificationContext';
 
 interface Signature {
   role: string;
@@ -116,6 +117,7 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
   isApprovedStatus = false
 }) => {
 
+  const { addNotification } = useNotification();
   const today = new Date().toISOString().split('T')[0];
   const [vehicleData, setVehicleData] = useState<VehicleData>({
     plateNumber: '',
@@ -352,6 +354,20 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
             : 'Vehicle acceptance created successfully',
         icon: 'success'
       });
+
+      if (isCompletedStatus) {
+      try {
+              await addNotification(
+                `One vehicle is in transfer`,
+                `/tms-modules/admin/car-management/assign-car`,
+                'DISTRIBUTOR' // Role that should see this notification
+              );
+              
+            } catch (notificationError) {
+              console.error('Failed to add notification:', notificationError);
+              // Optionally show error to user
+            }
+          }
 
       if (onSuccess) onSuccess();
       onClose();

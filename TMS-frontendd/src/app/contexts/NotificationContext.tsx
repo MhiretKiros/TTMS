@@ -1,33 +1,38 @@
-// c:\Users\biruk\Desktop\TMS\TMS-frontendd\src\app\contexts\NotificationContext.tsx
+// src/app/contexts/NotificationContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
+import axios from 'axios';
 
-interface InspectedBus {
-  organizationCar?: {
-    plateNumber: string;
-    // Add other relevant properties if needed
-  };
-  // Add other bus properties if needed
-}
-
-interface AssignedRouteInfo {
-  plateNumber: string;
-  // Add other relevant properties if needed
-}
-
-interface NewlyRegisteredCar {
-  plateNumber: string; // Or any unique identifier
-  // Add other relevant properties if needed
+export interface NotificationItem {
+  id: string;
+  message: string;
+  link: string;
+  read: boolean;
+  role: string;
+  createdAt: string;
 }
 
 interface NotificationContextType {
-  unassignedInspectedBusesCount: number;
-  newRegisteredCarsCount: number;
-  isLoadingNotifications: boolean;
-  refreshNotifications: () => void;
+  notifications: NotificationItem[];
+  unreadCount: number;
+  isLoading: boolean;
+  addNotification: (message: string, link: string, role: string) => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  fetchNotifications: () => Promise<void>;
+  fetchUnreadCount: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const useNotification = (): NotificationContextType => {
@@ -38,79 +43,104 @@ export const useNotification = (): NotificationContextType => {
   return context;
 };
 
-async function fetchAllInspectedBuses(): Promise<InspectedBus[]> {
-  // Ensure this URL is correct and your backend is running
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/service-buses`);
-  if (!res.ok) throw new Error('Failed to fetch inspected vehicles');
-  const data = await res.json();
-  return (data.cars || data.organizationCarList || []).filter(
-    (bus: any) => bus.organizationCar && bus.organizationCar.plateNumber
-  );
-}
+export const NotificationProvider = ({ children }: { children: ReactNode }) => {
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-async function fetchAllAssignedRoutes(): Promise<AssignedRouteInfo[]> {
-  // Ensure this URL is correct and your backend is running
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/assigned-routes`);
-  if (!res.ok) throw new Error('Failed to fetch assigned routes');
-  const data = await res.json();
-  return data.assignedRoutes || data || [];
-}
-
-// Placeholder: Replace with your actual API call for newly registered cars
-async function fetchAllNewlyRegisteredCars(): Promise<NewlyRegisteredCar[]> {
-  // Example: const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/organization-car/newly-registered`);
-  // if (!res.ok) throw new Error('Failed to fetch newly registered cars');
-  // const data = await res.json();
-  // return data.newCars || data || [];
-  console.warn("fetchAllNewlyRegisteredCars is using placeholder data. Implement actual API call.");
-  return Promise.resolve([]); // Replace with actual fetch
-}
-
-export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [inspectedBuses, setInspectedBuses] = useState<InspectedBus[]>([]);
-  const [assignedRoutes, setAssignedRoutes] = useState<AssignedRouteInfo[]>([]);
-  const [newlyRegisteredCars, setNewlyRegisteredCars] = useState<NewlyRegisteredCar[]>([]);
-  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
-
-  const fetchData = async () => {
-    setIsLoadingNotifications(true);
+  const fetchNotifications = async () => {
+    setIsLoading(true);
     try {
-      const [busesData, routesData, newCarsData] = await Promise.all([
-        fetchAllInspectedBuses(),
-        fetchAllAssignedRoutes(),
-        fetchAllNewlyRegisteredCars(), // Fetch new cars
-      ]);
-      setInspectedBuses(busesData);
-      setAssignedRoutes(routesData);
-      setNewlyRegisteredCars(newCarsData);
+      const response = await axios.get(`${API_BASE_URL}/api/notifications/unread`);
+      setNotifications(response.data.notifications || []);
     } catch (error) {
-      console.error("Error fetching notification data:", error);
-      // Optionally, set an error state here to display in UI
+      console.error('Failed to fetch notifications:', error);
     } finally {
-      setIsLoadingNotifications(false);
+      setIsLoading(false);
     }
   };
 
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/notifications/count`);
+      setUnreadCount(response.data.count || 0);
+    } catch (error) {
+      console.error('Failed to fetch unread count:', error);
+    }
+  };
+
+  const refreshNotifications = async () => {
+    await Promise.all([fetchNotifications(), fetchUnreadCount()]);
+  };
+
   useEffect(() => {
-    fetchData();
-    // You might want to add a polling mechanism or WebSocket for real-time updates
-    // const intervalId = setInterval(fetchData, 60000); // Example: Refresh every 60 seconds
-    // return () => clearInterval(intervalId);
+    refreshNotifications();
+    
+    // Set up polling for real-time updates
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  const unassignedInspectedBusesCount = useMemo(() => {
-    if (isLoadingNotifications) return 0; // Don't calculate if still loading
-    const assignedPlateNumbers = new Set(assignedRoutes.map(route => route.plateNumber));
-    return inspectedBuses.filter(bus => bus.organizationCar && !assignedPlateNumbers.has(bus.organizationCar.plateNumber)).length;
-  }, [inspectedBuses, assignedRoutes, isLoadingNotifications]);
+  const addNotification = async (message: string, link: string, role: string) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/notifications`, { message, link, role });
+      await refreshNotifications();
+    } catch (error) {
+      console.error('Failed to add notification:', error);
+    }
+  };
 
-  const newRegisteredCarsCount = useMemo(() => {
-    if (isLoadingNotifications) return 0;
-    return newlyRegisteredCars.length;
-  }, [newlyRegisteredCars, isLoadingNotifications]);
+  const markAsRead = async (id: string) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/notifications/mark-as-read/${id}`);
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, read: true } : n))
+      );
+      setUnreadCount(prev => prev - 1);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/api/notifications/${id}`);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      setUnreadCount(prev => 
+        prev - (notifications.find(n => n.id === id)?.read ? 0 : 1
+      ));
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/notifications/mark-all-read`);
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, read: true }))
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
 
   return (
-    <NotificationContext.Provider value={{ unassignedInspectedBusesCount, newRegisteredCarsCount, isLoadingNotifications, refreshNotifications: fetchData }}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        isLoading,
+        addNotification,
+        markAsRead,
+        deleteNotification,
+        markAllAsRead,
+        fetchNotifications,
+        fetchUnreadCount,
+        refreshNotifications,
+      }}
+    >
       {children}
     </NotificationContext.Provider>
   );

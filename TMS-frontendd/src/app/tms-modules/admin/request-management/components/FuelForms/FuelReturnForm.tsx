@@ -12,6 +12,8 @@ import {
   FiSearch, FiArrowRight, FiX
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNotification } from '@/app/contexts/NotificationContext';
+
 
 interface FuelReturnFormProps {
   travelRequestId?: number;
@@ -58,6 +60,7 @@ export const FuelReturnForm = ({
 
   });
 
+    const { addNotification } = useNotification();
   const [apiError, setApiError] = useState('');
   const [selectedRequest, setSelectedRequest] = useState<TravelRequest | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,6 +107,18 @@ const showSuccessAlert = (title: string, message: string) => {
   
       showSuccessAlert('Success!', 'Fuel request submitted successfully');
       onSuccess();
+
+      try {
+      await addNotification(
+        `New Fule Return Added`,
+        `/tms-modules/admin/request-management`,
+        'NEZEK'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
+
     } catch (error: any) {
       setApiError(error.message || 'Failed to save service information');
     } finally {

@@ -3,6 +3,10 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiX } from 'react-icons/fi';
 import { Car } from '../types';
+import { useNotification } from '@/app/contexts/NotificationContext';
+
+
+
 
 const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
   car: Car | null;
@@ -26,6 +30,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     parkingLocation: ''
   });
 
+  const { addNotification } = useNotification();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -81,6 +86,19 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
         : { ...formData, id: 0 };
       
       await onSubmit(carData as Car);
+
+      //add notification
+     try {
+      await addNotification(
+        `New ${formData.carType} registered: ${formData.plateNumber}`,
+        `/tms-modules/admin/car-management/vehicle-inspection`,
+        'INSPECTOR'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
+
     } catch (error) {
       // Error is handled in parent component
     }

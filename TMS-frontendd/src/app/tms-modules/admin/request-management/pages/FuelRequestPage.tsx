@@ -17,6 +17,7 @@ const FuelManagementPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<'DISTRIBUTOR' | 'NEZEK'>('DISTRIBUTOR');
+  const { addNotification } = useNotification();
 
   useEffect(() => {
     // Get user role from localStorage
@@ -106,6 +107,19 @@ const FuelManagementPage = () => {
         `Request has been ${updatedRequest.status.toLowerCase()}`
       );
       handleSuccess();
+      if(newStatus=="ACCEPTED"){
+   try {
+      await addNotification(
+        `New Field Request is Completed Now You can go to field `,
+        `/tms-modules/admin/request-management/request-field`,
+        'DRIVER'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
+      }
+    
     } catch (error: any) {
       Swal.fire(
         'Error',
