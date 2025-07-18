@@ -31,6 +31,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [autoShowNotifications, setAutoShowNotifications] = useState(false);
   const [formData, setFormData] = useState({
     myUsername: '',
     currentPassword: '',
@@ -40,6 +41,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const [loading, setLoading] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   
   const { 
     notifications, 
@@ -83,6 +85,56 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
     };
   });
 
+  // Filter notifications by current user's role
+  const filteredNotifications = notifications.filter(
+    notification => notification.role === currentUser.role
+  );
+
+  // Filter unread notifications for auto-show
+  const unreadNotifications = filteredNotifications.filter(
+    notification => !notification.read
+  );
+
+  // Initialize notification sound
+  useEffect(() => {
+    notificationSoundRef.current = new Audio('/notification.mp3');
+    return () => {
+      if (notificationSoundRef.current) {
+        notificationSoundRef.current.pause();
+        notificationSoundRef.current = null;
+      }
+    };
+  }, []);
+
+  // Auto-show notifications on page load and when new notifications arrive
+// Auto-show notifications on page load and when new notifications arrive
+useEffect(() => {
+  let timer: NodeJS.Timeout;
+  let hideTimer: NodeJS.Timeout;
+  let hideSequenceTimer: NodeJS.Timeout;
+  
+  if (unreadNotifications.length > 0) {
+    // Play notification sound
+    if (notificationSoundRef.current) {
+      notificationSoundRef.current.currentTime = 0;
+      notificationSoundRef.current.play().catch(e => console.log("Audio play failed:", e));
+    }
+    
+    setAutoShowNotifications(true);
+    
+    // Hide all after 5 seconds
+    timer = setTimeout(() => {
+      setAutoShowNotifications(false);
+    }, 15000);
+  }
+
+  return () => {
+    if (timer) clearTimeout(timer);
+    if (hideTimer) clearTimeout(hideTimer);
+    if (hideSequenceTimer) clearTimeout(hideSequenceTimer);
+  };
+}, [unreadNotifications.length]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
@@ -90,6 +142,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
       }
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
+        setAutoShowNotifications(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -161,49 +214,101 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
     window.location.href = '/tms-modules';
   };
 
+  // Animation Variants
   const modalVariants = {
-    hidden: { opacity: 0, y: -50, scale: 0.95 },
+    hidden: { opacity: 0, y: -20, scale: 0.98 },
     visible: { 
       opacity: 1, 
-      y: 0, 
+      y: 0,
       scale: 1,
       transition: { 
-        type: "spring", 
-        damping: 25, 
-        stiffness: 500,
-        duration: 0.4 
+        type: "spring",
+        stiffness: 200,
+        damping: 20,
+        duration: 0.5
       } 
     },
     exit: { 
       opacity: 0, 
-      y: 50, 
-      scale: 0.95,
+      y: 20, 
+      scale: 0.98,
       transition: { 
-        duration: 0.3 
+        duration: 0.3,
+        ease: "easeInOut"
       } 
     }
   };
 
   const backdropVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 0.5 }
+    visible: { 
+      opacity: 0.5,
+      transition: { duration: 0.3 }
+    },
+    exit: {
+      opacity: 0,
+      transition: { duration: 0.2 }
+    }
   };
 
   const dropdownVariants = {
-    hidden: { opacity: 0, y: -20 },
+    hidden: { opacity: 0, y: -10, scale: 0.98 },
     visible: { 
       opacity: 1, 
       y: 0,
+      scale: 1,
       transition: {
-        duration: 0.2
+        type: "spring",
+        stiffness: 300,
+        damping: 25,
+        duration: 0.4
       }
     },
     exit: { 
       opacity: 0,
+      y: -5,
+      scale: 0.98,
       transition: {
-        duration: 0.1
+        duration: 0.2,
+        ease: "easeIn"
       }
     }
+  };
+
+  const notificationItemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: i * 0.1,
+        duration: 0.3,
+        ease: "easeOut"
+      }
+    }),
+    exit: (i: number) => ({
+      opacity: 0,
+      y: -10,
+      transition: {
+        delay: i * 0.05,
+        duration: 0.3,
+        ease: "easeIn"
+      }
+    })
+  };
+
+  const notificationCardVariants = {
+    hover: {
+      scale: 1.02,
+      transition: { duration: 0.2 }
+    },
+    tap: {
+      scale: 0.98
+    }
+  };
+
+  const handleHideAllNotifications = () => {
+    setAutoShowNotifications(false);
   };
 
   return (
@@ -249,6 +354,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             className="p-2 rounded-full hover:bg-gray-100 text-gray-600 relative"
             onClick={() => {
               setIsNotificationsOpen(!isNotificationsOpen);
+              setAutoShowNotifications(false);
               if (!isNotificationsOpen) {
                 fetchNotifications();
               }
@@ -256,80 +362,160 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             aria-label="Notifications"
           >
             <FiBell className="h-5 w-5" />
-            {!isLoadingNotifications && unreadCount > 0 && (
+            {!isLoadingNotifications && unreadNotifications.length > 0 && (
               <span className="absolute top-0 right-0 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center transform -translate-y-1/2 translate-x-1/2">
-                {unreadCount}
+                {unreadNotifications.length}
               </span>
             )}
           </button>
 
+{/* Auto-show notifications */}
+<AnimatePresence>
+  {autoShowNotifications && !isNotificationsOpen && (
+    <div className="absolute right-0 mt-2 z-50 w-80">
+      {/* Hide All button - styled like notification cards */}
+      <motion.div
+        className="w-full mb-2"
+        initial={{ opacity: 0, y: -5 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -5 }}
+      >
+        <motion.button
+          onClick={handleHideAllNotifications}
+          className="w-full px-4 py-3 bg-white rounded-lg shadow-md border border-gray-200 hover:bg-gray-50 cursor-pointer"
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+        >
+          <div className="flex justify-center items-center">
+            <span className="text-sm font-medium text-gray-900">Hide All</span>
+          </div>
+        </motion.button>
+      </motion.div>
+
+      {/* Separated notification items (unchanged) */}
+      <div className="space-y-2">
+        <AnimatePresence>
+          {unreadNotifications.map((notification, index) => (
+            <motion.div
+              key={notification.id}
+              custom={index}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={notificationItemVariants}
+              whileHover="hover"
+              whileTap="tap"
+              className="w-full"
+            >
+              <motion.div 
+                className="px-4 py-3 hover:bg-gray-50 cursor-pointer bg-white rounded-lg shadow-md border border-gray-200 w-full"
+                variants={notificationCardVariants}
+              >
+                <div className="flex justify-between items-start">
+                  <Link 
+                    href={notification.link}
+                    onClick={async () => {
+                      await markAsRead(notification.id);
+                      setAutoShowNotifications(false);
+                    }}
+                    className="text-sm font-medium text-gray-900 hover:text-blue-600 flex-1"
+                  >
+                    {notification.message}
+                  </Link>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  {new Date(notification.createdAt).toLocaleString()}
+                </div>
+              </motion.div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </div>
+  )}
+</AnimatePresence>
+
+          {/* Manual notifications dropdown */}
           <AnimatePresence>
             {isNotificationsOpen && (
               <motion.div 
-                className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 max-h-96 overflow-y-auto"
+                className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl py-1 z-50 border border-gray-200 max-h-96 overflow-y-auto"
                 variants={dropdownVariants}
                 initial="hidden"
                 animate="visible"
                 exit="exit"
               >
-                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-                  <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
+                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-lg">
+                  <h3 className="text-sm font-medium text-gray-900">Notifications ({currentUser.role})</h3>
                   <div className="flex space-x-2">
                     <button 
                       onClick={async () => {
                         await markAllAsRead();
                         setIsNotificationsOpen(false);
                       }}
-                      className="text-xs text-blue-600 hover:text-blue-800"
+                      className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
                     >
                       Mark all as read
                     </button>
                     <button 
                       onClick={() => setIsNotificationsOpen(false)}
-                      className="text-gray-400 hover:text-gray-500"
+                      className="text-gray-400 hover:text-gray-500 transition-colors"
                     >
                       <FiX className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
                 
-                {notifications.length === 0 ? (
+                {filteredNotifications.length === 0 ? (
                   <div className="px-4 py-6 text-center text-sm text-gray-500">
-                    No new notifications
+                    No notifications for {currentUser.role}
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
-                    {notifications.map(notification => (
-                      <div 
-                        key={notification.id} 
-                        className={`px-4 py-3 hover:bg-gray-50 ${notification.read ? 'bg-gray-50' : 'bg-white'}`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <Link 
-                            href={notification.link}
-                            onClick={async () => {
-                              await markAsRead(notification.id);
-                              setIsNotificationsOpen(false);
-                            }}
-                            className="text-sm font-medium text-gray-900 hover:text-blue-600 flex-1"
+                    <AnimatePresence>
+                      {filteredNotifications.map((notification, index) => (
+                        <motion.div
+                          key={notification.id}
+                          custom={index}
+                          initial="hidden"
+                          animate="visible"
+                          exit="exit"
+                          variants={notificationItemVariants}
+                          whileHover="hover"
+                          whileTap="tap"
+                        >
+                          <motion.div 
+                            className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${notification.read ? 'bg-gray-50' : 'bg-white'}`}
+                            variants={notificationCardVariants}
                           >
-                            {notification.message}
-                          </Link>
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              await markAsRead(notification.id);
-                            }}
-                            className="ml-2 text-xs text-gray-400 hover:text-gray-600"
-                          >
-                            {notification.read ? <FiCheck className="h-3 w-3" /> : <FiX className="h-3 w-3" />}
-                          </button>
-                        </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          {new Date(notification.createdAt).toLocaleString()}
-                        </div>
-                      </div>
-                    ))}
+                            <div className="flex justify-between items-start">
+                              <Link 
+                                href={notification.link}
+                                onClick={async () => {
+                                  await markAsRead(notification.id);
+                                  setIsNotificationsOpen(false);
+                                }}
+                                className="text-sm font-medium text-gray-900 hover:text-blue-600 flex-1"
+                              >
+                                {notification.message}
+                              </Link>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await markAsRead(notification.id);
+                                }}
+                                className="ml-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                              >
+                                {notification.read ? <FiCheck className="h-3 w-3" /> : <FiX className="h-3 w-3" />}
+                              </button>
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {new Date(notification.createdAt).toLocaleString()}
+                            </div>
+                          </motion.div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                 )}
               </motion.div>
@@ -409,6 +595,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         </div>
       </div>
 
+      {/* Profile Modal */}
       <AnimatePresence>
         {isProfileModalOpen && (
           <motion.div 
@@ -474,6 +661,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         )}
       </AnimatePresence>
 
+      {/* Settings Modal */}
       <AnimatePresence>
         {isSettingsModalOpen && (
           <motion.div 
@@ -600,6 +788,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         )}
       </AnimatePresence>
 
+      {/* Change Password Modal */}
       <AnimatePresence>
         {isChangePasswordModalOpen && (
           <motion.div 
