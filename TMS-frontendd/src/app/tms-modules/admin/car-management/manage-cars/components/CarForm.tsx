@@ -16,14 +16,16 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
 }) => {
   const [formData, setFormData] = useState<Omit<Car, 'id'>>({
     plateNumber: '',
-    AgentName: '',
-    AgentPhone: '',
+    agentName: '',
+    agentPhone: '',
+    ownerName: '',
+    ownerPhone: '',
     model: '',
     carType: 'Authomobile',
     manufactureYear: new Date().getFullYear().toString(),
-    motorCapacity: '',
-    kmPerLiter: '',
-    totalKm: '',
+    motorCapacity:0,
+    kmPerLiter: 0,
+    totalKm: 0,
     fuelType: 'Petrol',
     status: 'NOT_INSPECTED',
     registeredDate: new Date().toISOString().split('T')[0],
@@ -38,6 +40,8 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
       setFormData({
         plateNumber: car.plateNumber,
         ownerName: car.ownerName,
+        agentName: car.agentName,
+        agentPhone: car.agentPhone,
         ownerPhone: car.ownerPhone,
         model: car.model,
         carType: car.carType,
@@ -171,7 +175,7 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                 )}
               </div>
 
-              {/* Owner Phone */}
+              {/*Agent  Phone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Agent Phone *</label>
                 <input
@@ -180,12 +184,47 @@ const CarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                   value={formData.ownerPhone}
                   onChange={handleChange}
                   className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.ownerPhone ? 'border-red-500' : 'border-gray-300'
+                    errors.agentPhone ? 'border-red-500' : 'border-gray-300'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                   disabled={isSubmitting}
                 />
                 {errors.ownerPhone && (
                   <p className="mt-1 text-sm text-red-600">{errors.ownerPhone}</p>
+                )}
+              </div>
+              
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Owner Name *</label>
+                <input
+                  type="text"
+                  name="agentName"
+                  value={formData.agentName}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    errors.agentName ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  disabled={isSubmitting}
+                />
+                {errors.agentName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.agentName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Owner Phone *</label>
+                <input
+                  type="tel"
+                  name="agentPhone"
+                  value={formData.agentPhone}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    errors.agentPhone ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  disabled={isSubmitting}
+                />
+                {errors.agentPhone && (
+                  <p className="mt-1 text-sm text-red-600">{errors.agentPhone}</p>
                 )}
               </div>
 

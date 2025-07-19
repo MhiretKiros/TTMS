@@ -10,6 +10,8 @@ interface OrganizationCar {
   plateNumber: string;
   ownerName: string;
   ownerPhone: string;
+  AgentName: '',
+  AgentPhone: '',
   model: string;
   carType: string;
   manufactureYear: string;

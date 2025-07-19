@@ -11,7 +11,7 @@ import { useNotification } from '@/app/contexts/NotificationContext';
 enum InspectionStatus {
   Approved = 'Approved',
   Rejected = 'Rejected',
-  ConditionallyApproved = 'ConditionallyApproved',
+  ConditionallyApproved = 'ConditionallyApproved', // Corrected typo
 }
 
 enum ServiceStatus {
@@ -810,7 +810,7 @@ export default function CarInspectPage() {
 
       } else {
         console.warn("Submission successful, but missing ID or PlateNumber for status update:", result, payload.plateNumber);
-        toast.warn('Inspection submitted, but could not retrieve necessary info for car status update. Redirecting to list.');
+        toast.error('Inspection submitted, but could not retrieve necessary info for car status update. Redirecting to list.');
         router.push('/tms-modules/admin/car-management/vehicle-inspection');
         return null;
       }

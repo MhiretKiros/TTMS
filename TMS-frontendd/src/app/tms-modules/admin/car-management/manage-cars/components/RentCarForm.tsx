@@ -337,7 +337,7 @@ const RentCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       disabled={isSubmitting}
                     >
                       <option value="">Select Body Type</option>
-                      <option value="Auto Mobile">Auto Mobile</option>
+                      <option value="Authomobile">Auto Mobile</option>
                       <option value="Mini Bus">Mini Bus</option>
                       <option value="Bus">Bus</option>
                       <option value="Truck">Truck</option>

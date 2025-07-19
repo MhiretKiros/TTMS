@@ -3,8 +3,10 @@ export interface Car {
     plateNumber: string;
     ownerName: string;
     ownerPhone: string;
+    agentName: string;
+    agentPhone: string;
     model: string;
-    carType: 'Minibus' | 'Bus' | 'Sedan' | 'SUV' | 'Truck';
+    carType: 'Minibus' | 'Bus' | 'Sedan' | 'SUV' | 'Truck'|'Authomobile';
     manufactureYear: string;
     motorCapacity: number;
     kmPerLiter: number;
@@ -13,6 +15,7 @@ export interface Car {
     status: 'NOT_INSPECTED' | 'InspectedAndReady' | 'Maintenance' | 'Inactive' | 'APPROVED' | 'Pending'|'Rejected';
     registeredDate: string;
     parkingLocation: string;
+   
   }
   
   export interface ApiResponse<T> {
