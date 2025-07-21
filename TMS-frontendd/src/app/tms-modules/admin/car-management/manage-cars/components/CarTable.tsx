@@ -43,8 +43,8 @@ const CarTable = ({ cars, onEdit, onDelete, onView }: {
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plate Number</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner name</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
@@ -68,8 +68,8 @@ const CarTable = ({ cars, onEdit, onDelete, onView }: {
               className="hover:bg-gray-50"
             >
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{car.plateNumber}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{car.ownerName}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.ownerPhone}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{car.agentName}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{car.agentPhone}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{car.model}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{car.carType}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{car.manufactureYear}</td>

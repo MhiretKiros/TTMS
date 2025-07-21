@@ -14,9 +14,9 @@ interface OrganizationCar {
   model: string;
   carType: string;
   manufactureYear: string;
-  motorCapacity: string;
-  kmPerLiter: string;
-  totalKm: string;
+  motorCapacity: number;
+  kmPerLiter: number;
+  totalKm: number;
   fuelType: string;
   registeredDate: string;
   parkingLocation: string;
@@ -43,9 +43,9 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     model: '',
     carType: 'Minibus',
     manufactureYear: new Date().getFullYear().toString(),
-    motorCapacity: '',
-    kmPerLiter: '',
-    totalKm: '',
+    motorCapacity: 0,
+    kmPerLiter: 0,
+    totalKm: 0,
     fuelType: 'Petrol',
     registeredDate: new Date().toISOString().split('T')[0],
     parkingLocation: '',
@@ -76,9 +76,9 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
         model: '',
         carType: 'Minibus',
         manufactureYear: new Date().getFullYear().toString(),
-        motorCapacity: '',
-        kmPerLiter: '',
-        totalKm: '',
+        motorCapacity: 0,
+        kmPerLiter: 0,
+        totalKm: 0,
         fuelType: 'Petrol',
         registeredDate: new Date().toISOString().split('T')[0],
         parkingLocation: '',
@@ -229,7 +229,6 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                 )}
               </div>
 
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Owner Phone *</label>
                 <input

@@ -129,7 +129,7 @@ export default function ManageCars() {
     if (statusFilter) {
       filtered = filtered.filter(car => {
         if (statusFilter === 'Warning') {
-          return parseFloat(car.kmPerLiter) < 10;
+          return (car.kmPerLiter) < 10;
         }
         return car.status === statusFilter;
       });
