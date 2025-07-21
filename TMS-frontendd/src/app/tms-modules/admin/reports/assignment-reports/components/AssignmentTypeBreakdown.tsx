@@ -9,11 +9,23 @@ import { CarAssignmentFilters } from '../types';
 const COLORS = ['#3c8dbc', '#00C49F', '#FFBB28', '#FF8042'];
 
 interface AssignmentTypeBreakdownProps {
-  filters?: CarAssignmentFilters;
+  filters?: Partial<CarAssignmentFilters>;
 }
 
-export default function AssignmentTypeBreakdown({ filters = {} }: AssignmentTypeBreakdownProps) {
-  const [typeData, setTypeData] = useState<any[]>([]);
+// Define the assignment type if not already imported
+interface AssignmentHistory {
+  plateNumber?: string;
+  allPlateNumbers?: string;
+  status?: string;
+  position?: string;
+  assignedDate?: string;
+  rentalType?: string;
+}
+
+export default function AssignmentTypeBreakdown({
+  filters = { plateNumber: '', status: '', position: '', start: '', end: '' }
+}: AssignmentTypeBreakdownProps) {
+  const [typeData, setTypeData] = useState<{ name: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,44 +33,44 @@ export default function AssignmentTypeBreakdown({ filters = {} }: AssignmentType
     const loadData = async () => {
       try {
         const response = await fetchAssignmentHistories();
-        
+
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch assignment data');
         }
 
-        let assignments = response.data?.assignmentHistoryList || [];
+        let assignments: AssignmentHistory[] = response.data?.assignmentHistoryList || [];
 
         // Apply filters
         if (filters.plateNumber) {
-          assignments = assignments.filter(assignment => 
-            assignment.plateNumber?.toLowerCase().includes(filters.plateNumber.toLowerCase()) ||
-            assignment.allPlateNumbers?.toLowerCase().includes(filters.plateNumber.toLowerCase())
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
+            assignment.plateNumber?.toLowerCase().includes(filters.plateNumber!.toLowerCase()) ||
+            assignment.allPlateNumbers?.toLowerCase().includes(filters.plateNumber!.toLowerCase())
           );
         }
 
         if (filters.status) {
-          assignments = assignments.filter(assignment => 
-            assignment.status?.toLowerCase() === filters.status.toLowerCase()
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
+            assignment.status?.toLowerCase() === filters.status!.toLowerCase()
           );
         }
 
         if (filters.position) {
-          assignments = assignments.filter(assignment => 
-            assignment.position?.toLowerCase() === filters.position.toLowerCase()
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
+            assignment.position?.toLowerCase() === filters.position!.toLowerCase()
           );
         }
 
         if (filters.start && filters.end) {
-          assignments = assignments.filter(assignment => {
+          assignments = assignments.filter((assignment: AssignmentHistory) => {
             const assignDate = assignment.assignedDate || '1970-01-01';
-            return assignDate >= filters.start && assignDate <= filters.end;
+            return assignDate >= filters.start! && assignDate <= filters.end!;
           });
         }
 
         // Count each assignment type
-        const standardCount = assignments.filter(a => a.rentalType === 'standard').length;
-        const projectCount = assignments.filter(a => a.rentalType === 'project').length;
-        const otherCount = assignments.filter(a => !a.rentalType || !['standard', 'project'].includes(a.rentalType)).length;
+        const standardCount = assignments.filter((a: AssignmentHistory) => a.rentalType === 'standard').length;
+        const projectCount = assignments.filter((a: AssignmentHistory) => a.rentalType === 'project').length;
+        const otherCount = assignments.filter((a: AssignmentHistory) => !a.rentalType || !['standard', 'project'].includes(a.rentalType)).length;
 
         setTypeData([
           { name: 'Standard', value: standardCount },

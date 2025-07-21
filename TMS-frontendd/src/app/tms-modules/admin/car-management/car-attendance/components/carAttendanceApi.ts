@@ -77,8 +77,8 @@ export interface MorningArrivalRequest {
   plateNumber: string;
   vehicleType: string;
   morningKm: number;
-  // driverName and kmPerLiter are not part of the backend MorningArrivalRequestDTO.
-  // The backend likely derives or fetches this information based on plateNumber and vehicleType.
+  overnightKmDifference: number | null;
+  isMorning?: boolean;
   kmAtFueling?: number | null; // New: KM reading when fuel was added
   fuelLitersAdded?: number | null; // Optional, as per backend DTO
 }
@@ -98,7 +98,7 @@ export const mapCarTypeToVehicleType = (carType: 'organization' | 'personal'): s
   if (carType === 'organization') return 'ORGANIZATION_CAR';
   if (carType === 'personal') return 'CAR';
   console.warn(`Unexpected carType for mapping: ${carType}`);
-  return carType.toUpperCase(); // Fallback
+  return String(carType).toUpperCase(); // Fallback, ensuring it's a string before toUpperCase
 };
 
 export const mapVehicleTypeToCarType = (vehicleType: string): 'organization' | 'personal' => {
@@ -179,6 +179,7 @@ export const fetchCarDetailsAPI = async (plateNumber: string): Promise<CarDetail
 
   const backendVehicle: BackendVehicleDTO = await response.json();
   return {
+    currentKm: '0', // Default or fetch if available from backend
     plateNumber: backendVehicle.plateNumber,
     driverName: backendVehicle.driverName,
     kmPerLiter: backendVehicle.kmPerLiter,

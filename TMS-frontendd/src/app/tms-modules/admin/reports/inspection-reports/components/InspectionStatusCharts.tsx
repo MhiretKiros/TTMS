@@ -1,47 +1,54 @@
-// InspectionStatusCharts.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { fetchAllInspections } from '@/app/tms-modules/admin/reports/api/carReports';
-import { InspectionReportFilters } from '../types';
+import { fetchInspections } from '@/app/tms-modules/admin/reports/api/carReports';
+import { Inspection, InspectionReportFilters } from '../types';
 
 const COLORS = ['#3c8dbc', '#00C49F', '#FFBB28', '#FF8042'];
 
+interface StatusData {
+  name: string;
+  value: number;
+}
+
 interface InspectionStatusChartsProps {
-  filters?: InspectionReportFilters;
+  filters?: Partial<InspectionReportFilters>;
   statusOptions?: string[];
 }
 
 export default function InspectionStatusCharts({ 
-  filters = {}, 
+  filters = {
+    plateNumber: '',
+    status: '',
+  }, 
   statusOptions = ['Approved', 'Rejected', 'ReadyWithWarning'] 
 }: InspectionStatusChartsProps) {
-  const [statusData, setStatusData] = useState<any[]>([]);
+  const [statusData, setStatusData] = useState<StatusData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetchAllInspections();
+        const response = await fetchInspections();
         
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch inspection data');
         }
 
-        let inspections = response.inspections;
+        let inspections: Inspection[] = response.inspections;
 
-        // Apply filters
+        // Apply filters with proper null checks
         if (filters.plateNumber) {
           inspections = inspections.filter(inspection => 
-            inspection.plateNumber.toLowerCase().includes(filters.plateNumber.toLowerCase())
+            inspection.plateNumber.toLowerCase().includes(filters.plateNumber?.toLowerCase() ?? '')
           );
         }
 
         if (filters.status) {
           inspections = inspections.filter(inspection => 
-            inspection.inspectionStatus.toLowerCase().includes(filters.status.toLowerCase())
+            inspection.inspectionStatus.toLowerCase().includes(filters.status?.toLowerCase() ?? '')
           );
         }
 
@@ -54,14 +61,14 @@ export default function InspectionStatusCharts({
           });
         }
 
-        // Process status data only for the specified status options
-        const statusCounts = inspections.reduce((acc: any, inspection: any) => {
+        // Process status data with proper typing
+        const statusCounts: Record<string, number> = inspections.reduce((acc, inspection) => {
           const status = inspection.inspectionStatus;
           if (statusOptions.includes(status)) {
             acc[status] = (acc[status] || 0) + 1;
           }
           return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
         setStatusData(
           statusOptions.map(status => ({

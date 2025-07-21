@@ -39,7 +39,7 @@ export default function CarTypeBreakdown({ filters = {} }: CarTypeBreakdownProps
         if (filters.start && filters.end) {
           const filterByDate = (cars: any[]) => cars.filter((car: any) => {
             const carDate = car.registeredDate || '1970-01-01';
-            return carDate >= filters.start && carDate <= filters.end;
+            return filters.start && filters.end && carDate >= filters.start && carDate <= filters.end;
           });
           
           regularCars = filterByDate(regularCars);
@@ -49,7 +49,7 @@ export default function CarTypeBreakdown({ filters = {} }: CarTypeBreakdownProps
 
         if (filters.status) {
           const filterByStatus = (cars: any[]) => cars.filter((car: any) => 
-            car.status?.toLowerCase().includes(filters.status.toLowerCase())
+            filters.status && car.status?.toLowerCase().includes(filters.status.toLowerCase())
           );
           
           regularCars = filterByStatus(regularCars);
@@ -59,7 +59,7 @@ export default function CarTypeBreakdown({ filters = {} }: CarTypeBreakdownProps
 
         if (filters.model) {
           const filterByModel = (cars: any[]) => cars.filter((car: any) => 
-            car.model?.toLowerCase().includes(filters.model.toLowerCase())
+            filters.model && car.model?.toLowerCase().includes(filters.model.toLowerCase())
           );
           
           regularCars = filterByModel(regularCars);

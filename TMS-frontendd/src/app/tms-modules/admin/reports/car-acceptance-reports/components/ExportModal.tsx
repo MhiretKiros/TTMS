@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#000',
     borderStyle: 'solid',
-    verticalAlign: 'top' as 'top'
+    //verticalAlign: 'top' as 'top'
   },
   headerLeft: {
     width: '20%',

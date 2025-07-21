@@ -45,4 +45,6 @@ export interface FieldServiceReportFilters {
   start: string;
   end: string;
   plateNumber?: string;
+  department?: string;  // ✅ Added
+  jobStatus?: string;
 }

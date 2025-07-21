@@ -6,6 +6,15 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { fetchAssignmentHistories } from '@/app/tms-modules/admin/reports/api/carReports';
 import { CarAssignmentFilters, WeeklyData } from '../types';
 
+// Define the assignment type if not already imported
+interface AssignmentHistory {
+  assignedDate: string;
+  plateNumber?: string;
+  allPlateNumbers?: string;
+  status?: string;
+  position?: string;
+}
+
 export default function MonthlyAssignmentGraph({ filters }: { filters: CarAssignmentFilters }) {
   const [data, setData] = useState<WeeklyData[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -16,29 +25,29 @@ export default function MonthlyAssignmentGraph({ filters }: { filters: CarAssign
     const loadData = async () => {
       try {
         const response = await fetchAssignmentHistories();
-        
+
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch assignment data');
         }
 
-        let assignments = response.data?.assignmentHistoryList || [];
+        let assignments: AssignmentHistory[] = response.data?.assignmentHistoryList || [];
 
         // Apply filters
         if (filters.plateNumber) {
-          assignments = assignments.filter(assignment => 
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
             assignment.plateNumber?.toLowerCase().includes(filters.plateNumber.toLowerCase()) ||
             assignment.allPlateNumbers?.toLowerCase().includes(filters.plateNumber.toLowerCase())
           );
         }
 
         if (filters.status) {
-          assignments = assignments.filter(assignment => 
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
             assignment.status?.toLowerCase() === filters.status.toLowerCase()
           );
         }
 
         if (filters.position) {
-          assignments = assignments.filter(assignment => 
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
             assignment.position?.toLowerCase() === filters.position.toLowerCase()
           );
         }
@@ -51,13 +60,13 @@ export default function MonthlyAssignmentGraph({ filters }: { filters: CarAssign
         const weeklyData: WeeklyData[] = [];
         let currentWeekStart = new Date(firstDay);
         let weekNumber = 1;
-        
+
         while (currentWeekStart <= lastDay) {
           const currentWeekEnd = new Date(currentWeekStart);
           currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
           if (currentWeekEnd > lastDay) currentWeekEnd.setDate(lastDay.getDate());
 
-          const weekCount = assignments.filter(assignment => {
+          const weekCount = assignments.filter((assignment: AssignmentHistory) => {
             const assignDate = new Date(assignment.assignedDate);
             return assignDate >= currentWeekStart && assignDate <= currentWeekEnd;
           }).length;
@@ -174,7 +183,7 @@ export default function MonthlyAssignmentGraph({ filters }: { filters: CarAssign
             </LineChart>
           </ResponsiveContainer>
         </div>
-      ) : (
+      ) :  (
         <div className="text-center py-4 text-gray-500">No assignment data available for selected filters</div>
       )}
     </div>

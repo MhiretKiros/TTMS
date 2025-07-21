@@ -1,4 +1,3 @@
-// VehicleTransferInventory.tsx
 'use client';
 
 import React from 'react';
@@ -11,7 +10,7 @@ const columns: GridColDef[] = [
     field: 'transferDate', 
     headerName: 'Transfer Date', 
     width: 150,
-    valueFormatter: (params) => new Date(params.value).toLocaleDateString()
+    valueFormatter: (params: any) => new Date(params.value).toLocaleDateString()
   },
   { field: 'designatedOfficial', headerName: 'From Official', width: 180 },
   { field: 'currentDesignatedOfficial', headerName: 'To Official', width: 180 },
@@ -36,10 +35,10 @@ export default function VehicleTransferInventory({ transfers, loading }: Vehicle
             rows={transfers}
             columns={columns}
             loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginationModel={{ pageSize: 10, page: 0 }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
             sx={{
               border: 'none',
               '& .MuiDataGrid-columnHeaders': {

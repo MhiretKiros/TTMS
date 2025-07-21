@@ -1,5 +1,5 @@
 // src/app/tms-modules/vehicle-inspection/api/carInspectionService.ts
-import { CarInspectionResultPage } from '../result/page';
+import  CarInspectionResultPage  from '../result/page';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export interface ApiResponse<T> {
@@ -12,7 +12,7 @@ export interface StoredInspectionResult {
   id?: number;
   plateNumber: string;
   inspectorName: string;
-  inspection: CarInspectionResultPage;
+  inspection: typeof CarInspectionResultPage;
   notes: string;
   status: 'Approved' | 'Rejected';
   bodyScore: number;

@@ -5,9 +5,20 @@ import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '
 import { Inspection, InspectionReportFilters } from '../types';
 import insaprofile from '../images/insaprofile.png';
 
+// Define types for inspection details
+interface InspectionDetail {
+  problem: boolean;
+  severity?: string;
+  notes?: string;
+}
+
+interface MechanicalDetail {
+  [key: string]: boolean | string | number;
+}
+
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 100,  // Increased from 80 to 100 to give more space
+    paddingTop: 100,
     paddingBottom: 60,
     paddingHorizontal: 40,
     fontFamily: 'Helvetica',
@@ -23,8 +34,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#000',
     borderBottomStyle: 'solid',
-    paddingBottom: 15,  // Increased from 10 to 15
-    marginBottom: 20,   // Added margin bottom
+    paddingBottom: 15,
+    marginBottom: 20,
     flexDirection: 'column'
   },
   headerTable: {
@@ -40,7 +51,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#000',
     borderStyle: 'solid',
-    verticalAlign: 'top' as 'top'
   },
   headerLeft: {
     width: '20%',
@@ -181,7 +191,7 @@ const styles = StyleSheet.create({
   }
 });
 
-const renderMechanicalDetails = (mechanical: any) => (
+const renderMechanicalDetails = (mechanical: MechanicalDetail) => (
   <View style={styles.subSection}>
     <Text style={styles.subSectionTitle}>Mechanical Inspection:</Text>
     {Object.entries(mechanical).map(([key, value]) => (
@@ -195,7 +205,7 @@ const renderMechanicalDetails = (mechanical: any) => (
   </View>
 );
 
-const renderBodyDetails = (body: any) => (
+const renderBodyDetails = (body: Record<string, InspectionDetail>) => (
   <View style={styles.subSection}>
     <Text style={styles.subSectionTitle}>Body Inspection:</Text>
     {Object.entries(body).map(([key, value]) => (
@@ -210,7 +220,7 @@ const renderBodyDetails = (body: any) => (
   </View>
 );
 
-const renderInteriorDetails = (interior: any) => (
+const renderInteriorDetails = (interior: Record<string, InspectionDetail>) => (
   <View style={styles.subSection}>
     <Text style={styles.subSectionTitle}>Interior Inspection:</Text>
     {Object.entries(interior).map(([key, value]) => (
@@ -304,9 +314,9 @@ const InspectionReportPDF = ({ inspections, filters }: { inspections: Inspection
                   <Text style={styles.detailValue}>{inspection.notes || 'None'}</Text>
                 </View>
                 
-                {renderMechanicalDetails(inspection.mechanical)}
-                {renderBodyDetails(inspection.body)}
-                {renderInteriorDetails(inspection.interior)}
+                {renderMechanicalDetails(inspection.mechanical as MechanicalDetail)}
+                {renderBodyDetails(inspection.body as Record<string, InspectionDetail>)}
+                {renderInteriorDetails(inspection.interior as Record<string, InspectionDetail>)}
               </View>
             </View>
           ))}
@@ -441,9 +451,8 @@ export default function ExportModal({
             document={<InspectionReportPDF inspections={inspections} filters={filters} />}
             fileName={`inspection_report_${new Date().toISOString().slice(0, 10)}.pdf`}
             className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              hasData ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'
+              hasData ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed pointer-events-none'
             }`}
-            disabled={!hasData}
           >
             {({ loading }) => (
               loading ? 'Preparing PDF...' : 'Download PDF Report'

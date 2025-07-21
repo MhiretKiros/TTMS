@@ -12,12 +12,14 @@ interface SidebarItem {
     link: string;
     icon: React.ReactNode;
   }[];
+
 }
 
 export default function Sidebar({ items, isOpen, onToggle }: { 
   items: SidebarItem[];
   isOpen: boolean;
   onToggle: () => void;
+  activeColor?: string;
 }) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const pathname = usePathname();

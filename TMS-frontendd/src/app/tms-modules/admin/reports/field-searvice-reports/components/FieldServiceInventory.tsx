@@ -12,29 +12,29 @@ const columns: GridColDef[] = [
     field: 'startingDate', 
     headerName: 'Start Date', 
     width: 150,
-    valueFormatter: (params) => params?.value ? new Date(params.value).toLocaleDateString() : 'N/A'
+    valueFormatter: (params: { value?: Date | string }) => params.value ? new Date(params.value).toLocaleDateString() : 'N/A'
   },
   { 
     field: 'returnDate', 
     headerName: 'Return Date', 
     width: 150,
-    valueFormatter: (params) => params?.value ? new Date(params.value).toLocaleDateString() : 'N/A'
+    valueFormatter: (params: { value?: Date | string }) => params.value ? new Date(params.value).toLocaleDateString() : 'N/A'
   },
   { 
     field: 'status', 
     headerName: 'Status', 
     width: 150,
-    renderCell: (params) => (
+    renderCell: (params: { value?: string }) => (
       <span className={`px-2 py-1 rounded-full text-xs ${
-        params?.value === 'APPROVED' ? 'bg-blue-100 text-blue-800' :
-        params?.value === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-        params?.value === 'ASSIGNED' ? 'bg-purple-100 text-purple-800' :
-        params?.value === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-        params?.value === 'FINISHED' ? 'bg-gray-100 text-gray-800' :
-        params?.value === 'REJECTED' ? 'bg-red-100 text-red-800' :
+        params.value === 'APPROVED' ? 'bg-blue-100 text-blue-800' :
+        params.value === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+        params.value === 'ASSIGNED' ? 'bg-purple-100 text-purple-800' :
+        params.value === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+        params.value === 'FINISHED' ? 'bg-gray-100 text-gray-800' :
+        params.value === 'REJECTED' ? 'bg-red-100 text-red-800' :
         'bg-gray-100 text-gray-800'
       }`}>
-        {params?.value || 'N/A'}
+        {params.value || 'N/A'}
       </span>
     ) 
   },
@@ -43,7 +43,7 @@ const columns: GridColDef[] = [
     field: 'travelDistance', 
     headerName: 'Distance', 
     width: 100,
-    valueFormatter: (params) => params?.value !== null ? `${params.value} km` : 'N/A'
+    valueFormatter: (params: { value?: number | null }) => params.value !== null ? `${params.value} km` : 'N/A'
   },
   { field: 'department', headerName: 'Department', width: 150 },
   { field: 'jobStatus', headerName: 'Job Status', width: 150 },
@@ -64,10 +64,10 @@ export default function FieldServiceInventory({ fieldServices, loading }: FieldS
             rows={fieldServices}
             columns={columns}
             loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginationModel={{ pageSize: 10, page: 0 }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
             sx={{
               border: 'none',
               '& .MuiDataGrid-columnHeaders': {

@@ -1,10 +1,9 @@
-// MonthlyInspectedGraph.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { fetchAllInspections } from '@/app/tms-modules/admin/reports/api/carReports';
-import { InspectionReportFilters } from '../types';
+import { fetchInspections } from '@/app/tms-modules/admin/reports/api/carReports';
+import { Inspection, InspectionReportFilters } from '../types';
 
 interface MonthlyData {
   month: string;
@@ -20,6 +19,34 @@ interface MonthlyData {
   };
 }
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: {
+    payload: MonthlyData;
+  }[];
+  label?: string;
+}
+
+interface InspectionMechanical {
+  [key: string]: boolean;
+}
+
+interface InspectionBody {
+  [key: string]: {
+    problem: boolean;
+    severity?: string;
+    notes?: string;
+  };
+}
+
+interface InspectionInterior {
+  [key: string]: {
+    problem: boolean;
+    severity?: string;
+    notes?: string;
+  };
+}
+
 export default function MonthlyInspectedGraph({ filters }: { filters: InspectionReportFilters }) {
   const [data, setData] = useState<MonthlyData[]>([]);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -29,13 +56,13 @@ export default function MonthlyInspectedGraph({ filters }: { filters: Inspection
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetchAllInspections();
+        const response = await fetchInspections();
         
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch inspection data');
         }
 
-        let inspections = response.inspections;
+        let inspections: Inspection[] = response.inspections;
 
         // Apply filters
         if (filters.plateNumber) {
@@ -81,7 +108,7 @@ export default function MonthlyInspectedGraph({ filters }: { filters: Inspection
         }
 
         // Process each inspection
-        inspections.forEach(inspection => {
+        inspections.forEach((inspection: Inspection) => {
           const inspectionDate = new Date(inspection.inspectionDate);
           if (inspectionDate.getFullYear() !== currentYear) return;
           
@@ -100,21 +127,21 @@ export default function MonthlyInspectedGraph({ filters }: { filters: Inspection
           monthData.averageInteriorScore += inspection.interiorScore;
           
           // Count mechanical issues
-          Object.entries(inspection.mechanical).forEach(([key, value]) => {
+          Object.entries(inspection.mechanical as InspectionMechanical).forEach(([key, value]) => {
             if (value === false) {
               monthData.commonIssues.mechanical[key] = (monthData.commonIssues.mechanical[key] || 0) + 1;
             }
           });
           
           // Count body issues
-          Object.entries(inspection.body).forEach(([key, value]) => {
+          Object.entries(inspection.body as InspectionBody).forEach(([key, value]) => {
             if (value.problem) {
               monthData.commonIssues.body[key] = (monthData.commonIssues.body[key] || 0) + 1;
             }
           });
           
-          // Count interior issues (all 25 attributes)
-          Object.entries(inspection.interior).forEach(([key, value]) => {
+          // Count interior issues
+          Object.entries(inspection.interior as InspectionInterior).forEach(([key, value]) => {
             if (value.problem) {
               monthData.commonIssues.interior[key] = (monthData.commonIssues.interior[key] || 0) + 1;
             }
@@ -148,8 +175,7 @@ export default function MonthlyInspectedGraph({ filters }: { filters: Inspection
     setCurrentYear(prev => prev + years);
   };
 
-  // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       const monthData = data.find(d => d.month === label) || {
         commonIssues: { mechanical: {}, body: {}, interior: {} }

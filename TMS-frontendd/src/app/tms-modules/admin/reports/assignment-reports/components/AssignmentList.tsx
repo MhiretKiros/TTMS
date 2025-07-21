@@ -13,8 +13,12 @@ const columns: GridColDef[] = [
   { field: 'department', headerName: 'Department', width: 150 },
   { field: 'allPlateNumbers', headerName: 'Plate Numbers', width: 200 },
   { field: 'status', headerName: 'Status', width: 120 },
-  { field: 'assignedDate', headerName: 'Assigned Date', width: 150,
-    valueFormatter: (params) => new Date(params.value).toLocaleDateString() },
+  { 
+  field: 'assignedDate',
+  headerName: 'Assigned Date',
+  width: 150,
+  valueFormatter: (params: any) => new Date(params.value).toLocaleDateString()
+},
 ];
 
 interface AssignmentListProps {
@@ -94,21 +98,21 @@ export default function AssignmentList({ filters, setFilteredAssignments }: Assi
       {localFilteredAssignments.length > 0 ? (
         <div style={{ height: 500, width: '100%' }}>
           <DataGrid
-            rows={localFilteredAssignments}
-            columns={columns}
-            loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
-            checkboxSelection
-            disableSelectionOnClick
-            sx={{
-              border: 'none',
-              '& .MuiDataGrid-columnHeaders': {
-                backgroundColor: '#3c8dbc',
-                color: 'white',
-              },
-            }}
-          />
+  rows={localFilteredAssignments}
+  columns={columns}
+  loading={loading}
+  paginationModel={{ pageSize: 10, page: 0 }}
+  pageSizeOptions={[10, 25, 50]}
+  checkboxSelection
+  disableRowSelectionOnClick
+  sx={{
+    border: 'none',
+    '& .MuiDataGrid-columnHeaders': {
+      backgroundColor: '#3c8dbc',
+      color: 'white',
+    },
+  }}
+/>
         </div>
       ) : (
         <div className="text-center py-4 text-gray-500">No assignments match the selected filters</div>

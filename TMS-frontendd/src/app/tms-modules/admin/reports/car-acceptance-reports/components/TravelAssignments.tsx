@@ -73,10 +73,10 @@ export default function TravelAssignments() {
             rows={travelRequests}
             columns={travelColumns}
             loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginationModel={{ pageSize: 10, page: 0 }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
             sx={{
               border: 'none',
               '& .MuiDataGrid-columnHeaders': {
@@ -92,10 +92,10 @@ export default function TravelAssignments() {
             rows={serviceRequests}
             columns={serviceColumns}
             loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginationModel={{ pageSize: 10, page: 0 }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
             sx={{
               border: 'none',
               '& .MuiDataGrid-columnHeaders': {

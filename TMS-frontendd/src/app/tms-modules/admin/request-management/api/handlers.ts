@@ -34,8 +34,8 @@ export interface TravelRequest {
   accountNumber?:string;
   authorizerName?:string;
   assemblerName?:string;
-  actualStartingDate: string;
-  actualReturnDate: string;
+  actualStartingDate?: string;
+  actualReturnDate?: string;
   paymentType?: string;
 }
 

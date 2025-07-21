@@ -24,7 +24,7 @@ export default function CarStatusCharts({ filters = {} }: CarStatusChartsProps) 
     const loadData = async () => {
       try {
         const response = await fetchAllCars();
-        
+
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch car data');
         }
@@ -36,21 +36,21 @@ export default function CarStatusCharts({ filters = {} }: CarStatusChartsProps) 
           ...(response.data?.rentalCars?.rentCarList || []).map((car: any) => ({ ...car, type: 'Rental' })),
         ];
 
-        // Apply filters
+        // Apply filters safely
         if (filters.start && filters.end) {
           allCars = allCars.filter(car => {
             const carDate = car.registeredDate || '1970-01-01';
-            return carDate >= filters.start && carDate <= filters.end;
+            return carDate >= filters.start! && carDate <= filters.end!;
           });
         }
-        if (filters.carType) {
-          allCars = allCars.filter(car => car.type.toLowerCase() === filters.carType.toLowerCase());
+        if (filters.carType && typeof filters.carType === 'string') {
+          allCars = allCars.filter(car => car.type && car.type.toLowerCase() === filters.carType!.toLowerCase());
         }
-        if (filters.status) {
-          allCars = allCars.filter(car => car.status.toLowerCase().includes(filters.status.toLowerCase()));
+        if (filters.status && typeof filters.status === 'string') {
+          allCars = allCars.filter(car => car.status && car.status.toLowerCase().includes(filters.status!.toLowerCase()));
         }
-        if (filters.model) {
-          allCars = allCars.filter(car => car.model.toLowerCase().includes(filters.model.toLowerCase()));
+        if (filters.model && typeof filters.model === 'string') {
+          allCars = allCars.filter(car => car.model && car.model.toLowerCase().includes(filters.model!.toLowerCase()));
         }
 
         // Process status data

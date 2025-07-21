@@ -601,35 +601,40 @@ if(status=="APPROVED"){
 
     try {
       const requestData = {
-        startingPlace: formData.startingPlace,
-        destinationPlace: formData.destinationPlace,
-        travelers: formData.travelers.filter(t => t.trim()),
-        travelReason: formData.travelReason,
-        carType: formData.carType || undefined, 
-        travelDistance: formData.travelDistance ? parseFloat(formData.travelDistance) : undefined,
-        startingDate: formData.startingDate 
-          ? `${formData.startingDate}T00:00:00`
-          : undefined,
-        returnDate: formData.returnDate 
-          ? `${formData.returnDate}T00:00:00`
-          : undefined,
-        department: formData.department,
-        jobStatus: formData.jobStatus,
-        claimantName: formData.claimantName,
-        teamLeaderName: formData.teamLeaderName,
-        accountNumber: formData.accountNumber,
-        status: 'PENDING'
-      };
+  startingPlace: formData.startingPlace,
+  destinationPlace: formData.destinationPlace,
+  travelers: formData.travelers.filter(t => t.trim()),
+  travelReason: formData.travelReason,
+  carType: formData.carType || '', // always string
+  travelDistance: formData.travelDistance ? parseFloat(formData.travelDistance) : 0, // always number
+  startingDate: formData.startingDate
+    ? `${formData.startingDate}T00:00:00`
+    : '', // always string
+  returnDate: formData.returnDate
+    ? `${formData.returnDate}T00:00:00`
+    : '', // always string
+  department: formData.department,
+  jobStatus: formData.jobStatus,
+  claimantName: formData.claimantName,
+  teamLeaderName: formData.teamLeaderName,
+  accountNumber: formData.accountNumber,
+  status: 'PENDING' as
+    | 'PENDING'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'COMPLETED'
+    | 'ASSIGNED'
+    | 'FINISHED'
+    | 'ENDED'
+    | 'SUCCESED'
+    | 'ACCEPTED',
+};
 
-      // let result;
-      // if (requestId) {
-      //   result = await TravelApi.updateRequest(requestId, requestData);
-      //   setRequests(prev => prev.map(req => req.id === requestId ? result : req));
-      // } else {
-      //   result = await TravelApi.createRequest(requestData);
-      //   setRequests(prev => [...prev, result]);
-      // }
-
+      let result;
+      
+        result = await TravelApi.createRequest(requestData);
+        setRequests(prev => [...prev, result]);
+      
       showSuccessAlert(
         'Success!', 
         `Travel request ${requestId ? 'updated' : 'submitted'} successfully!`
@@ -799,6 +804,7 @@ try {
         id: selectedRequest.id,
         serviceProviderName: formData.serviceProviderName,
         assignedDriver: formData.assignedDriver,
+        driverPhone: formData.driverPhone,
         assignedCarType: formData.assignedCarType,
         vehicleDetails: formData.vehicleDetails,
         actualStartingDate: formData.actualStartingDate 

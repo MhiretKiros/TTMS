@@ -1,5 +1,3 @@
-
-
 // PositionDistributionChart.tsx
 'use client';
 
@@ -17,6 +15,14 @@ const POSITION_NAMES: Record<string, string> = {
   'Level 5': 'Expert'
 };
 
+interface AssignmentHistory {
+  assignedDate?: string;
+  plateNumber?: string;
+  allPlateNumbers?: string;
+  status?: string;
+  position?: string;
+}
+
 export default function PositionDistributionChart({ filters }: { filters: CarAssignmentFilters }) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,36 +32,36 @@ export default function PositionDistributionChart({ filters }: { filters: CarAss
     const loadData = async () => {
       try {
         const response = await fetchAssignmentHistories();
-        
+
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch assignment data');
         }
 
-        let assignments = response.data?.assignmentHistoryList || [];
+        let assignments: AssignmentHistory[] = response.data?.assignmentHistoryList || [];
 
         // Apply filters
         if (filters.plateNumber) {
-          assignments = assignments.filter(assignment => 
-            assignment.plateNumber?.toLowerCase().includes(filters.plateNumber.toLowerCase()) ||
-            assignment.allPlateNumbers?.toLowerCase().includes(filters.plateNumber.toLowerCase())
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
+            assignment.plateNumber?.toLowerCase().includes(filters.plateNumber!.toLowerCase()) ||
+            assignment.allPlateNumbers?.toLowerCase().includes(filters.plateNumber!.toLowerCase())
           );
         }
 
         if (filters.status) {
-          assignments = assignments.filter(assignment => 
-            assignment.status?.toLowerCase() === filters.status.toLowerCase()
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
+            assignment.status?.toLowerCase() === filters.status!.toLowerCase()
           );
         }
 
         if (filters.start && filters.end) {
-          assignments = assignments.filter(assignment => {
+          assignments = assignments.filter((assignment: AssignmentHistory) => {
             const assignDate = assignment.assignedDate || '1970-01-01';
-            return assignDate >= filters.start && assignDate <= filters.end;
+            return assignDate >= filters.start! && assignDate <= filters.end!;
           });
         }
 
         // Count assignments by position (Level 1 to Level 5)
-        const positionCounts = assignments.reduce((acc: any, assignment: any) => {
+        const positionCounts = assignments.reduce((acc: Record<string, number>, assignment: AssignmentHistory) => {
           const position = assignment.position || 'Unknown';
           acc[position] = (acc[position] || 0) + 1;
           return acc;
@@ -124,7 +130,7 @@ export default function PositionDistributionChart({ filters }: { filters: CarAss
             </BarChart>
           </ResponsiveContainer>
         </div>
-      ) : (
+      ) :  (
         <div className="text-center py-4 text-gray-500">No position data available</div>
       )}
     </div>

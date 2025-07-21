@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { fetchAllCars } from '@/app/tms-modules/admin/reports/api/carReports';
 import { Car, CarReportFilters } from '../types';
 
-const columns: GridColDef[] = [
+const columns: GridColDef<Car>[] = [
   { field: 'plateNumber', headerName: 'Plate Number', width: 150 },
   { field: 'carType', headerName: 'Type', width: 120 },
   { field: 'model', headerName: 'Model', width: 150 },
@@ -13,10 +13,27 @@ const columns: GridColDef[] = [
   { field: 'status', headerName: 'Status', width: 150 },
   { field: 'fuelType', headerName: 'Fuel Type', width: 120 },
   { field: 'parkingLocation', headerName: 'Location', width: 150 },
-  { field: 'inspected', headerName: 'Inspected', width: 120, 
-    renderCell: (params) => params.value ? 'Yes' : 'No' },
-  { field: 'registeredDate', headerName: 'Registered Date', width: 150,
-    valueFormatter: (params) => new Date(params.value).toLocaleDateString() },
+  { 
+    field: 'inspected', 
+    headerName: 'Inspected', 
+    width: 120, 
+    valueFormatter: (params?: { value?: boolean }) => params?.value ? 'Yes' : 'No',
+    renderCell: (params: GridRenderCellParams<Car, boolean>) => params.value ? 'Yes' : 'No' 
+  },
+  { 
+    field: 'registeredDate', 
+    headerName: 'Registered Date', 
+    width: 150,
+    valueFormatter: (params?: { value?: string | Date }) => {
+      if (!params?.value) return 'N/A';
+      try {
+        const date = new Date(params.value);
+        return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString();
+      } catch {
+        return 'Invalid Date';
+      }
+    }
+  },
 ];
 
 interface CarInventoryProps {
@@ -33,6 +50,8 @@ export default function CarInventory({ filters, setFilteredCars }: CarInventoryP
   useEffect(() => {
     const loadData = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const response = await fetchAllCars();
         
         if (!response.success) {
@@ -43,26 +62,32 @@ export default function CarInventory({ filters, setFilteredCars }: CarInventoryP
           ...(response.data?.regularCars?.carList || []).map((car: any) => ({ 
             ...car, 
             id: `regular-${car.id}`,
-            carType: 'Regular' 
+            carType: 'Regular',
+            inspected: car.inspected ?? false,
+            registeredDate: car.registeredDate || null
           })),
           ...(response.data?.organizationCars?.organizationCarList || []).map((car: any) => ({ 
             ...car, 
             id: `org-${car.id}`,
-            carType: 'Organization' 
+            carType: 'Organization',
+            inspected: car.inspected ?? false,
+            registeredDate: car.registeredDate || null
           })),
           ...(response.data?.rentalCars?.rentCarList || []).map((car: any) => ({ 
             ...car, 
             id: `rental-${car.id}`,
-            carType: 'Rental' 
+            carType: 'Rental',
+            inspected: car.inspected ?? false,
+            registeredDate: car.registeredDate || null
           })),
-        ];
+        ].filter((car): car is Car => Boolean(car));
 
         setAllCars(combinedCars);
         setLocalFilteredCars(combinedCars);
-        setFilteredCars(combinedCars); // Initialize parent component's filtered cars
-      } catch (error) {
-        console.error('Error loading car data:', error);
-        setError(error instanceof Error ? error.message : 'Unknown error occurred');
+        setFilteredCars(combinedCars);
+      } catch (err) {
+        console.error('Error loading car data:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error occurred');
       } finally {
         setLoading(false);
       }
@@ -74,31 +99,29 @@ export default function CarInventory({ filters, setFilteredCars }: CarInventoryP
   useEffect(() => {
     if (allCars.length === 0) return;
 
-    let result = [...allCars];
+    const result = allCars.filter(car => {
+      if (filters.carType && car.carType !== filters.carType) return false;
+      if (filters.status && car.status !== filters.status) return false;
+      if (filters.model && car.model !== filters.model) return false;
+      
+      if (filters.start && filters.end) {
+        try {
+          const startDate = new Date(filters.start);
+          const endDate = new Date(filters.end);
+          const carDate = car.registeredDate ? new Date(car.registeredDate) : null;
+          
+          if (!carDate || isNaN(carDate.getTime())) return false;
+          if (carDate < startDate || carDate > endDate) return false;
+        } catch {
+          return false;
+        }
+      }
 
-    if (filters.carType) {
-      result = result.filter(car => car.carType === filters.carType);
-    }
-
-    if (filters.status) {
-      result = result.filter(car => car.status === filters.status);
-    }
-
-    if (filters.model) {
-      result = result.filter(car => car.model === filters.model);
-    }
-
-    if (filters.start && filters.end) {
-      const startDate = new Date(filters.start);
-      const endDate = new Date(filters.end);
-      result = result.filter(car => {
-        const carDate = new Date(car.registeredDate);
-        return carDate >= startDate && carDate <= endDate;
-      });
-    }
+      return true;
+    });
 
     setLocalFilteredCars(result);
-    setFilteredCars(result); // Update parent component's filtered cars
+    setFilteredCars(result);
   }, [filters, allCars, setFilteredCars]);
 
   if (loading) return <div className="text-center py-4">Loading car inventory...</div>;
@@ -113,10 +136,10 @@ export default function CarInventory({ filters, setFilteredCars }: CarInventoryP
             rows={localFilteredCars}
             columns={columns}
             loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginationModel={{ pageSize: 10, page: 0 }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
             sx={{
               border: 'none',
               '& .MuiDataGrid-columnHeaders': {
@@ -127,7 +150,9 @@ export default function CarInventory({ filters, setFilteredCars }: CarInventoryP
           />
         </div>
       ) : (
-        <div className="text-center py-4 text-gray-500">No cars match the selected filters</div>
+        <div className="text-center py-4 text-gray-500">
+          {allCars.length === 0 ? 'No cars available' : 'No cars match the selected filters'}
+        </div>
       )}
     </div>
   );

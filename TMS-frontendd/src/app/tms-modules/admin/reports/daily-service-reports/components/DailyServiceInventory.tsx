@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { DailyService } from '../types';
 
 const columns: GridColDef[] = [
@@ -12,20 +12,21 @@ const columns: GridColDef[] = [
     field: 'dateTime', 
     headerName: 'Date & Time', 
     width: 180,
-    valueFormatter: (params) => params?.value ? new Date(params.value).toLocaleString() : 'N/A'
+    valueFormatter: (params: any) => 
+      params.value ? new Date(params.value as string).toLocaleString() : 'N/A'
   },
   { 
     field: 'status', 
     headerName: 'Status', 
     width: 120,
-    renderCell: (params) => (
+    renderCell: (params: GridRenderCellParams) => (
       <span className={`px-2 py-1 rounded-full text-xs ${
-        params?.value === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-        params?.value === 'ASSIGNED' ? 'bg-purple-100 text-purple-800' :
-        params?.value === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+        params.value === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+        params.value === 'ASSIGNED' ? 'bg-purple-100 text-purple-800' :
+        params.value === 'COMPLETED' ? 'bg-green-100 text-green-800' :
         'bg-gray-100 text-gray-800'
       }`}>
-        {params?.value || 'N/A'}
+        {params.value || 'N/A'}
       </span>
     ) 
   },
@@ -34,7 +35,8 @@ const columns: GridColDef[] = [
     field: 'kmDifference', 
     headerName: 'KM Diff', 
     width: 100,
-    valueFormatter: (params) => params?.value !== null ? `${params.value} km` : 'N/A'
+    valueFormatter: (params: any) => 
+      params.value !== null && params.value !== undefined ? `${params.value} km` : 'N/A'
   },
   { field: 'carType', headerName: 'Car Type', width: 120 },
   { field: 'plateNumber', headerName: 'Plate Number', width: 150 },
@@ -55,10 +57,10 @@ export default function DailyServiceInventory({ dailyServices, loading }: DailyS
             rows={dailyServices}
             columns={columns}
             loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginationModel={{ pageSize: 10, page: 0 }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
             sx={{
               border: 'none',
               '& .MuiDataGrid-columnHeaders': {
@@ -75,5 +77,5 @@ export default function DailyServiceInventory({ dailyServices, loading }: DailyS
         </div>
       )}
     </div>
-  );
+     );
 }

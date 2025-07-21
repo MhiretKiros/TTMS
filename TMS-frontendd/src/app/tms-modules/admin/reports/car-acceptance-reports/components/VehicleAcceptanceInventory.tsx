@@ -12,23 +12,23 @@ const columns: GridColDef[] = [
     field: 'createdAt', 
     headerName: 'Acceptance Date', 
     width: 180,
-    valueFormatter: (params) => new Date(params.value).toLocaleDateString()
+    valueFormatter: (params: any) => new Date(params.value).toLocaleDateString()
   },
   { field: 'km', headerName: 'KM', width: 100 },
   { 
     field: 'assignmentHistoryId', 
     headerName: 'Has Transfer', 
     width: 120,
-    valueFormatter: (params) => params.value ? 'Yes' : 'No'
+    valueFormatter: (params: any) => params.value ? 'Yes' : 'No'
   },
   { 
     field: 'inspectionItems', 
     headerName: 'Inspection Items', 
     width: 150,
-    valueFormatter: (params) => {
+    valueFormatter: (params: any) => {
       if (!params.value) return 'N/A';
       const items = Object.values(params.value);
-      const passed = items.filter(item => item).length;
+      const passed = items.filter((item: any) => item).length;
       return `${passed}/${items.length} passed`;
     }
   },
@@ -49,10 +49,10 @@ export default function VehicleAcceptanceInventory({ acceptances, loading }: Veh
             rows={acceptances}
             columns={columns}
             loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginationModel={{ pageSize: 10, page: 0 }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
             sx={{
               border: 'none',
               '& .MuiDataGrid-columnHeaders': {

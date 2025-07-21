@@ -16,6 +16,15 @@ interface PositionData {
   count: number;
 }
 
+// If you have a type for assignment history, import it here
+interface AssignmentHistory {
+  plateNumber?: string;
+  allPlateNumbers?: string;
+  status?: string;
+  position?: string;
+  assignedDate?: string;
+}
+
 export default function AssignmentStatusChart({ filters }: { filters: CarAssignmentFilters }) {
   const [statusData, setStatusData] = useState<StatusData[]>([]);
   const [positionData, setPositionData] = useState<PositionData[]>([]);
@@ -26,42 +35,42 @@ export default function AssignmentStatusChart({ filters }: { filters: CarAssignm
     const loadData = async () => {
       try {
         const response = await fetchAssignmentHistories();
-        
+
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch assignment data');
         }
 
-        let assignments = response.data?.assignmentHistoryList || [];
+        let assignments: AssignmentHistory[] = response.data?.assignmentHistoryList || [];
 
         // Apply filters
         if (filters.plateNumber) {
-          assignments = assignments.filter(assignment => 
-            assignment.plateNumber?.toLowerCase().includes(filters.plateNumber.toLowerCase()) ||
-            assignment.allPlateNumbers?.toLowerCase().includes(filters.plateNumber.toLowerCase())
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
+            assignment.plateNumber?.toLowerCase().includes(filters.plateNumber!.toLowerCase()) ||
+            assignment.allPlateNumbers?.toLowerCase().includes(filters.plateNumber!.toLowerCase())
           );
         }
 
         if (filters.status) {
-          assignments = assignments.filter(assignment => 
-            assignment.status?.toLowerCase() === filters.status.toLowerCase()
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
+            assignment.status?.toLowerCase() === filters.status!.toLowerCase()
           );
         }
 
         if (filters.position) {
-          assignments = assignments.filter(assignment => 
-            assignment.position?.toLowerCase() === filters.position.toLowerCase()
+          assignments = assignments.filter((assignment: AssignmentHistory) =>
+            assignment.position?.toLowerCase() === filters.position!.toLowerCase()
           );
         }
 
         if (filters.start && filters.end) {
-          assignments = assignments.filter(assignment => {
+          assignments = assignments.filter((assignment: AssignmentHistory) => {
             const assignDate = assignment.assignedDate || '1970-01-01';
-            return assignDate >= filters.start && assignDate <= filters.end;
+            return assignDate >= filters.start! && assignDate <= filters.end!;
           });
         }
 
         // Process status data with the requested statuses
-        const statusCounts = assignments.reduce((acc: any, assignment: any) => {
+        const statusCounts = assignments.reduce((acc: Record<string, number>, assignment: AssignmentHistory) => {
           const status = assignment.status || 'UNKNOWN';
           acc[status] = (acc[status] || 0) + 1;
           return acc;
@@ -77,7 +86,7 @@ export default function AssignmentStatusChart({ filters }: { filters: CarAssignm
         );
 
         // Process position data
-        const positionCounts = assignments.reduce((acc: any, assignment: any) => {
+        const positionCounts = assignments.reduce((acc: Record<string, number>, assignment: AssignmentHistory) => {
           const position = assignment.position || 'Unknown';
           acc[position] = (acc[position] || 0) + 1;
           return acc;

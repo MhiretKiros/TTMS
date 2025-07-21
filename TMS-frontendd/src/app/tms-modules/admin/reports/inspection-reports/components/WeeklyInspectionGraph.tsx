@@ -1,10 +1,9 @@
-// WeeklyInspectionGraph.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { fetchAllInspections } from '@/app/tms-modules/admin/reports/api/carReports';
-import { InspectionReportFilters } from '../types';
+import { fetchInspections } from '@/app/tms-modules/admin/reports/api/carReports';
+import { Inspection, InspectionReportFilters } from '../types';
 
 interface WeeklyData {
   week: string;
@@ -13,6 +12,14 @@ interface WeeklyData {
   rejected: number;
   warning: number;
   dateRange: string;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: {
+    payload: WeeklyData;
+  }[];
+  label?: string;
 }
 
 export default function WeeklyInspectionGraph({ filters }: { filters: InspectionReportFilters }) {
@@ -24,23 +31,23 @@ export default function WeeklyInspectionGraph({ filters }: { filters: Inspection
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetchAllInspections();
+        const response = await fetchInspections();
         
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch inspection data');
         }
 
-        let inspections = response.inspections;
+        let inspections: Inspection[] = response.inspections;
 
-        // Apply filters
+        // Apply filters with proper null checks
         if (filters.plateNumber) {
-          inspections = inspections.filter(inspection => 
+          inspections = inspections.filter((inspection: Inspection) => 
             inspection.plateNumber.toLowerCase().includes(filters.plateNumber.toLowerCase())
           );
         }
 
         if (filters.status) {
-          inspections = inspections.filter(inspection => 
+          inspections = inspections.filter((inspection: Inspection) => 
             inspection.inspectionStatus.toLowerCase().includes(filters.status.toLowerCase())
           );
         }
@@ -48,7 +55,7 @@ export default function WeeklyInspectionGraph({ filters }: { filters: Inspection
         if (filters.start && filters.end) {
           const startDate = new Date(filters.start);
           const endDate = new Date(filters.end);
-          inspections = inspections.filter(inspection => {
+          inspections = inspections.filter((inspection: Inspection) => {
             const inspectionDate = new Date(inspection.inspectionDate);
             return inspectionDate >= startDate && inspectionDate <= endDate;
           });
@@ -68,15 +75,15 @@ export default function WeeklyInspectionGraph({ filters }: { filters: Inspection
           currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
           if (currentWeekEnd > lastDay) currentWeekEnd.setDate(lastDay.getDate());
 
-          const weekInspections = inspections.filter(inspection => {
+          const weekInspections = inspections.filter((inspection: Inspection) => {
             const inspectionDate = new Date(inspection.inspectionDate);
             return inspectionDate >= currentWeekStart && inspectionDate <= currentWeekEnd;
           });
 
           const weekCount = weekInspections.length;
-          const approved = weekInspections.filter(i => i.inspectionStatus === 'Approved').length;
-          const rejected = weekInspections.filter(i => i.inspectionStatus === 'Rejected').length;
-          const warning = weekInspections.filter(i => i.inspectionStatus === 'ReadyWithWarning').length;
+          const approved = weekInspections.filter((inspection: Inspection) => inspection.inspectionStatus === 'Approved').length;
+          const rejected = weekInspections.filter((inspection: Inspection) => inspection.inspectionStatus === 'Rejected').length;
+          const warning = weekInspections.filter((inspection: Inspection) => inspection.inspectionStatus === 'ReadyWithWarning').length;
 
           // Format the date range (e.g., "1-5" or "6-12")
           const startDay = currentWeekStart.getDate();
@@ -115,7 +122,7 @@ export default function WeeklyInspectionGraph({ filters }: { filters: Inspection
   };
 
   // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       const dataItem = payload[0].payload;
       return (

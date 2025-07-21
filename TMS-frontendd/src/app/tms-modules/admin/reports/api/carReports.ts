@@ -69,7 +69,7 @@ export async function fetchAllFieldServices(): Promise<{
 
 // fetchAllInspections.ts
 
-export async function fetchAllInspections() {
+export async function fetchInspections() {
   try {
     const response = await axios.get('http://localhost:8080/api/inspections/get-all');
 

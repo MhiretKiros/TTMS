@@ -1,18 +1,24 @@
-// InspectionInventory.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { fetchAllInspections } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchInspections } from '@/app/tms-modules/admin/reports/api/carReports';
 import { Inspection, InspectionReportFilters } from '../types';
 
 const columns: GridColDef[] = [
   { field: 'plateNumber', headerName: 'Plate Number', width: 150 },
-  { field: 'inspectionDate', headerName: 'Inspection Date', width: 180,
-    valueFormatter: (params) => new Date(params.value).toLocaleString() },
+  { 
+    field: 'inspectionDate', 
+    headerName: 'Inspection Date', 
+    width: 180,
+    valueFormatter: (params: { value: string | Date }) => new Date(params.value).toLocaleString() 
+  },
   { field: 'inspectorName', headerName: 'Inspector', width: 150 },
-  { field: 'inspectionStatus', headerName: 'Status', width: 150,
-    renderCell: (params) => (
+  { 
+    field: 'inspectionStatus', 
+    headerName: 'Status', 
+    width: 150,
+    renderCell: (params: { value?: string }) => (
       <span className={`px-2 py-1 rounded-full text-xs ${
         params.value === 'Approved' ? 'bg-green-100 text-green-800' :
         params.value === 'Rejected' ? 'bg-red-100 text-red-800' :
@@ -23,10 +29,18 @@ const columns: GridColDef[] = [
     ) 
   },
   { field: 'serviceStatus', headerName: 'Service Status', width: 150 },
-  { field: 'bodyScore', headerName: 'Body Score', width: 120,
-    renderCell: (params) => `${params.value}%` },
-  { field: 'interiorScore', headerName: 'Interior Score', width: 120,
-    renderCell: (params) => `${params.value}%` },
+  { 
+    field: 'bodyScore', 
+    headerName: 'Body Score', 
+    width: 120,
+    renderCell: (params: { value?: number }) => `${params.value}%` 
+  },
+  { 
+    field: 'interiorScore', 
+    headerName: 'Interior Score', 
+    width: 120,
+    renderCell: (params: { value?: number }) => `${params.value}%` 
+  },
 ];
 
 interface InspectionInventoryProps {
@@ -43,7 +57,7 @@ export default function InspectionInventory({ filters, setFilteredInspections }:
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetchAllInspections();
+        const response = await fetchInspections();
         
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch inspection data');
@@ -105,10 +119,10 @@ export default function InspectionInventory({ filters, setFilteredInspections }:
             rows={localFilteredInspections}
             columns={columns}
             loading={loading}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginationModel={{ pageSize: 10, page: 0 }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
             sx={{
               border: 'none',
               '& .MuiDataGrid-columnHeaders': {
@@ -116,6 +130,7 @@ export default function InspectionInventory({ filters, setFilteredInspections }:
                 color: 'white',
               },
             }}
+            getRowId={(row) => row.id || row.plateNumber}
           />
         </div>
       ) : (
