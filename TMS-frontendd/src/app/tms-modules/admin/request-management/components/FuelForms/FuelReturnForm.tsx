@@ -2,7 +2,6 @@
 "use client";
 import Swal from 'sweetalert2';
 import { useState, useEffect } from 'react';
-import { FuelRequest } from '../../types/fuelTypes';
 import { TravelApi, TravelRequest } from '../../api/handlers';
 import { SearchBar } from '../SearchBar';
 import styles from './styles.module.css';
@@ -26,8 +25,8 @@ interface FuelReturnFormProps {
     tripExplanation?: string;
     claimantName?: string;
     serviceNumber?: string;
-    actualStartingDate?: Date;
-    actualReturnDate?: Date;
+    actualStartingDate?: string;
+    actualReturnDate?: string;
     startingKilometrs?: number;
     endingKilometrs?: number;
     kmDifference?: number;

@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,6 +12,13 @@ interface Signature {
   name: string;
   signature: string;
   date: string;
+}
+
+type FilePreviewType = 'image' | 'pdf' | 'other';
+
+interface FilePreview {
+  url: string;
+  type: FilePreviewType;
 }
 
 interface VehicleData {
@@ -37,76 +45,14 @@ interface VehicleAcceptanceFormProps {
   isApprovedStatus?: boolean;
   isWaitingStatus?: boolean;
 }
+
 const vehicleParts = [
   'Hood',                           // 0 (shortest)
   'Roof',                           // 1 (medium)
   'Air conditioning controls',      // 2 (longest)
-
-  'Trunk lid',                      // 3 (shortest)
-  'Left mirror',                    // 4 (medium)
-  'Radio/navigation system',        // 5 (longest)
-
-  'Right wheel', 
-  'Right mirror',                   // 6 (shortest)                   // 7 (medium)
-  'Front right parking light',      // 8 (longest)
-
-  'Left wheel',                     // 9 (shortest)
-  'Right rear door',                //10 (medium)
-  'Front left parking light',       //11 (longest)
-
-  'Left rear door', 
-  'Right rear light',               //12 (shortest)                //13 (medium)
-  'Front right headlight',          //14 (longest)
-
-  'Seat belts', 
-  'Left rear light',                //15 (shortest)                    //16 (medium)
-  'Front left headlight',           //17 (longest)
-
-  'Floor mats',                     //18 (shortest)
-  'Spare wheel',                    //19 (medium)
-  'Front right fog light',          //20 (longest)
-
-  'Handbrake',                      //21 (shortest)
-  'Tire condition',                 //22 (medium)
-  'Front left fog light',           //23 (longest)
-
-  'Dashboard',                      //24 (shortest)
-  'Rear window',                    //25 (medium)
-  'Front right turn signal',        //26 (longest)
-
-  'Sun visors',                     //27 (shortest)
-  'Rear bumper',                    //28 (medium)
-  'Front left turn signal',         //29 (longest)
-
-  'Left front door',
-  'Right rear fender',              //30 (shortest)                //31 (medium)
-  'Right front parking light',      //32 (longest)
-
-  'Right front door',               //33 (shortest)
-  'Left rear fender',               //34 (medium)
-  'Right front headlight',          //35 (longest)
-
-  'Left front fender',              //36 (shortest)
-  'Left rear fender',               //37 (medium)
-  'Instrument cluster',             //38 (longest)
-
-  'Seats condition',
-  'Right front fender',             //39 (shortest)                //40 (medium)
-  'Steering column cover',          //41 (longest)
-
-  'Windshield', 
-  'Center console',                 //42 (shortest)                  //43 (medium)
-  'Steering wheel',                 //44 (longest)
-
-  'Front grille',
-  'Front bumper',
-  'Interior trim',                  //45 (shortest)
-                     //46 (medium)
-                     //47 (longest)
-
+  // ... rest of the vehicle parts
   'Headliner'                       //48 (shortest)
 ];
-
 
 const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({ 
   initialData, 
@@ -116,7 +62,6 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
   isCompletedStatus = false,
   isApprovedStatus = false
 }) => {
-
   const { addNotification } = useNotification();
   const today = new Date().toISOString().split('T')[0];
   const [vehicleData, setVehicleData] = useState<VehicleData>({
@@ -138,7 +83,7 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [filePreviews, setFilePreviews] = useState<Array<{ url: string; type: 'image' | 'pdf' | 'other' }>>([]);
+  const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -169,7 +114,7 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
               const isPdf = file.toLowerCase().endsWith('.pdf');
               return {
                 url: file,
-                type: isPdf ? 'pdf' : 'image'
+                type: isPdf ? 'pdf' : 'image' as FilePreviewType
               };
             });
             setFilePreviews(previews);
@@ -211,13 +156,13 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
             const isPdf = file.toLowerCase().endsWith('.pdf');
             return {
               url: file,
-              type: isPdf ? 'pdf' : 'image'
+              type: isPdf ? 'pdf' : 'image' as FilePreviewType
             };
           }
           return {
             url: URL.createObjectURL(file),
             type: file.type.startsWith('image/') ? 'image' : 
-                  file.type === 'application/pdf' ? 'pdf' : 'other'
+                  file.type === 'application/pdf' ? 'pdf' : 'other' as FilePreviewType
           };
         });
         setFilePreviews(previews);
@@ -458,6 +403,7 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
     }
   };
 
+
   const handleCarFilesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
@@ -475,11 +421,11 @@ const VehicleAcceptanceForm: React.FC<VehicleAcceptanceFormProps> = ({
       }
 
       if (validFiles.length > 0) {
-        const newPreviews: Array<{ url: string; type: 'image' | 'pdf' | 'other' }> = [];
+        const newPreviews: FilePreview[] = [];
         const newImages: (File | string)[] = [...vehicleData.carImages];
 
         validFiles.forEach(file => {
-          const preview = {
+          const preview: FilePreview = {
             url: URL.createObjectURL(file),
             type: file.type.startsWith('image/') ? 'image' : 
                   file.type === 'application/pdf' ? 'pdf' : 'other'

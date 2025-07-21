@@ -7,6 +7,7 @@ import RequestsTable from '../components/RequestsTable';
 import { FuelRequestForm } from '../components/FuelForms/FuelRequestForm';
 import { FuelReturnForm } from '../components/FuelForms/FuelReturnForm';
 import { TravelApi, TravelRequest } from '../api/handlers';
+import { useNotification } from '@/app/contexts/NotificationContext';
 
 const FuelManagementPage = () => {
   const [activeTab, setActiveTab] = useState<'requests' | 'returns'>('requests');

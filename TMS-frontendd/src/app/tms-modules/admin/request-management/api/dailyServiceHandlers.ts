@@ -11,24 +11,28 @@ export interface DailyServiceRequest {
   endingPlace: string;
   claimantName: string;
   driverName?: string;
+  estimatedKilometers?: number;
   startingKilometers?: number;
   endingKilometers?: number;
   kmDifference?: number;
   carType?: string;
   plateNumber?: string;
   reason?: string;
-  returnDateTime: string; // ISO format with time
-  status: 'PENDING' | 'ASSIGNED' | 'COMPLETED  ';
+  kmReason?: string;
+  startTime: string; 
+  returnTime: string; 
+  returnDateTime?: string; // ISO format with time
+  status: 'PENDING' | 'ASSIGNED' | 'COMPLETED' | 'InspectedAndReady';
 }
+
 const parseDates = (obj: any): any => {
   if (obj === null || typeof obj !== 'object') return obj;
   
   for (const key in obj) {
     if (typeof obj[key] === 'string') {
-      // Try to parse ISO dates
       const dateMatch = obj[key].match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
       if (dateMatch) {
-        obj[key] = dateMatch[0]; // Keep only the date-time part
+        obj[key] = dateMatch[0];
       }
     } else if (typeof obj[key] === 'object') {
       parseDates(obj[key]);
@@ -39,13 +43,39 @@ const parseDates = (obj: any): any => {
 
 export const DailyServiceApi = {
   async createRequest(requestData: Omit<DailyServiceRequest, 'id'>): Promise<DailyServiceRequest> {
+  try {
+    // Transform data to match backend expectations
+    const payload = {
+      requestDate: requestData.dateTime.split('T')[0], // Extract date part only
+      startTime: requestData.startTime,
+      returnTime: requestData.returnTime || null,
+      travelers: requestData.travelers,
+      startingPlace: requestData.startingPlace,
+      endingPlace: requestData.endingPlace,
+      claimantName: requestData.claimantName
+    };
+
+    const response = await axios.post(`${API_BASE_URL}/create`, payload, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(axios.isAxiosError(error) 
+      ? error.response?.data?.message || error.message 
+      : 'Failed to create request');
+  }
+},
+
+  async getRequestById(id: number): Promise<DailyServiceRequest> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/create`, requestData);
+      const response = await axios.get(`${API_BASE_URL}/${id}`);
       return response.data;
     } catch (error) {
       throw new Error(axios.isAxiosError(error) 
         ? error.response?.data?.message || error.message 
-        : 'Failed to create request');
+        : 'Failed to fetch request');
     }
   },
 
@@ -60,7 +90,12 @@ export const DailyServiceApi = {
     }
   },
 
-  async assignRequest(id: number, data: { driverName: string; carType: string; plateNumber: string }): Promise<DailyServiceRequest> {
+  async assignRequest(id: number, data: { 
+    driverName: string; 
+    carType: string; 
+    plateNumber: string;
+    estimatedKilometers: number;
+  }): Promise<DailyServiceRequest> {
     try {
       if (!id) throw new Error('Request ID is required');
       const response = await axios.patch(`${API_BASE_URL}/${id}/assign`, {
@@ -75,7 +110,12 @@ export const DailyServiceApi = {
     }
   },
 
-  async completeRequest(id: number, data: { startKm: number; endKm: number, reason: string }): Promise<DailyServiceRequest> {
+  async completeRequest(id: number, data: { 
+    startKm: number; 
+    endKm: number; 
+    reason: string;
+    kmReason?: string;
+  }): Promise<DailyServiceRequest> {
     try {
       const response = await axios.patch(`${API_BASE_URL}/${id}/complete`, {
         ...data,
@@ -104,6 +144,7 @@ export const DailyServiceApi = {
         : 'Failed to load driver requests');
     }
   },
+
   async getAllCars() {
     return axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/all`);
   },

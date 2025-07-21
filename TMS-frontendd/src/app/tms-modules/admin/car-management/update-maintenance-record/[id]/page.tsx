@@ -278,19 +278,19 @@ export default function UpdateMaintenanceRecordPage() {
             </div>
             <div className="flex items-center">
               <Controller
-                name="isProblemFixed"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    type="checkbox"
-                    {...field}
-                    checked={field.value}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    id="isProblemFixed"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
-                  />
-                )}
-              />
+  name="isProblemFixed"
+  control={control}
+  render={({ field: { value, ...fieldRest } }) => (
+    <input
+      type="checkbox"
+      {...fieldRest}
+      checked={!!value}
+      onChange={e => fieldRest.onChange(e.target.checked)}
+      id="isProblemFixed"
+      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+    />
+  )}
+/>
               <label htmlFor="isProblemFixed" className="ml-2 block text-sm font-medium text-slate-700">Problem Fixed?</label>
             </div>
             {isProblemFixed !== undefined && (

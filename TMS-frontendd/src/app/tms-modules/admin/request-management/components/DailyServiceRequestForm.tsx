@@ -1,17 +1,16 @@
 "use client";
-import { useState, useEffect,useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiAlertCircle, FiMapPin, FiSend, FiCalendar, FiCheckCircle, 
   FiUser, FiUsers, FiTool, FiPlus, FiMinus, FiTruck, FiPackage,
-  FiSearch, FiArrowRight, FiX
+  FiSearch, FiArrowRight, FiX, FiClock
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
-import RequestsTable from './RequestsTable';
-import { FuelRequestForm } from '../components/FuelForms/FuelRequestForm';
 import DriverDailyRequestsTable from './DriverDailyRequestsTable';
 import { DailyServiceApi, DailyServiceRequest } from '../api/dailyServiceHandlers';
 import axios from 'axios';
+import { useNotification } from '@/app/contexts/NotificationContext';
 
 const showSuccessAlert = (title: string, message: string) => {
   Swal.fire({
@@ -33,7 +32,7 @@ const jobStatuses = ["Project", "Maintenance", "Emergency", "Meeting", "Training
 interface DailyServiceRequestFormProps {
   requestId?: number;
   onSuccess: () => void;
-  actorType: 'user' | 'manager' | 'driver';
+  actorType: 'user' | 'manager' | 'driver'|'corporator';
 }
 
 const formatDateForInput = (dateString: string) => {
@@ -61,19 +60,24 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
     startingPlace: '',
     endingPlace: '',
     travelers: [''] as string[],
-    dateTime: new Date().toISOString().slice(0, 16),
-    returnDateTime: '',
+    date: new Date().toISOString().split('T')[0],
+    time: '',
+    returnDate: '',
+    returnTime: '',
     claimantName: '',
     carType: '',
     driverName: '',
     plateNumber: '',
+    estimatedKilometers: '',
     startingKilometers: '',
     endingKilometers: '',
     kmDifference: '',
     status: 'PENDING' as 'PENDING' | 'ASSIGNED' | 'COMPLETED'|'InspectedAndReady',
-    reason: ''
+    reason: '',
+    kmReason: ''
   });
 
+  const {addNotification} = useNotification();
   const [vehicleType, setVehicleType] = useState( '' as 'car' | 'organization' | 'rent' | '');
   const [requests, setRequests] = useState<DailyServiceRequest[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<DailyServiceRequest[]>([]);
@@ -86,6 +90,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
   const [showUserModal, setShowUserModal] = useState(actorType !== 'user');
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showReason, setShowReason] = useState(false);
+  const [showKmReason, setShowKmReason] = useState(false);
 
   // Get driver name from localStorage
   const [driverName, setDriverName] = useState(() => {
@@ -108,6 +113,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
     carType: string;
     status: string;
     type: 'car' | 'organization' | 'rent';
+    currentKm: string;
   }
 
   const [vehicleSuggestions, setVehicleSuggestions] = useState<VehicleSuggestion[]>([]);
@@ -129,21 +135,24 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
             plate: v.plateNumber,
             driver: v.driverName || 'No driver assigned',
             carType: v.carType,
-            type: 'car' as const
+            type: 'car' as const,
+            currentKm: v.currentKilometers?.toString() || '0'
           })),
           ...(orgCarsRes.data.organizationCarList || []).filter((car: { status: string }) => 
             car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
             plate: v.plateNumber,
             driver: v.driverName || 'No driver assigned',
             carType: v.carType,
-            type: 'organization' as const
+            type: 'organization' as const,
+            currentKm: v.currentKilometers?.toString() || '0'
           })),
           ...(rentCarsRes.data.rentCarList || []).filter((car: { status: string }) => 
             car.status.toLowerCase() === 'inspectedandready').map((v: any) => ({
             plate: v.licensePlate,
             driver: v.driverName || 'No driver assigned',
             carType: v.vehicleType,
-            type: 'rent' as const
+            type: 'rent' as const,
+            currentKm: v.currentKilometers?.toString() || '0'
           }))
         ].filter(v => v.plate !== 'N/A');
 
@@ -271,82 +280,86 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
     }
   }, [selectedRequest]);
 
-  // //searching functionality
-  // useEffect(() => {
-  //   if (actorType === 'driver') {
-  //     if (driverSearchQuery.trim() === '') {
-  //       setFilteredRequests([]);
-  //     } else {
-  //       const filtered = requests.filter(request => {
-  //         return request.driverName?.trim() === driverSearchQuery.trim();
-  //       });
-  //       setFilteredRequests(filtered);
-  //     }
-  //   } else {
-  //     if (searchQuery.trim() === '') {
-  //       setFilteredRequests(requests);
-  //     } else {
-  //       const query = searchQuery.toLowerCase().trim();
-  //       const filtered = requests.filter(request => {
-  //         const fieldsToSearch = [
-  //           request.startingPlace,
-  //           request.claimantName,
-  //           request.status,
-  //           ...(request.travelers || [])
-  //         ];
-          
-  //         return fieldsToSearch.some(field => {
-  //           if (!field) return false;
-  //           const textValue = typeof field === 'string' ? field : field.name || '';
-  //           return textValue.toLowerCase().includes(query);
-  //         });
-  //       });
-  //       setFilteredRequests(filtered);
-  //     }
-  //   }
-  // }, [driverSearchQuery, searchQuery, requests, actorType]);
-
   const populateFormData = (request: DailyServiceRequest) => {
+    const dateTime = request.dateTime ? new Date(request.dateTime) : new Date();
+    const returnDateTime = request.returnDateTime ? new Date(request.returnDateTime) : null;
+    
     setFormData({
       startingPlace: request.startingPlace,
       endingPlace: request.endingPlace,
       travelers: request.travelers,
-      dateTime: request.dateTime,
-      returnDateTime: request.returnDateTime || '',
+      date: request.dateTime || dateTime.toISOString().split('T')[0],
+      time: request.startTime || dateTime.toTimeString().substring(0, 5),
+      returnDate: returnDateTime ? returnDateTime.toISOString().split('T')[0] : '',
+      returnTime: request.returnTime || '',
       claimantName: request.claimantName,
       carType: request.carType || '',
       driverName: request.driverName || '',
       plateNumber: request.plateNumber || '',
+      estimatedKilometers: request.estimatedKilometers?.toString() || '',
       startingKilometers: request.startingKilometers?.toString() || '',
       endingKilometers: request.endingKilometers?.toString() || '',
       kmDifference: request.kmDifference?.toString() || '',
       status: request.status,
-      reason: request.reason || ''
+      reason: request.reason || '',
+      kmReason: request.kmReason || ''
+
     });
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-    if (apiError) setApiError('');
-    if (successMessage) setSuccessMessage('');
-
+const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const { name, value } = e.target;
+  
+  // First update the form data with the new value
+  setFormData(prev => {
+    const updatedFormData = { ...prev, [name]: value };
+    
+    // Calculate kilometer difference whenever starting or ending km changes
     if (name === 'startingKilometers' || name === 'endingKilometers') {
-      const startKm = name === 'startingKilometers' ? value : formData.startingKilometers;
-      const endKm = name === 'endingKilometers' ? value : formData.endingKilometers;
+      const startKm = parseFloat(updatedFormData.startingKilometers || '0');
+      const endKm = parseFloat(updatedFormData.endingKilometers || '0');
+      const estimatedKm = parseFloat(updatedFormData.estimatedKilometers || '0');
       
-      if (startKm && endKm) {
-        const start = parseFloat(startKm);
-        const end = parseFloat(endKm);
-        if (!isNaN(start) && !isNaN(end)) {
-          setFormData(prev => ({ ...prev, kmDifference: (end - start).toString() }));
+      if (!isNaN(startKm) && !isNaN(endKm)) {
+        const difference = endKm - startKm;
+        updatedFormData.kmDifference = difference.toString();
+        
+        // Show kmReason if difference exceeds estimated kilometers
+        if (difference > estimatedKm) {
+          setShowKmReason(true);
+        } else {
+          updatedFormData.kmReason = '';
+          setShowKmReason(false);
         }
       }
     }
-  };
+    
+    return updatedFormData;
+  });
+
+  // Clear any existing errors for this field
+  if (errors[name]) {
+    setErrors(prev => ({ ...prev, [name]: '' }));
+  }
+  if (apiError) setApiError('');
+  if (successMessage) setSuccessMessage('');
+
+  // Handle time-related checks
+  const now = new Date();
+  const currentHours = now.getHours().toString().padStart(2, '0');
+  const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+  const currentTime = `${currentHours}:${currentMinutes}`;
+  
+  const isLateReturn = formData.returnTime && currentTime > formData.returnTime;
+  const currentDate = now.toISOString().split('T')[0];
+  const isDifferentDate = formData.date !== currentDate;
+  
+  setShowReason(isLateReturn || isDifferentDate);
+  
+  if (!isLateReturn && !isDifferentDate) {
+    setFormData(prev => ({ ...prev, reason: '' }));
+  }
+};
 
   const handleTravelerChange = (index: number, value: string) => {
     const newTravelers = [...formData.travelers];
@@ -369,129 +382,187 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
     setFormData(prev => ({ ...prev, travelers: newTravelers }));
   };
 
-  const validateUserSection = () => {
-    const newErrors: Record<string, string> = {};
-    const currentDate = new Date();
-    const startDate = formData.dateTime ? new Date(formData.dateTime) : null;
-    const returnDate = formData.returnDateTime ? new Date(formData.returnDateTime) : null;
+const validateUserSection = () => {
+  const newErrors: Record<string, string> = {};
+  const currentDateTime = new Date();
+  
+  const dateOnly = formData.date;
+  const timeOnly = formData.time;
 
-    if (!formData.endingPlace.trim()) newErrors.endingPlace = 'Destination is required';
-    if (!formData.startingPlace.trim()) newErrors.startingPlace = 'Starting place is required';
-    if (!formData.dateTime) newErrors.dateTime = 'Starting date is required';
-    
-    if (formData.returnDateTime && returnDate && startDate && returnDate < startDate) {
-      newErrors.returnDateTime = 'Return date cannot be before start date';
+  const startDateTime = dateOnly && timeOnly ? new Date(`${dateOnly}T${timeOnly}`) : null;
+
+  // Validate claimant name
+  if (!formData.claimantName.trim()) {
+    newErrors.claimantName = 'Claimant name is required';
+  } else if (formData.claimantName.length > 50) {
+    newErrors.claimantName = 'Claimant name cannot exceed 50 characters';
+  }
+
+  // Validate request date
+  if (!dateOnly) {
+    newErrors.date = 'Request date is required';
+  }
+
+  // Validate start time
+  if (!timeOnly) {
+    newErrors.time = 'Start time is required';
+  }
+
+  // Validate that the combined date/time is not in the past
+  if (startDateTime && startDateTime < currentDateTime) {
+    newErrors.date = 'Start date/time cannot be in the past';
+    newErrors.time = 'Start date/time cannot be in the past';
+  }
+
+  // Validate starting place
+  if (!formData.startingPlace.trim()) {
+    newErrors.startingPlace = 'Starting place is required';
+  } else if (formData.startingPlace.length > 100) {
+    newErrors.startingPlace = 'Starting place cannot exceed 100 characters';
+  }
+
+  // Validate destination place
+  if (!formData.endingPlace.trim()) {
+    newErrors.endingPlace = 'Destination is required';
+  } else if (formData.endingPlace.length > 100) {
+    newErrors.endingPlace = 'Destination cannot exceed 100 characters';
+  }
+
+  // Validate travelers
+  formData.travelers.forEach((traveler, index) => {
+    if (!traveler.trim()) {
+      newErrors[`traveler-${index}`] = 'Traveler name is required';
+    } else if (traveler.length > 50) {
+      newErrors[`traveler-${index}`] = 'Traveler name cannot exceed 50 characters';
     }
+  });
 
-    formData.travelers.forEach((traveler, index) => {
-      if (!traveler.trim()) {
-        newErrors[`traveler-${index}`] = 'Traveler name is required';
-      } else if (traveler.length > 50) {
-        newErrors[`traveler-${index}`] = 'Name cannot exceed 50 characters';
-      }
-    });
+  // Optionally validate return time format
+  if (formData.returnTime && !/^\d{2}:\d{2}$/.test(formData.returnTime)) {
+    newErrors.returnTime = 'Return time is invalid';
+  }
 
-    if (!formData.claimantName.trim()) newErrors.claimantName = 'Claimant name is required';
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
-    if (startDate && startDate < currentDate) {
-      newErrors.startingDate = 'Starting date cannot be in the past';
-    }
-
-    if (formData.startingPlace.length > 100) newErrors.startingPlace = 'Starting place cannot exceed 100 characters';
-    if (formData.claimantName.length > 50) newErrors.claimantName = 'Claimant name cannot exceed 50 characters';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const validateServiceSection = () => {
     const newErrors: Record<string, string> = {};
-    const requiredFields = [
-      'driverName',
-      'CarType',
-      'plateNumber'
-    ];
-
-    requiredFields.forEach(field => {
-      // Validation logic
-    });
-
-    if (formData.startingKilometers) {
+    
+    if (!formData.plateNumber) {
+      newErrors.plateNumber = 'Please select a vehicle';
+    }
+    
+    if (!formData.driverName) {
+      newErrors.driverName = 'Driver name is required';
+    }
+    
+    if (!formData.carType) {
+      newErrors.carType = 'Car type is required';
+    }
+    
+    if (!formData.startingKilometers) {
+      newErrors.startingKilometers = 'Starting kilometers are required';
+    } else {
       const km = parseFloat(formData.startingKilometers);
       if (isNaN(km)) {
-        newErrors.startingKilometers = 'Must be a number';
+        newErrors.startingKilometers = 'Must be a valid number';
       } else if (km < 0) {
         newErrors.startingKilometers = 'Cannot be negative';
       }
     }
-    
-    if (formData.endingKilometers) {
-      const km = parseFloat(formData.endingKilometers);
-      if (isNaN(km)) {
-        newErrors.endingKilometers = 'Must be a number';
-      } else if (km < 0) {
-        newErrors.endingKilometers = 'Cannot be negative';
-      }
-      if (formData.startingKilometers && km < parseFloat(formData.startingKilometers)) {
-        newErrors.endingKilometers = 'Cannot be less than starting kilometers';
-      }
-    }
-
-    // Check if return date is in the past and reason is required
-    if (formData.returnDateTime) {
-      const returnDate = new Date(formData.returnDateTime);
-      const now = new Date();
-      if (returnDate < now && !formData.reason) {
-        newErrors.reason = 'Please provide reason for late return';
-        setShowReason(true);
-      }
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleUserSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const validateDriverSection = () => {
+  const newErrors: Record<string, string> = {};
   
-    setIsSubmitting(true);
-    setApiError('');
-    setSuccessMessage('');
+  // Basic field validation only
+  if (!formData.endingKilometers) {
+    newErrors.endingKilometers = 'Ending kilometers are required';
+  } else {
+    const km = parseFloat(formData.endingKilometers);
+    if (isNaN(km)) {
+      newErrors.endingKilometers = 'Must be a valid number';
+    } else if (km < 0) {
+      newErrors.endingKilometers = 'Cannot be negative';
+    } else if (formData.startingKilometers && km < parseFloat(formData.startingKilometers)) {
+      newErrors.endingKilometers = 'Cannot be less than starting kilometers';
+    }
+  }
+
+  // Check if reason is required (already determined by showReason state)
+  if (showReason && !formData.reason) {
+    newErrors.reason = showReason 
+      ? 'Please provide reason for late return or date change'
+      : '';
+  }
+
+  // Check if kmReason is required (already determined by showKmReason state)
+  if (showKmReason && !formData.kmReason) {
+    newErrors.kmReason = 'Please explain the high kilometer difference';
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+  
+const handleUserSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  setApiError('');
+  setSuccessMessage('');
+
+  try {
+    // Create properly formatted request data
+    const requestData = {
+      dateTime: new Date(`${formData.date}T${formData.time}`).toISOString(),
+      startTime: formData.time,
+      returnTime: formData.returnTime ,
+      travelers: formData.travelers.filter(t => t.trim()),
+      startingPlace: formData.startingPlace,
+      endingPlace: formData.endingPlace,
+      claimantName: formData.claimantName,
+      status: 'PENDING' as const
+    };
+
+    const result = await DailyServiceApi.createRequest(requestData);
+    
+    showSuccessAlert('Success!', 'Travel request submitted successfully!');
 
     try {
-      const requestData: DailyServiceRequest = {
-        startingPlace: formData.startingPlace,
-        endingPlace: formData.endingPlace,
-        travelers: formData.travelers.filter(t => t.trim()),
-        dateTime: formData.dateTime ? `${formData.dateTime}` : '',
-        returnDateTime: formData.returnDateTime ? `${formData.returnDateTime}` : '',
-        claimantName: formData.claimantName,
-        status: 'PENDING'
-      };
-  
-      let result;
-      
-      result = await DailyServiceApi.createRequest(requestData);
-      
-      showSuccessAlert('Success!', `Travel request ${requestId ? 'updated' : 'submitted'} successfully!`);
-
-      if (actorType === 'user') {
-        window.location.reload();
-      } else {
-        closeModals();
-        const data = await DailyServiceApi.getPendingRequests();
-        setRequests(data);
-        setFilteredRequests(data);
-      }
-    } catch (error: any) {
-      setApiError(error.message || `Failed to ${requestId ? 'update' : 'submit'} request`);
-    } finally {
-      setIsSubmitting(false);
+      await addNotification(
+        `New Daily Service request Added`,
+        `/tms-modules/admin/request-management/request-field`,
+        'DISTRIBUTOR'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
     }
-  }; 
+
+    if (actorType === 'user') {
+      window.location.reload();
+    } else {
+      closeModals();
+      const data = await DailyServiceApi.getPendingRequests();
+      setRequests(data);
+      setFilteredRequests(data);
+    }
+  } catch (error: any) {
+    console.error('Submission error:', error);
+    setApiError(error.message || 'Failed to submit request');
+  } finally {
+    setIsSubmitting(false);
+  }
+}; 
 
   const handleServiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    //if (!validateServiceSection()) return;
     if (!selectedRequest?.id) {
       setApiError('No request selected');
       return;
@@ -504,7 +575,8 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       const result = await DailyServiceApi.assignRequest(selectedRequest.id!, {
         driverName: formData.driverName,
         carType: formData.carType,
-        plateNumber: formData.plateNumber
+        plateNumber: formData.plateNumber,
+        estimatedKilometers: parseFloat(formData.estimatedKilometers)
       });
 
       if (!formData.plateNumber) {
@@ -555,6 +627,17 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
               'Success!',
               'Car assigned successfully! Please proceed the fuel request for this travel'
             );
+
+            try {
+        await addNotification(
+        `New Daily Service request Come to (${formData.endingPlace})`,
+        `/tms-modules/admin/request-management/request-field`,
+        'DRIVER'
+      );
+    } catch (notificationError) {
+      console.error('Failed to add notification:', notificationError);
+      // Optionally show error to user
+    }
           } else {
             showSuccessAlert(
               'Error!',
@@ -591,7 +674,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
 
   const handleDriverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateServiceSection()) return;
+    if (!validateDriverSection()) return;
     if (!selectedRequest?.id) return;
 
     setIsSubmitting(true);
@@ -601,7 +684,8 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       const completionData = {
         startKm: parseFloat(formData.startingKilometers),
         endKm: parseFloat(formData.endingKilometers),
-        reason: formData.reason || null
+        reason: formData.reason,
+        kmReason: formData.kmReason
       };
   
       await DailyServiceApi.completeRequest(selectedRequest.id!, completionData);
@@ -609,7 +693,10 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
       if (vehicleType && formData.plateNumber) {
         try {
           let response;
-          const statusUpdate = { status: 'InspectedAndReady' };
+          const statusUpdate = { 
+            status: 'InspectedAndReady',
+            currentKilometers: parseFloat(formData.endingKilometers)
+          };
       
           if (vehicleType === 'car') {
             response = await axios.put(
@@ -686,14 +773,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
     setShowServiceModal(false);
   };
 
-  const getLocalDateTime = () => {
-    const now = new Date()
-    const offset = now.getTimezoneOffset()
-    const local = new Date(now.getTime() - offset * 60000)
-    return local.toISOString().slice(0, 16)
-  }
-
-  const isFormDisabled = actorType !== 'user' || (selectedRequest && actorType === 'user');
+  const isFormDisabled = actorType !== 'user' || (selectedRequest !== null && actorType === 'user');
   const showSearchBar = (actorType === 'manager' || actorType === 'driver');
 
   const renderDriverModal = () => (
@@ -716,387 +796,455 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
             </button>
           </div>
 
-          <form onSubmit={handleDriverSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Starting Date *
-                </label>
-                <div className="relative">
-                  <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="datetime-local"
-                    name="dateTime"
-                    value={formData.dateTime}
-                    onChange={handleChange}
-                    disabled={isFormDisabled}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+          <form onSubmit={handleDriverSubmit} className="space-y-6">
+  {/* Header with Request Date */}
+  <div className="flex justify-between items-center">
+    <h2 className="text-lg font-semibold text-gray-800">Assign Driver & Complete Request</h2>
+    <div className="flex items-center space-x-2">
+      <FiCalendar className="text-gray-400" />
+      <input
+        type="date"
+        name="date"
+        value={formData.date}
+        readOnly
+        className="px-3 py-2 rounded-md border border-gray-300 bg-gray-100 text-gray-800"
+      />
+    </div>
+  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Return Date *
-                </label>
-                <div className="relative">
-                  <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="datetime-local"
-                    name="returnDateTime"
-                    value={formData.returnDateTime}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+  {/* Time Fields: Start Time & Return Time */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+      <div className="relative">
+        <FiClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        <input
+          type="time"
+          name="time"
+          value={formData.time}
+          readOnly
+          className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800"
+        />
+      </div>
+    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Car Type</label>
-                <input
-                  type="text"
-                  value={formData.carType}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Return Time *</label>
+      <div className="relative">
+        <FiClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        <input
+          type="time"
+          name="returnTime"
+          value={formData.returnTime}
+          readOnly
+          className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      {errors.returnDate && (
+        <p className="mt-1 text-sm text-red-500">{errors.returnDate}</p>
+      )}
+    </div>
+  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
-                <input
-                  type="text"
-                  value={formData.driverName}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
+  {/* Remaining Fields in Grid */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Car Type</label>
+      <input
+        type="text"
+        value={formData.carType}
+        readOnly
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+      />
+    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Plate Number</label>
-                <input
-                  type="text"
-                  value={formData.plateNumber}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
+      <input
+        type="text"
+        value={formData.driverName}
+        readOnly
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+      />
+    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Starting Kilometers *</label>
-                <input
-                  required
-                  type="number"
-                  name="startingKilometers"
-                  value={formData.startingKilometers}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.startingKilometers ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Enter starting km"
-                  min="0"
-                  step="0.1"
-                />
-                {errors.startingKilometers && (
-                  <p className="mt-1 text-sm text-red-500">{errors.startingKilometers}</p>
-                )}
-              </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Plate Number</label>
+      <input
+        type="text"
+        value={formData.plateNumber}
+        readOnly
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+      />
+    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ending Kilometers *</label>
-                <input
-                  required
-                  type="number"
-                  name="endingKilometers"
-                  value={formData.endingKilometers}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    errors.endingKilometers ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Enter ending km"
-                  min={formData.startingKilometers || 0}
-                  step="0.1"
-                />
-                {errors.endingKilometers && (
-                  <p className="mt-1 text-sm text-red-500">{errors.endingKilometers}</p>
-                )}
-              </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Starting Kilometers *</label>
+      <input
+        required
+        type="number"
+        name="startingKilometers"
+        value={formData.startingKilometers}
+        onChange={handleChange}
+        className={`w-full px-4 py-2 rounded-lg border ${
+          errors.startingKilometers ? 'border-red-500' : 'border-gray-300'
+        } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        placeholder="Enter starting km"
+        min="0"
+        step="0.1"
+      />
+      {errors.startingKilometers && (
+        <p className="mt-1 text-sm text-red-500">{errors.startingKilometers}</p>
+      )}
+    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">KM Difference</label>
-                <input
-                  type="number"
-                  name="kmDifference"
-                  value={formData.kmDifference}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
-                />
-              </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Ending Kilometers *</label>
+      <input
+        required
+        type="number"
+        name="endingKilometers"
+        value={formData.endingKilometers}
+        onChange={handleChange}
+        className={`w-full px-4 py-2 rounded-lg border ${
+          errors.endingKilometers ? 'border-red-500' : 'border-gray-300'
+        } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        placeholder="Enter ending km"
+        min={formData.startingKilometers || 0}
+        step="0.1"
+      />
+      {errors.endingKilometers && (
+        <p className="mt-1 text-sm text-red-500">{errors.endingKilometers}</p>
+      )}
+    </div>
 
-              {showReason && (
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Late Return Reason *</label>
-                  <textarea
-                    name="reason"
-                    value={formData.reason}
-                    onChange={handleChange}
-                    required
-                    className={`w-full px-4 py-2 rounded-lg border ${
-                      errors.reason ? 'border-red-500' : 'border-gray-300'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    placeholder="Please explain why the return was late"
-                    rows={3}
-                  />
-                  {errors.reason && (
-                    <p className="mt-1 text-sm text-red-500">{errors.reason}</p>
-                  )}
-                </div>
-              )}
-            </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">KM Difference</label>
+      <input
+        type="number"
+        name="kmDifference"
+        value={formData.kmDifference}
+        readOnly
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+      />
+    </div>
 
-            <div className="mt-6">
-              <motion.button
-                type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={isSubmitting}
-                className={`inline-flex items-center px-4 py-2 rounded-md text-white font-medium transition-all ${
-                  isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
-                }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <motion.span
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                    />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <FiCheckCircle className="mr-2" />
-                    Submit
-                  </>
-                )}
-              </motion.button>
-            </div>
-          </form>
+    {showReason && (
+      <div className="md:col-span-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Late Return Reason *</label>
+        <textarea
+          name="reason"
+          value={formData.reason}
+          onChange={handleChange}
+          required={showReason}
+          className={`w-full px-4 py-2 rounded-lg border ${
+            errors.reason ? 'border-red-500' : 'border-gray-300'
+          } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+          placeholder="Please explain why the return was late"
+          rows={3}
+        />
+        {errors.reason && (
+          <p className="mt-1 text-sm text-red-500">{errors.reason}</p>
+        )}
+      </div>
+    )}
+
+    {showKmReason && (
+      <div className="md:col-span-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1">High Kilometer Difference Reason *</label>
+        <textarea
+          name="kmReason"
+          value={formData.kmReason}
+          onChange={handleChange}
+          required={showKmReason}
+          className={`w-full px-4 py-2 rounded-lg border ${
+            errors.kmReason ? 'border-red-500' : 'border-gray-300'
+          } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+          placeholder="Please explain the high kilometer difference"
+          rows={3}
+        />
+        {errors.kmReason && (
+          <p className="mt-1 text-sm text-red-500">{errors.kmReason}</p>
+        )}
+      </div>
+    )}
+  </div>
+
+  {/* Submit Button */}
+  <div className="mt-6">
+    <motion.button
+      type="submit"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      disabled={isSubmitting}
+      className={`inline-flex items-center px-4 py-2 rounded-md text-white font-medium transition-all ${
+        isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+      }`}
+    >
+      {isSubmitting ? (
+        <>
+          <motion.span
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+          />
+          Submitting...
+        </>
+      ) : (
+        <>
+          <FiCheckCircle className="mr-2" />
+          Submit
+        </>
+      )}
+    </motion.button>
+  </div>
+</form>
+
         </div>
       </motion.div>
     </div>
   );
 
-  const renderUserForm = () => (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-        {requestId ? 'Edit Travel Request' : 'New Travel Request'}
-      </h2>
-      
-      {apiError && (
-        <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
-          <div className="flex items-center">
-            <FiAlertCircle className="mr-2" />
-            <span>{apiError}</span>
-          </div>
+const renderUserForm = () => (
+  <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
+    <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+      {requestId ? 'Edit Travel Request' : 'New Travel Request'}
+    </h2>
+    
+    {apiError && (
+      <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+        <div className="flex items-center">
+          <FiAlertCircle className="mr-2" />
+          <span>{apiError}</span>
         </div>
-      )}
+      </div>
+    )}
 
-      {successMessage && (
-        <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">
-          <div className="flex items-center">
-            <FiCheckCircle className="mr-2" />
-            <span>{successMessage}</span>
-          </div>
+    {successMessage && (
+      <div className="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg">
+        <div className="flex items-center">
+          <FiCheckCircle className="mr-2" />
+          <span>{successMessage}</span>
         </div>
-      )}
+      </div>
+    )}
 
-      <form onSubmit={handleUserSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Starting Date *
-            </label>
-            <div className="relative">
-              <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+    <form onSubmit={handleUserSubmit} className="space-y-6">
+      {/* Row 1: Claimant Name | Request Date */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
+          <input
+            required
+            type="text"
+            name="claimantName"
+            value={formData.claimantName}
+            onChange={handleChange}
+            disabled={isFormDisabled}
+            className={`w-full px-4 py-3 rounded-lg border ${
+              errors.claimantName ? 'border-red-500' : 'border-gray-300'
+            } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+            placeholder="Enter claimant's name"
+            maxLength={50}
+          />
+          {errors.claimantName && (
+            <p className="mt-1 text-sm text-red-500 flex items-center">
+              <FiAlertCircle className="mr-1" /> {errors.claimantName}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Request Date *</label>
+          <div className="relative">
+            <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              required
+              type="date"
+              name="date"
+              value={formData.date}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {errors.date && (
+            <p className="mt-1 text-sm text-red-500 flex items-center">
+              <FiAlertCircle className="mr-1" /> {errors.date}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Row 2: Start Time | Return Time */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+          <div className="relative">
+            <FiClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              required
+              type="time"
+              name="time"
+              value={formData.time}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {errors.time && (
+            <p className="mt-1 text-sm text-red-500 flex items-center">
+              <FiAlertCircle className="mr-1" /> {errors.time}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Return Time</label>
+          <div className="relative">
+            <FiClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="time"
+              name="returnTime"
+              value={formData.returnTime}
+              onChange={handleChange}
+              disabled={isFormDisabled}
+              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {errors.returnTime && (
+            <p className="mt-1 text-sm text-red-500 flex items-center">
+              <FiAlertCircle className="mr-1" /> {errors.returnTime}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Starting Place | Destination Place */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
+          <input
+            required
+            type="text"
+            name="startingPlace"
+            value={formData.startingPlace}
+            onChange={handleChange}
+            disabled={isFormDisabled}
+            className={`w-full px-4 py-3 rounded-lg border ${
+              errors.startingPlace ? 'border-red-500' : 'border-gray-300'
+            } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+            placeholder="Enter starting location"
+            maxLength={100}
+          />
+          {errors.startingPlace && (
+            <p className="mt-1 text-sm text-red-500 flex items-center">
+              <FiAlertCircle className="mr-1" /> {errors.startingPlace}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
+          <input
+            required
+            type="text"
+            name="endingPlace"
+            value={formData.endingPlace}
+            onChange={handleChange}
+            disabled={isFormDisabled}
+            className={`w-full px-4 py-3 rounded-lg border ${
+              errors.endingPlace ? 'border-red-500' : 'border-gray-300'
+            } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+            placeholder="Enter destination"
+            maxLength={100}
+          />
+          {errors.endingPlace && (
+            <p className="mt-1 text-sm text-red-500 flex items-center">
+              <FiAlertCircle className="mr-1" /> {errors.endingPlace}
+            </p>
+          )}   
+        </div>
+      </div>
+
+      {/* Row 4: Travelers (full width) */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
+        <div className="space-y-3">
+          {formData.travelers.map((traveler, index) => (
+            <div key={index} className="flex items-center gap-3">
               <input
                 required
-                type="datetime-local"
-                name="dateTime"
-                value={formData.dateTime}
-                onChange={handleChange}
+                type="text"
+                value={traveler}
+                onChange={(e) => handleTravelerChange(index, e.target.value)}
                 disabled={isFormDisabled}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`flex-1 px-4 py-3 rounded-lg border ${
+                  errors[`traveler-${index}`] ? 'border-red-500' : 'border-gray-300'
+                } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                placeholder={`Traveler ${index + 1} name`}
+                maxLength={50}
               />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Return Date
-            </label>
-            <div className="relative">
-              <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="datetime-local"
-                name="returnDateTime"
-                value={formData.returnDateTime}
-                onChange={handleChange}
-                disabled={isFormDisabled}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            {errors.returnDateTime && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.returnDateTime}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
-            <input
-              required
-              type="text"
-              name="claimantName"
-              value={formData.claimantName}
-              onChange={handleChange}
-              disabled={isFormDisabled}
-              className={`w-full px-4 py-3 rounded-lg border ${
-                errors.claimantName ? 'border-red-500' : 'border-gray-300'
-              } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter claimant's name"
-              maxLength={50}
-            />
-            {errors.claimantName && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.claimantName}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
-            <input
-              required
-              type="text"
-              name="startingPlace"
-              value={formData.startingPlace}
-              onChange={handleChange}
-              disabled={isFormDisabled}
-              className={`w-full px-4 py-3 rounded-lg border ${
-                errors.startingPlace ? 'border-red-500' : 'border-gray-300'
-              } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter starting location"
-              maxLength={100}
-            />
-            {errors.startingPlace && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.startingPlace}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
-            <input
-              required
-              type="text"
-              name="endingPlace"
-              value={formData.endingPlace}
-              onChange={handleChange}
-              disabled={isFormDisabled}
-              className={`w-full px-4 py-3 rounded-lg border ${
-                errors.endingPlace ? 'border-red-500' : 'border-gray-300'
-              } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-              placeholder="Enter destination"
-              maxLength={100}
-            />
-            {errors.endingPlace && (
-              <p className="mt-1 text-sm text-red-500 flex items-center">
-                <FiAlertCircle className="mr-1" /> {errors.endingPlace}
-              </p>
-            )}   
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
-            <div className="space-y-3">
-              {formData.travelers.map((traveler, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <input
-                    required
-                    type="text"
-                    value={traveler}
-                    onChange={(e) => handleTravelerChange(index, e.target.value)}
-                    disabled={isFormDisabled}
-                    className={`flex-1 px-4 py-3 rounded-lg border ${
-                      errors[`traveler-${index}`] ? 'border-red-500' : 'border-gray-300'
-                    } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                    placeholder={`Traveler ${index + 1} name`}
-                    maxLength={50}
-                  />
-                  {formData.travelers.length > 1 && !isFormDisabled && (
-                    <button
-                      type="button"
-                      onClick={() => removeTraveler(index)}
-                      className="p-3 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 transition-colors"
-                    >
-                      <FiMinus />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {!isFormDisabled && (
+              {formData.travelers.length > 1 && !isFormDisabled && (
                 <button
                   type="button"
-                  onClick={addTraveler}
-                  className="mt-2 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                  onClick={() => removeTraveler(index)}
+                  className="p-3 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 transition-colors"
                 >
-                  <FiPlus className="mr-1" /> Add another traveler
+                  <FiMinus />
                 </button>
               )}
             </div>
-            {formData.travelers.map((_, index) => (
-              errors[`traveler-${index}`] && (
-                <p key={`error-${index}`} className="mt-1 text-sm text-red-500 flex items-center">
-                  <FiAlertCircle className="mr-1" /> {errors[`traveler-${index}`]}
-                </p>
-              )
-            ))}
-          </div>
+          ))}
+          {!isFormDisabled && (
+            <button
+              type="button"
+              onClick={addTraveler}
+              className="mt-2 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+            >
+              <FiPlus className="mr-1" /> Add another traveler
+            </button>
+          )}
         </div>
+        {formData.travelers.map((_, index) => (
+          errors[`traveler-${index}`] && (
+            <p key={`error-${index}`} className="mt-1 text-sm text-red-500 flex items-center">
+              <FiAlertCircle className="mr-1" /> {errors[`traveler-${index}`]}
+            </p>
+          )
+        ))}
+      </div>
 
-        <div className="mt-6">
-          <motion.button
-            type="submit"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            disabled={isSubmitting}
-            className={`inline-flex items-center px-4 py-2 rounded-md text-white font-medium transition-all ${
-              isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <motion.span
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                />
-                {requestId ? 'Updating...' : 'Submitting...'}
-              </>
-            ) : (
-              <>
-                <FiSend className="mr-2" />
-                {requestId ? 'Update' : 'Submit'}
-              </>
-            )}
-          </motion.button>
-        </div>
-      </form>
-    </div>
-  );
+      <div className="mt-6">
+        <motion.button
+          type="submit"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          disabled={isSubmitting}
+          className={`inline-flex items-center px-4 py-2 rounded-md text-white font-medium transition-all ${
+            isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#3c8dbc] hover:bg-[#367fa9]'
+          }`}
+        >
+          {isSubmitting ? (
+            <>
+              <motion.span
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+              />
+              {requestId ? 'Updating...' : 'Submitting...'}
+            </>
+          ) : (
+            <>
+              <FiSend className="mr-2" />
+              {requestId ? 'Update' : 'Submit'}
+            </>
+          )}
+        </motion.button>
+      </div>
+    </form>
+  </div>
+);
 
  return (
     <>
@@ -1173,200 +1321,218 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
             onRowClick={handleRowClick}
           />
 
-          <AnimatePresence>
-            {showUserModal && selectedRequest && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-                >
-                  <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-                        <FiUser className="mr-2" />
-                        Travel Request Details
-                      </h3>
-                      <button
-                        onClick={closeModals}
-                        className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <FiX className="text-gray-500" />
-                      </button>
-                    </div>
-                    <form onSubmit={handleUserSubmit} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Starting Date *
-                          </label>
-                          <div className="relative">
-                            <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                              type="datetime-local"
-                              name="dateTime"
-                              value={formData.dateTime}
-                              onChange={handleChange}
-                              disabled={isFormDisabled}
-                              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                        </div>
+  <AnimatePresence>
+  {showUserModal && selectedRequest && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+              <FiUser className="mr-2" />
+              Travel Request Details
+            </h3>
+            <button
+              onClick={closeModals}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <FiX className="text-gray-500" />
+            </button>
+          </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Return Date
-                          </label>
-                          <div className="relative">
-                            <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                              type="datetime-local"
-                              name="returnDateTime"
-                              value={formData.returnDateTime}
-                              onChange={handleChange}
-                              disabled={isFormDisabled}
-                              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                          {errors.returnDateTime && (
-                            <p className="mt-1 text-sm text-red-500 flex items-center">
-                              <FiAlertCircle className="mr-1" /> {errors.returnDateTime}
-                            </p>
-                          )}
-                        </div>
+          <form onSubmit={handleUserSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Row 1: Claimant Name | Request Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
+                <input
+                  type="text"
+                  name="claimantName"
+                  value={formData.claimantName}
+                  onChange={handleChange}
+                  disabled={isFormDisabled}
+                  className={`w-full px-4 py-3 rounded-lg border ${
+                    errors.claimantName ? 'border-red-500' : 'border-gray-300'
+                  } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Enter claimant's name"
+                  maxLength={50}
+                />
+                {errors.claimantName && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.claimantName}
+                  </p>
+                )}
+              </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Claimant Name *</label>
-                          <input
-                            type="text"
-                            name="claimantName"
-                            value={formData.claimantName}
-                            onChange={handleChange}
-                            disabled={isFormDisabled}
-                            className={`w-full px-4 py-3 rounded-lg border ${
-                              errors.claimantName ? 'border-red-500' : 'border-gray-300'
-                            } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                            placeholder="Enter claimant's name"
-                            maxLength={50}
-                          />
-                          {errors.claimantName && (
-                            <p className="mt-1 text-sm text-red-500 flex items-center">
-                              <FiAlertCircle className="mr-1" /> {errors.claimantName}
-                            </p>
-                          )}
-                        </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Request Date *</label>
+                <div className="relative">
+                  <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    disabled={isFormDisabled}
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
-                          <input
-                            type="text"
-                            name="startingPlace"
-                            value={formData.startingPlace}
-                            onChange={handleChange}
-                            disabled={isFormDisabled}
-                            className={`w-full px-4 py-3 rounded-lg border ${
-                              errors.startingPlace ? 'border-red-500' : 'border-gray-300'
-                            } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                            placeholder="Enter starting location"
-                            maxLength={100}
-                          />
-                          {errors.startingPlace && (
-                            <p className="mt-1 text-sm text-red-500 flex items-center">
-                              <FiAlertCircle className="mr-1" /> {errors.startingPlace}
-                            </p>
-                          )}
-                        </div>
+              {/* Row 2: Start Time | Return Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+                <div className="relative">
+                  <FiClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="time"
+                    name="time"
+                    value={formData.time}
+                    onChange={handleChange}
+                    disabled={isFormDisabled}
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
-                          <input
-                            type="text"
-                            name="endingPlace"
-                            value={formData.endingPlace}
-                            onChange={handleChange}
-                            disabled={isFormDisabled}
-                            className={`w-full px-4 py-3 rounded-lg border ${
-                              errors.endingPlace ? 'border-red-500' : 'border-gray-300'
-                            } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                            placeholder="Enter destination"
-                            maxLength={100}
-                          />
-                          {errors.endingPlace && (
-                            <p className="mt-1 text-sm text-red-500 flex items-center">
-                              <FiAlertCircle className="mr-1" /> {errors.endingPlace}
-                            </p>
-                          )}   
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
-                          <div className="space-y-3">
-                            {formData.travelers.map((traveler, index) => (
-                              <div key={index} className="flex items-center gap-3">
-                                <input
-                                  type="text"
-                                  value={traveler}
-                                  onChange={(e) => handleTravelerChange(index, e.target.value)}
-                                  disabled={isFormDisabled}
-                                  className={`flex-1 px-4 py-3 rounded-lg border ${
-                                    errors[`traveler-${index}`] ? 'border-red-500' : 'border-gray-300'
-                                  } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
-                                  placeholder={`Traveler ${index + 1} name`}
-                                  maxLength={50}
-                                />
-                                {formData.travelers.length > 1 && !isFormDisabled && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeTraveler(index)}
-                                    className="p-3 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 transition-colors"
-                                  >
-                                    <FiMinus />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                            {!isFormDisabled && (
-                              <button
-                                type="button"
-                                onClick={addTraveler}
-                                className="mt-2 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
-                              >
-                                <FiPlus className="mr-1" /> Add another traveler
-                              </button>
-                            )}
-                          </div>
-                          {formData.travelers.map((_, index) => (
-                            errors[`traveler-${index}`] && (
-                              <p key={`error-${index}`} className="mt-1 text-sm text-red-500 flex items-center">
-                                <FiAlertCircle className="mr-1" /> {errors[`traveler-${index}`]}
-                              </p>
-                            )
-                          ))}
-                        </div>
-                      </div>
-                                            
-                      {actorType === 'manager' && selectedRequest?.status === 'PENDING' && (
-                      <div className="mt-6">
-                        <motion.button
-                        type="button"
-                        onClick={handleGoToServiceForm}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="inline-flex items-center px-4 py-2 rounded-md bg-[#3c8dbc] hover:bg-[#367fa9] text-white font-medium transition-all"
-                      >
-                        Continue
-                        <FiArrowRight className="mr-2" />
-                        
-                      </motion.button>
-                      </div>
-                    )}
-                    </form>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <FiClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="time"
+                      name="returnTime"
+                      value={formData.returnTime}
+                      onChange={handleChange}
+                      disabled={isFormDisabled}
+                      className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
-                </motion.div>
+                </div>
+                {errors.returnDate && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.returnDate}
+                  </p>
+                )}
+              </div>
+
+              {/* Row 3: Starting Place | Ending Place */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Starting Place *</label>
+                <input
+                  type="text"
+                  name="startingPlace"
+                  value={formData.startingPlace}
+                  onChange={handleChange}
+                  disabled={isFormDisabled}
+                  className={`w-full px-4 py-3 rounded-lg border ${
+                    errors.startingPlace ? 'border-red-500' : 'border-gray-300'
+                  } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Enter starting location"
+                  maxLength={100}
+                />
+                {errors.startingPlace && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.startingPlace}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Destination Place *</label>
+                <input
+                  type="text"
+                  name="endingPlace"
+                  value={formData.endingPlace}
+                  onChange={handleChange}
+                  disabled={isFormDisabled}
+                  className={`w-full px-4 py-3 rounded-lg border ${
+                    errors.endingPlace ? 'border-red-500' : 'border-gray-300'
+                  } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                  placeholder="Enter destination"
+                  maxLength={100}
+                />
+                {errors.endingPlace && (
+                  <p className="mt-1 text-sm text-red-500 flex items-center">
+                    <FiAlertCircle className="mr-1" /> {errors.endingPlace}
+                  </p>
+                )}
+              </div>
+
+              {/* Row 4: Travelers Full Width */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Travelers *</label>
+                <div className="space-y-3">
+                  {formData.travelers.map((traveler, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={traveler}
+                        onChange={(e) => handleTravelerChange(index, e.target.value)}
+                        disabled={isFormDisabled}
+                        className={`flex-1 px-4 py-3 rounded-lg border ${
+                          errors[`traveler-${index}`] ? 'border-red-500' : 'border-gray-300'
+                        } ${isFormDisabled ? 'bg-gray-50' : ''} focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800`}
+                        placeholder={`Traveler ${index + 1} name`}
+                        maxLength={50}
+                      />
+                      {formData.travelers.length > 1 && !isFormDisabled && (
+                        <button
+                          type="button"
+                          onClick={() => removeTraveler(index)}
+                          className="p-3 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          <FiMinus />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!isFormDisabled && (
+                    <button
+                      type="button"
+                      onClick={addTraveler}
+                      className="mt-2 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                    >
+                      <FiPlus className="mr-1" /> Add another traveler
+                    </button>
+                  )}
+                </div>
+                {formData.travelers.map((_, index) => (
+                  errors[`traveler-${index}`] && (
+                    <p key={`error-${index}`} className="mt-1 text-sm text-red-500 flex items-center">
+                      <FiAlertCircle className="mr-1" /> {errors[`traveler-${index}`]}
+                    </p>
+                  )
+                ))}
+              </div>
+            </div>
+
+            {actorType === 'manager' && selectedRequest?.status === 'PENDING' && (
+              <div className="mt-6">
+                <motion.button
+                  type="button"
+                  onClick={handleGoToServiceForm}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="inline-flex items-center px-4 py-2 rounded-md bg-[#3c8dbc] hover:bg-[#367fa9] text-white font-medium transition-all"
+                >
+                  Continue
+                  <FiArrowRight className="mr-2" />
+                </motion.button>
               </div>
             )}
-          </AnimatePresence>
+          </form>
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
+
 
           <AnimatePresence>
             {showServiceModal && (
@@ -1400,6 +1566,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
                           <div className="relative">
                             <FiSearch className="absolute left-3 top-3 text-gray-400" />
                             <input
+                              id="plate-search"
                               type="text"
                               value={plateSearchQuery}
                               readOnly={!!formData.plateNumber}
@@ -1420,7 +1587,6 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
                                     plateNumber: '',
                                     driverName: '',
                                     carType: '',
-                                    vehicleType: '',
                                   }));
                                 }}
                                 className="absolute right-3 top-3 p-1 text-gray-500 hover:text-gray-700"
@@ -1435,20 +1601,14 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
                                   filteredVehicles.map((vehicle) => (
                                     <div
                                       key={vehicle.plate}
-                                      onClick={() => {
-                                        setFormData(prev => ({
-                                          ...prev,
-                                          plateNumber: vehicle.plate,
-                                          driverName: vehicle.driver,
-                                          carType: vehicle.carType
-                                        }));
-                                        setVehicleType(vehicle.type);
-                                        setPlateSearchQuery(vehicle.plate);
-                                      }}
+                                      onClick={() => handlePlateSelect(vehicle)}
                                       className="p-3 hover:bg-gray-100 cursor-pointer transition-colors flex justify-between items-center"
                                     >
-                                      <span className="font-mono">{vehicle.plate}</span>
-                                      <span className="text-sm text-gray-600">{vehicle.driver}</span>
+                                      <div>
+                                        <span className="font-mono">{vehicle.plate}</span>
+                                        <span className="block text-sm text-gray-600">{vehicle.driver}</span>
+                                      </div>
+                                      
                                     </div>
                                   ))
                                 ) : (
@@ -1469,6 +1629,7 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
                             Car Type *
                           </label>
                           <input
+                          required
                             type="text"
                             name="carType"
                             value={formData.carType}
@@ -1481,20 +1642,42 @@ export default function DailyServiceRequestForm({ requestId, onSuccess, actorTyp
                           )}
                         </div>
 
-                        <div className="col-span-2">
+                        <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Driver Name *
                           </label>
                           <input
+                          required
                             type="text"
                             name="driverName"
-                            onChange={handleChange}
-                            placeholder="Auto-filled from plate selection"
                             value={formData.driverName}
+                            readOnly
                             className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                            placeholder="Auto-filled from plate selection"
                           />
                           {errors.driverName && (
                             <p className="mt-1 text-sm text-red-500">{errors.driverName}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Estimated Kilometers *
+                          </label>
+                          <input
+                            required
+                            type="number"
+                            name="estimatedKilometers"
+                            value={formData.estimatedKilometers}
+                            onChange={handleChange}
+                            className={`w-full px-4 py-2 rounded-lg border ${
+                              errors.estimatedKilometers ? 'border-red-500' : 'border-gray-300'
+                            } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                            placeholder="Enter estimeted km"
+                            min="0"
+                          />
+                          {errors.estimatedKilometers && (
+                            <p className="mt-1 text-sm text-red-500">{errors.estimitedKilometers}</p>
                           )}
                         </div>
                       </div>

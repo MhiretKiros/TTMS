@@ -20,8 +20,16 @@ export interface MaintenanceRequest {
   physicalContent?: string[];
   notes?: string[];
   signatures?: Signature[];
+  
   createdAt?: string;
   updatedAt?: string;
+  fuelAmount?: string;
+
+  returnSignatures?: Signature[];
+  returnFiles?: string[];
+  returnFuelAmount?: string;
+  returnNotes?: string;
+  returnKilometerReading?: number;
 }
 
 export interface Signature {

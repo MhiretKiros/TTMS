@@ -6,7 +6,7 @@ import { FiCheckCircle, FiAlertCircle, FiTool } from 'react-icons/fi';
 
 interface RequestsTableProps {
   requests: MaintenanceRequest[];
-  actorType: 'driver' | 'distributor' | 'maintenance';
+  actorType: 'driver' | 'distributor' | 'maintenance'| 'inspector';
   onRowClick: (request: MaintenanceRequest) => void;
 }
 

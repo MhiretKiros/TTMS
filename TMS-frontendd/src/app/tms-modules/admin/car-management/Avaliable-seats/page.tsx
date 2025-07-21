@@ -418,13 +418,17 @@ export default function CarSeatCounterPage() {
             </div>
             <div className="p-4">
               <EmployeeAssignment 
-                selectedCarId={selectedCarForAssignment || ''}
-                onAssignmentSuccess={() => {
-                  setShowAssignmentModal(false);
-                  setSelectedCarForAssignment(null);
-                  fetchAllCars();
-                }}
-                singleCarMode
+              selectedCarId={
+               selectedCarForAssignment != null
+               ? String(selectedCarForAssignment)
+              : undefined
+             }
+             onAssignmentSuccess={() => {
+               setShowAssignmentModal(false);
+               setSelectedCarForAssignment(null);
+             fetchAllCars();
+             }}
+             singleCarMode
               />
             </div>
             <div className="flex justify-end p-4 border-t">

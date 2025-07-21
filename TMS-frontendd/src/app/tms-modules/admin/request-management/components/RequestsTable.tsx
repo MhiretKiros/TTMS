@@ -6,11 +6,17 @@ import { TravelRequest } from '../api/handlers';
 
 interface RequestsTableProps {
   requests: TravelRequest[];
-  actorType: 'user' | 'manager' | 'corporator' | 'driver';
+  actorType: 'user' | 'manager' | 'corporator' | 'driver' | 'distributor' | 'nezek';
   onRowClick: (request: TravelRequest) => void;
   onStatusChange?: (id: number, status: 'APPROVED' | 'REJECTED') => Promise<void>;
   onCompleteTrip?: (id: number) => Promise<void>;
   driverSearchQuery?: string;
+}
+
+interface Traveler {
+  id: number;
+  name: string;
+  // Add other traveler properties as needed
 }
 
 export default function RequestsTable({ 
@@ -31,7 +37,7 @@ export default function RequestsTable({
   };
 
   const handleStatusSubmit = async () => {
-    if (selectedRequest && onStatusChange) {
+    if (selectedRequest && onStatusChange && selectedRequest.id !== undefined) {
       setIsUpdating(true);
       try {
         await onStatusChange(selectedRequest.id, status);
@@ -43,7 +49,7 @@ export default function RequestsTable({
   };
 
   const handleCompleteTrip = async () => {
-    if (selectedRequest && onCompleteTrip) {
+    if (selectedRequest && onCompleteTrip && selectedRequest.id !== undefined) {
       setIsUpdating(true);
       try {
         await onCompleteTrip(selectedRequest.id);
@@ -90,6 +96,11 @@ export default function RequestsTable({
   const rowVariants = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 },
+  };
+
+  // Helper function to get traveler name
+  const getTravelerName = (traveler: Traveler | string): string => {
+    return typeof traveler === 'string' ? traveler : traveler.name;
   };
 
   return (
@@ -147,7 +158,7 @@ export default function RequestsTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.startingPlace}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.destinationPlace}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {request.travelers.slice(0, 2).map(t => typeof t === 'object' ? t.name : t).join(', ')}
+                    {request.travelers.slice(0, 2).map(t => getTravelerName(t as Traveler | string)).join(', ')}
                     {request.travelers.length > 2 && ` +${request.travelers.length - 2}`}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import axios, { AxiosError } from 'axios';
 import { FaUser, FaSignOutAlt, FaSignInAlt, FaUserPlus, FaTimes, FaEnvelope, FaLock, FaUserTag, FaUserShield, FaIdCard, FaSpinner } from 'react-icons/fa';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import Swal from 'sweetalert2';
 
 export interface User {
@@ -117,8 +117,8 @@ export default function Navbar() {
           router.push('/tms-modules/admin');
           router.refresh();
            await Swal.fire({
-              title: 'OTP Sent!',
-              text: 'You logedin successfuly!',
+              title: 'success!',
+              text: 'You have logedin successfuly!',
               icon: 'success',
               confirmButtonColor: '#3d7aed'
             });
@@ -275,7 +275,8 @@ export default function Navbar() {
     }
   };
 
-  const modalVariants = {
+  // Properly typed variants
+  const modalVariants: Variants = {
     hidden: { opacity: 0, y: -50, scale: 0.95 },
     visible: { 
       opacity: 1, 
@@ -298,12 +299,12 @@ export default function Navbar() {
     }
   };
 
-  const backdropVariants = {
+  const backdropVariants: Variants = {
     hidden: { opacity: 0 },
     visible: { opacity: 0.5 }
   };
 
-  const navItemVariants = {
+  const navItemVariants: Variants = {
     hidden: { opacity: 0, y: -10 },
     visible: (i: number) => ({
       opacity: 1,
@@ -317,7 +318,7 @@ export default function Navbar() {
     hover: { scale: 1.05 }
   };
 
-  const inputFieldVariants = {
+  const inputFieldVariants: Variants = {
     hidden: { opacity: 0, x: -20 },
     visible: (i: number) => ({
       opacity: 1,
@@ -331,173 +332,172 @@ export default function Navbar() {
 
   return (
     <>
-  <nav className="bg-white shadow-md fixed top-0 left-0 w-full z-50 border-b">
-  <div className="w-full px-4 sm:px-6 lg:px-8">
-    <div className="flex items-center justify-between h-20 relative">
-      {/* LOGO at far left */}
-      <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-          className="flex items-center space-x-3"
-        >
-          <Image
-            src="/images/insaprofile.png"
-            alt="TMS Logo"
-            width={80}
-            height={80}
-            className="rounded-full border-2 border-white shadow-lg"
-          />
-          <span className="text-2xl font-bold text-gray-800 hidden sm:inline-block">
-            Transport Management System
-          </span>
-        </motion.div>
-      </div>
+      <nav className="bg-white shadow-md fixed top-0 left-0 w-full z-50 border-b">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20 relative">
+            {/* LOGO at far left */}
+            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                className="flex items-center space-x-3"
+              >
+                <Image
+                  src="/images/insaprofile.png"
+                  alt="TMS Logo"
+                  width={80}
+                  height={80}
+                  className="rounded-full border-2 border-white shadow-lg"
+                />
+                <span className="text-2xl font-bold text-gray-800 hidden sm:inline-block">
+                  Transport Management System
+                </span>
+              </motion.div>
+            </div>
 
-      {/* Spacer to offset logo space */}
-      <div className="flex-1"></div>
+            {/* Spacer to offset logo space */}
+            <div className="flex-1"></div>
 
-      {/* Desktop Navigation - right aligned */}
-      <div className="hidden md:flex items-center space-x-6">
-        {[{ label: 'Home', href: '/tms-modules' },
-          { label: 'Service', href: '/tms-modules/services' },
-          ...(user ? [{ label: 'Dashboard', href: '/dashboard' }] : []),
-          ...(user?.role === 'ADMIN' ? [{ label: 'Admin Panel', href: '/tms-modules/admin' }] : []),
-          { label: 'About', href: '/tms-modules/about' },
-        ].map((item, i) => (
-          <motion.div
-            key={item.href}
-            custom={i}
-            variants={navItemVariants}
-            initial="hidden"
-            animate="visible"
-            whileHover="hover"
-          >
-            <Link
-              href={item.href}
-              className="text-lg text-gray-700 font-semibold px-4 py-2 hover:text-blue-600 transition-all"
-            >
-              {item.label}
-            </Link>
-          </motion.div>
-        ))}
-
-        {user ? (
-          <motion.div className="relative group" custom={5} variants={navItemVariants} initial="hidden" animate="visible">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              className="flex items-center text-lg text-gray-700 space-x-2 px-4 py-2 rounded-md"
-            >
-              <span>{user.name || user.email}</span>
-              <div className="w-8 h-8 bg-gray-100 border rounded-full flex items-center justify-center">
-                <FaUser className="text-gray-600" />
-              </div>
-            </motion.button>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 hidden group-hover:block z-50"
-            >
-              <div className="py-1">
-                <Link href="/dashboard/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</Link>
-                <button
-                  onClick={handleLogout}
-                  disabled={loading.logout}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+            {/* Desktop Navigation - right aligned */}
+            <div className="hidden md:flex items-center space-x-6">
+              {[{ label: 'Home', href: '/tms-modules' },
+                { label: 'Service', href: '/tms-modules/services' },
+                ...(user ? [{ label: 'Dashboard', href: '/tms-modules/admin' }] : []),
+                ...(user?.role === 'ADMIN' ? [{ label: 'Admin Panel', href: '/tms-modules/admin' }] : []),
+                { label: 'About', href: '/tms-modules/about' },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.href}
+                  custom={i}
+                  variants={navItemVariants}
+                  initial="hidden"
+                  animate="visible"
+                  whileHover="hover"
                 >
-                  {loading.logout ? <FaSpinner className="animate-spin mr-2" /> : <FaSignOutAlt className="mr-2" />}
-                  {loading.logout ? 'Logging out...' : 'Logout'}
-                </button>
+                  <Link
+                    href={item.href}
+                    className="text-lg text-gray-700 font-semibold px-4 py-2 hover:text-blue-600 transition-all"
+                  >
+                    {item.label}
+                  </Link>
+                </motion.div>
+              ))}
+
+              {user ? (
+                <motion.div className="relative group" custom={5} variants={navItemVariants} initial="hidden" animate="visible">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    className="flex items-center text-lg text-gray-700 space-x-2 px-4 py-2 rounded-md"
+                  >
+                    <span>{user.name || user.email}</span>
+                    <div className="w-8 h-8 bg-gray-100 border rounded-full flex items-center justify-center">
+                      <FaUser className="text-gray-600" />
+                    </div>
+                  </motion.button>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 hidden group-hover:block z-50"
+                  >
+                    <div className="py-1">
+                      <Link href="/dashboard/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</Link>
+                      <button
+                        onClick={handleLogout}
+                        disabled={loading.logout}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                      >
+                        {loading.logout ? <FaSpinner className="animate-spin mr-2" /> : <FaSignOutAlt className="mr-2" />}
+                        {loading.logout ? 'Logging out...' : 'Logout'}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ) : (
+                <motion.button
+                  onClick={() => setLoginOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-4 py-2 rounded-md shadow-md flex items-center"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <FaSignInAlt className="mr-2" /> Login
+                </motion.button>
+              )}
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center absolute right-4 top-1/2 transform -translate-y-1/2">
+              <motion.button
+                onClick={() => setIsOpen(!isOpen)}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 text-gray-700 hover:text-blue-600 hover:bg-gray-100 rounded-md focus:outline-none"
+              >
+                {isOpen ? (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+              </motion.button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="md:hidden bg-white shadow-lg"
+            >
+              <div className="px-4 pt-2 pb-4 space-y-2">
+                {[{ label: 'Home', href: '/tms-modules' },
+                  { label: 'Service', href: '/tms-modules/service' },
+                  ...(user ? [{ label: 'Dashboard', href: '/tms-modules/admin' }] : []),
+                  ...(user?.role === 'ADMIN' ? [{ label: 'Admin Panel', href: '/tms-modules/admin' }] : []),
+                  { label: 'About', href: '/tms-modules/about' },
+                ].map((item) => (
+                  <motion.div key={item.href} variants={navItemVariants} initial="hidden" animate="visible" whileHover="hover">
+                    <Link
+                      href={item.href}
+                      className="block px-4 py-2 text-lg text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-600"
+                    >
+                      {item.label}
+                    </Link>
+                  </motion.div>
+                ))}
+
+                {user ? (
+                  <>
+                    <Link href="/tms-modules/admin" className="block px-4 py-2 text-lg text-gray-700 hover:bg-gray-100">Profile</Link>
+                    <button
+                      onClick={handleLogout}
+                      disabled={loading.logout}
+                      className="w-full text-left px-4 py-2 text-lg text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      {loading.logout ? <FaSpinner className="animate-spin mr-2" /> : <FaSignOutAlt className="mr-2" />}
+                      {loading.logout ? 'Logging out...' : 'Logout'}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setLoginOpen(true)}
+                    className="w-full text-left px-4 py-2 text-lg text-gray-700 hover:bg-gray-100"
+                  >
+                    Login
+                  </button>
+                )}
               </div>
             </motion.div>
-          </motion.div>
-        ) : (
-          <motion.button
-            onClick={() => setLoginOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-4 py-2 rounded-md shadow-md flex items-center"
-            whileHover={{ scale: 1.05 }}
-          >
-            <FaSignInAlt className="mr-2" /> Login
-          </motion.button>
-        )}
-      </div>
-
-      {/* Mobile Menu Button */}
-      <div className="md:hidden flex items-center absolute right-4 top-1/2 transform -translate-y-1/2">
-        <motion.button
-          onClick={() => setIsOpen(!isOpen)}
-          whileTap={{ scale: 0.9 }}
-          className="p-2 text-gray-700 hover:text-blue-600 hover:bg-gray-100 rounded-md focus:outline-none"
-        >
-          {isOpen ? (
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
           )}
-        </motion.button>
-      </div>
-    </div>
-  </div>
-
-  {/* Mobile Menu remains unchanged */}
-  <AnimatePresence>
-    {isOpen && (
-      <motion.div
-        initial={{ height: 0, opacity: 0 }}
-        animate={{ height: 'auto', opacity: 1 }}
-        exit={{ height: 0, opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="md:hidden bg-white shadow-lg"
-      >
-        <div className="px-4 pt-2 pb-4 space-y-2">
-          {[{ label: 'Home', href: '/tms-modules' },
-            { label: 'Service', href: '/tms-modules/service' },
-            ...(user ? [{ label: 'Dashboard', href: '/dashboard' }] : []),
-            ...(user?.role === 'ADMIN' ? [{ label: 'Admin Panel', href: '/tms-modules/admin' }] : []),
-            { label: 'About', href: '/tms-modules/about' },
-          ].map((item) => (
-            <motion.div key={item.href} variants={navItemVariants} initial="hidden" animate="visible" whileHover="hover">
-              <Link
-                href={item.href}
-                className="block px-4 py-2 text-lg text-gray-700 rounded-md hover:bg-gray-100 hover:text-blue-600"
-              >
-                {item.label}
-              </Link>
-            </motion.div>
-          ))}
-
-          {user ? (
-            <>
-              <Link href="/dashboard/profile" className="block px-4 py-2 text-lg text-gray-700 hover:bg-gray-100">Profile</Link>
-              <button
-                onClick={handleLogout}
-                disabled={loading.logout}
-                className="w-full text-left px-4 py-2 text-lg text-gray-700 hover:bg-gray-100 flex items-center"
-              >
-                {loading.logout ? <FaSpinner className="animate-spin mr-2" /> : <FaSignOutAlt className="mr-2" />}
-                {loading.logout ? 'Logging out...' : 'Logout'}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setLoginOpen(true)}
-              className="w-full text-left px-4 py-2 text-lg text-gray-700 hover:bg-gray-100"
-            >
-              Login
-            </button>
-          )}
-        </div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-</nav>
-
+        </AnimatePresence>
+      </nav>
 
       <AnimatePresence>
         {loginOpen && (

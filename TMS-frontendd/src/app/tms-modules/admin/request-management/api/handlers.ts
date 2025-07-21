@@ -23,6 +23,7 @@ export interface TravelRequest {
   serviceProviderName?: string;
   assignedCarType?: string;
   assignedDriver?: string;
+  driverPhone?: string;
   vehicleDetails?: string;
   startingKilometers?: number;
   endingKilometers?: number;
@@ -33,8 +34,9 @@ export interface TravelRequest {
   accountNumber?:string;
   authorizerName?:string;
   assemblerName?:string;
-  actualStartingDate: Date;
-  actualReturnDate: Date;
+  actualStartingDate: string;
+  actualReturnDate: string;
+  paymentType?: string;
 }
 
 // Helper function to parse dates in API responses
@@ -56,7 +58,7 @@ const parseDates = (obj: any): any => {
 };
 
 export const TravelApi = {
-  async getRequests(actorType: 'user' | 'manager' | 'corporator'): Promise<TravelRequest[]> {
+  async getRequests(actorType: 'user' | 'manager' | 'corporator'|'distributor' | 'driver'| 'nezek'): Promise<TravelRequest[]> {
     try {
       const endpoint = actorType === 'user' ? '/user' : 
                       actorType === 'manager' ? '/manager' : '/corporator';
@@ -144,6 +146,7 @@ async updateServiceProviderInfo(data: {
   assignedCarType: string;
   assignedDriver: string;
   vehicleDetails: string;
+  driverPhone: string;
 }): Promise<TravelRequest> {
   try {
     console.log('Making API call to:', `${API_BASE_URL}/${data.id}/service-info`);
@@ -156,6 +159,7 @@ async updateServiceProviderInfo(data: {
         assignedCarType: data.assignedCarType,
         assignedDriver: data.assignedDriver,
         vehicleDetails: data.vehicleDetails,
+        driverPhone: data.driverPhone,
         status: 'ASSIGNED' // Ensure status is updated
       },
       {
@@ -312,7 +316,6 @@ async completeTrip(data: {
     cargoType?: string;
     cargoWeight?: number | string;
     numberOfPassengers?: number | string;
-    status: 'FINISHED';
   }): Promise<TravelRequest> {
     try {
       if (!data.id) throw new Error('Request ID is required');
@@ -330,7 +333,7 @@ async completeTrip(data: {
         cargoType: data.cargoType,
         cargoWeight: data.cargoWeight ? Number(data.cargoWeight) : undefined,
         numberOfPassengers: data.numberOfPassengers ? Number(data.numberOfPassengers) : undefined,
-        status: data.status
+        status: 'FINISHED'
       };
   
       // Debug log

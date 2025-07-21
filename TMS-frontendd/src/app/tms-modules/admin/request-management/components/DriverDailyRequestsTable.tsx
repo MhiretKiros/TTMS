@@ -6,18 +6,18 @@ import { DailyServiceRequest } from '../api/dailyServiceHandlers';
 
 interface DriverDailyRequestsTableProps {
   requests: DailyServiceRequest[];
-  actorType: 'manager' | 'driver';
+  actorType: 'manager' | 'driver' | 'corporator';
   onRowClick: (request: DailyServiceRequest) => void;
   onCompleteTrip?: (id: number) => Promise<void>;
-  driverSearchQuery?: string; // Add this line
+  driverSearchQuery?: string;
 }
 
-export default function DriverDailyRequestsTable({ 
-  requests, 
-  actorType, 
-  onRowClick, 
+export default function DriverDailyRequestsTable({
+  requests,
+  actorType,
+  onRowClick,
   onCompleteTrip,
-  driverSearchQuery = '' // Add default value
+  driverSearchQuery = '',
 }: DriverDailyRequestsTableProps) {
   const [selectedRequest, setSelectedRequest] = useState<DailyServiceRequest | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -28,7 +28,7 @@ export default function DriverDailyRequestsTable({
   };
 
   const handleCompleteTrip = async () => {
-    if (selectedRequest && onCompleteTrip) {
+    if (selectedRequest && typeof selectedRequest.id === 'number' && onCompleteTrip) {
       setIsUpdating(true);
       try {
         await onCompleteTrip(selectedRequest.id);
@@ -39,19 +39,19 @@ export default function DriverDailyRequestsTable({
     }
   };
 
-  // Filter requests based on actor type
-  const filteredRequests = actorType === 'manager' 
-    ? requests.filter(req => req.status === 'PENDING')
-    : actorType === 'driver'
-    ? requests.filter(req => req.status === 'ASSIGNED')
-    : requests;
+  const filteredRequests =
+    actorType === 'manager'
+      ? requests.filter((req) => req.status === 'PENDING')
+      : actorType === 'driver'
+      ? requests.filter((req) => req.status === 'ASSIGNED')
+      : requests;
 
   const showRejectedAlert = (request: DailyServiceRequest) => {
     Swal.fire({
       title: 'Request Rejected',
       text: `Request from ${request.claimantName} has been rejected and cannot be processed.`,
       icon: 'info',
-      confirmButtonText: 'OK'
+      confirmButtonText: 'OK',
     });
   };
 
@@ -75,7 +75,7 @@ export default function DriverDailyRequestsTable({
       <h3 className="text-lg font-medium text-gray-700 mb-4">
         {actorType === 'manager' ? 'Pending Service Requests' : 'My Completed Trips'}
       </h3>
-      
+
       <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 rounded-lg">
         <motion.table
           className="min-w-full divide-y divide-gray-300"
@@ -85,23 +85,31 @@ export default function DriverDailyRequestsTable({
         >
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Travelers</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Travelers</th>
               {actorType === 'manager' && (
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requester</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Requester
+                </th>
               )}
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              {actorType === 'driver' && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KM</th>
+              )}
             </tr>
           </thead>
-          
+
           <tbody className="divide-y divide-gray-200">
             {filteredRequests.map((request) => (
-              <motion.tr 
-                key={request.id} 
+              <motion.tr
+                key={request.id}
                 variants={rowVariants}
-                whileHover={{ scale: 1.01, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                whileHover={{
+                  scale: 1.01,
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                }}
                 className="hover:bg-gray-50 cursor-pointer"
                 onClick={() => handleRowClick(request)}
               >
@@ -113,21 +121,24 @@ export default function DriverDailyRequestsTable({
                   {request.travelers.length > 2 && ` +${request.travelers.length - 2}`}
                 </td>
                 {actorType === 'manager' && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {request.claimantName}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.claimantName}</td>
                 )}
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${request.status === 'ASSIGNED' ? 'bg-blue-100 text-blue-800' :
-                     request.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                     'bg-yellow-100 text-yellow-800'}`}>
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      request.status === 'ASSIGNED'
+                        ? 'bg-blue-100 text-blue-800'
+                        : request.status === 'COMPLETED'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
                     {request.status}
                   </span>
                 </td>
                 {actorType === 'driver' && (
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {request.kmDifference || '-'} km
+                    {request.kmDifference ?? '-'} km
                   </td>
                 )}
               </motion.tr>

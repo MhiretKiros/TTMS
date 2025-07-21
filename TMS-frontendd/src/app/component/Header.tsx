@@ -7,7 +7,7 @@ import {
   FiHelpCircle, FiLogOut, FiUser, 
   FiLock, FiX, FiCheck
 } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import Link from 'next/link';
@@ -54,26 +54,28 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   } = useNotification();
   
   const [currentUser, setCurrentUser] = useState<User>(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        return {
-          name: parsedUser.name || "Guest",
-          email: parsedUser.email || "guest@example.com",
-          myUsername: parsedUser.myUsername || "guest",
-          role: parsedUser.role || "Unknown",
-          avatar: parsedUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsedUser.name || parsedUser.email.split('@')[0])}&background=3c8dbc&color=fff`
-        };
-      } catch (err) {
-        console.error('Failed to parse user data', err);
-        return {
-          name: "Guest",
-          email: "guest@example.com",
-          myUsername: "guest",
-          role: "Unknown",
-          avatar: "https://ui-avatars.com/api/?name=Guest&background=3c8dbc&color=fff"
-        };
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          return {
+            name: parsedUser.name || "Guest",
+            email: parsedUser.email || "guest@example.com",
+            myUsername: parsedUser.myUsername || "guest",
+            role: parsedUser.role || "Unknown",
+            avatar: parsedUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsedUser.name || parsedUser.email.split('@')[0])}&background=3c8dbc&color=fff`
+          };
+        } catch (err) {
+          console.error('Failed to parse user data', err);
+          return {
+            name: "Guest",
+            email: "guest@example.com",
+            myUsername: "guest",
+            role: "Unknown",
+            avatar: "https://ui-avatars.com/api/?name=Guest&background=3c8dbc&color=fff"
+          };
+        }
       }
     }
     return {
@@ -107,33 +109,28 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   }, []);
 
   // Auto-show notifications on page load and when new notifications arrive
-// Auto-show notifications on page load and when new notifications arrive
-useEffect(() => {
-  let timer: NodeJS.Timeout;
-  let hideTimer: NodeJS.Timeout;
-  let hideSequenceTimer: NodeJS.Timeout;
-  
-  if (unreadNotifications.length > 0) {
-    // Play notification sound
-    if (notificationSoundRef.current) {
-      notificationSoundRef.current.currentTime = 0;
-      notificationSoundRef.current.play().catch(e => console.log("Audio play failed:", e));
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (unreadNotifications.length > 0) {
+      // Play notification sound
+      if (notificationSoundRef.current) {
+        notificationSoundRef.current.currentTime = 0;
+        notificationSoundRef.current.play().catch(e => console.log("Audio play failed:", e));
+      }
+      
+      setAutoShowNotifications(true);
+      
+      // Hide all after 15 seconds
+      timer = setTimeout(() => {
+        setAutoShowNotifications(false);
+      }, 15000);
     }
-    
-    setAutoShowNotifications(true);
-    
-    // Hide all after 5 seconds
-    timer = setTimeout(() => {
-      setAutoShowNotifications(false);
-    }, 15000);
-  }
 
-  return () => {
-    if (timer) clearTimeout(timer);
-    if (hideTimer) clearTimeout(hideTimer);
-    if (hideSequenceTimer) clearTimeout(hideSequenceTimer);
-  };
-}, [unreadNotifications.length]);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [unreadNotifications.length]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -195,7 +192,7 @@ useEffect(() => {
         setIsChangePasswordModalOpen(false);
         setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
       }
-    } catch (error) {
+    } catch (error: any) {
       await Swal.fire({
         title: 'Error',
         text: error.response?.data?.message || 'Failed to change password',
@@ -215,7 +212,7 @@ useEffect(() => {
   };
 
   // Animation Variants
-  const modalVariants = {
+  const modalVariants: Variants = {
     hidden: { opacity: 0, y: -20, scale: 0.98 },
     visible: { 
       opacity: 1, 
@@ -239,7 +236,7 @@ useEffect(() => {
     }
   };
 
-  const backdropVariants = {
+  const backdropVariants: Variants = {
     hidden: { opacity: 0 },
     visible: { 
       opacity: 0.5,
@@ -251,7 +248,7 @@ useEffect(() => {
     }
   };
 
-  const dropdownVariants = {
+  const dropdownVariants: Variants = {
     hidden: { opacity: 0, y: -10, scale: 0.98 },
     visible: { 
       opacity: 1, 
@@ -275,7 +272,7 @@ useEffect(() => {
     }
   };
 
-  const notificationItemVariants = {
+  const notificationItemVariants: Variants = {
     hidden: { opacity: 0, y: 10 },
     visible: (i: number) => ({
       opacity: 1,
@@ -297,7 +294,7 @@ useEffect(() => {
     })
   };
 
-  const notificationCardVariants = {
+  const notificationCardVariants: Variants = {
     hover: {
       scale: 1.02,
       transition: { duration: 0.2 }
@@ -369,71 +366,71 @@ useEffect(() => {
             )}
           </button>
 
-{/* Auto-show notifications */}
-<AnimatePresence>
-  {autoShowNotifications && !isNotificationsOpen && (
-    <div className="absolute right-0 mt-2 z-50 w-80">
-      {/* Hide All button - styled like notification cards */}
-      <motion.div
-        className="w-full mb-2"
-        initial={{ opacity: 0, y: -5 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -5 }}
-      >
-        <motion.button
-          onClick={handleHideAllNotifications}
-          className="w-full px-4 py-3 bg-white rounded-lg shadow-md border border-gray-200 hover:bg-gray-50 cursor-pointer"
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <div className="flex justify-center items-center">
-            <span className="text-sm font-medium text-gray-900">Hide All</span>
-          </div>
-        </motion.button>
-      </motion.div>
-
-      {/* Separated notification items (unchanged) */}
-      <div className="space-y-2">
-        <AnimatePresence>
-          {unreadNotifications.map((notification, index) => (
-            <motion.div
-              key={notification.id}
-              custom={index}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              variants={notificationItemVariants}
-              whileHover="hover"
-              whileTap="tap"
-              className="w-full"
-            >
-              <motion.div 
-                className="px-4 py-3 hover:bg-gray-50 cursor-pointer bg-white rounded-lg shadow-md border border-gray-200 w-full"
-                variants={notificationCardVariants}
-              >
-                <div className="flex justify-between items-start">
-                  <Link 
-                    href={notification.link}
-                    onClick={async () => {
-                      await markAsRead(notification.id);
-                      setAutoShowNotifications(false);
-                    }}
-                    className="text-sm font-medium text-gray-900 hover:text-blue-600 flex-1"
+          {/* Auto-show notifications */}
+          <AnimatePresence>
+            {autoShowNotifications && !isNotificationsOpen && (
+              <div className="absolute right-0 mt-2 z-50 w-80">
+                {/* Hide All button - styled like notification cards */}
+                <motion.div
+                  className="w-full mb-2"
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                >
+                  <motion.button
+                    onClick={handleHideAllNotifications}
+                    className="w-full px-4 py-3 bg-white rounded-lg shadow-md border border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
-                    {notification.message}
-                  </Link>
+                    <div className="flex justify-center items-center">
+                      <span className="text-sm font-medium text-gray-900">Hide All</span>
+                    </div>
+                  </motion.button>
+                </motion.div>
+
+                {/* Separated notification items (unchanged) */}
+                <div className="space-y-2">
+                  <AnimatePresence>
+                    {unreadNotifications.map((notification, index) => (
+                      <motion.div
+                        key={notification.id}
+                        custom={index}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        variants={notificationItemVariants}
+                        whileHover="hover"
+                        whileTap="tap"
+                        className="w-full"
+                      >
+                        <motion.div 
+                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer bg-white rounded-lg shadow-md border border-gray-200 w-full"
+                          variants={notificationCardVariants}
+                        >
+                          <div className="flex justify-between items-start">
+                            <Link 
+                              href={notification.link}
+                              onClick={async () => {
+                                await markAsRead(notification.id);
+                                setAutoShowNotifications(false);
+                              }}
+                              className="text-sm font-medium text-gray-900 hover:text-blue-600 flex-1"
+                            >
+                              {notification.message}
+                            </Link>
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            {new Date(notification.createdAt).toLocaleString()}
+                          </div>
+                        </motion.div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  {new Date(notification.createdAt).toLocaleString()}
-                </div>
-              </motion.div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-    </div>
-  )}
-</AnimatePresence>
+              </div>
+            )}
+          </AnimatePresence>
 
           {/* Manual notifications dropdown */}
           <AnimatePresence>
@@ -740,7 +737,7 @@ useEffect(() => {
                                 confirmButtonColor: '#3c8dbc'
                               });
                             }
-                          } catch (error) {
+                          } catch (error: any) {
                             await Swal.fire({
                               title: 'Error',
                               text: error.response?.data?.message || 'Failed to update username',

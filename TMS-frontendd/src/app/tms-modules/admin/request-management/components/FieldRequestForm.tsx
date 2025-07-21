@@ -35,7 +35,11 @@ interface TravelRequestFormProps {
   onSuccess: () => void;
   actorType: 'user' | 'manager' | 'corporator' | 'driver';
 }
-
+interface Traveler {
+  name: string;
+  // Add other properties if they exist
+  [key: string]: any; 
+}
 const formatDateForInput = (dateString: string) => {
   if (!dateString) return '';
   try {
@@ -66,6 +70,7 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     serviceProviderName: '',
     assignedCarType: '',
     assignedDriver: '',
+    driverPhone: '',
     vehicleDetails: '',
     actualStartingDate: '',
     actualReturnDate: '',
@@ -75,7 +80,7 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     cargoType: '',
     cargoWeight: '',
     numberOfPassengers: '',
-    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED'| 'InspectedAndRead'| 'ACCEPTED',
+    status: 'PENDING' as 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'ASSIGNED' | 'FINISHED'| 'InspectedAndRead'| 'ENDED'| 'SUCCESED'| 'ACCEPTED',
   });
 
   const { addNotification } = useNotification();
@@ -272,77 +277,83 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
     }
   }, [selectedRequest]);
 
-  const populateFormData = (request: TravelRequest) => {
-    if (actorType === 'driver') {
-      setFormData(prev => ({
-        ...prev,
-        serviceProviderName: request.serviceProviderName || '',
-        assignedCarType: request.assignedCarType || '',
-        assignedDriver: request.assignedDriver || '',
-        vehicleDetails: request.vehicleDetails || '',
-        actualStartingDate: '',
-        actualReturnDate: '',
-        startingKilometers: '',
-        endingKilometers: '',
-        kmDifference: '',
-        cargoType: request.cargoType || '',
-        cargoWeight: '',
-        numberOfPassengers: request.travelers.filter(t => t?.name?.trim()).length.toString(),
-        travelers: request.travelers.map(t => t?.name || '')
-      }));
-      
-      if (request.cargoType) {
-        setSelectedCargoTypes(
-          request.cargoType.split(',')
-            .map(t => t.trim())
-            .filter(t => t.length > 0)
-        );
-      } else {
-        setSelectedCargoTypes([]);
-      }
-    } else {
-      setFormData({
-        paymentType: request.paymentType || '',
-        startingPlace: request.startingPlace,
-        destinationPlace: request.destinationPlace,
-        travelers: request.travelers.map(t => t?.name || ''),
-        travelReason: request.travelReason,
-        carType: request.carType || '',
-        travelDistance: request.travelDistance?.toString() || '',
-        startingDate: formatDateForInput(request.startingDate) || '',
-        returnDate: request.returnDate ? formatDateForInput(request.returnDate) : '',
-        department: request.department,
-        jobStatus: request.jobStatus,
-        claimantName: request.claimantName,
-        accountNumber: request.accountNumber || '',
-        teamLeaderName: request.teamLeaderName,
-        approvement: request.approvement || '',
-        serviceProviderName: request.serviceProviderName || '',
-        assignedCarType: request.assignedCarType || '',
-        assignedDriver: request.assignedDriver || '',
-        vehicleDetails: request.vehicleDetails || '',
-        actualStartingDate: request.actualStartingDate ? formatDateForInput(request.actualStartingDate) : '',
-        actualReturnDate: request.actualReturnDate ? formatDateForInput(request.actualReturnDate) : '',
-        startingKilometers: request.startingKilometers?.toString() || '',
-        endingKilometers: request.endingKilometers?.toString() || '',
-        kmDifference: request.kmDifference?.toString() || '',
-        cargoType: request.cargoType || '',
-        cargoWeight: request.cargoWeight?.toString() || '',
-        numberOfPassengers: request.travelers.filter(t => t?.name?.trim()).length.toString(),
-        status: request.status,
-      });
-
-      if (request.cargoType) {
-        setSelectedCargoTypes(
-          request.cargoType.split(',')
-            .map(t => t.trim())
-            .filter(t => t.length > 0)
-        );
-      } else {
-        setSelectedCargoTypes([]);
-      }
-    }
+const populateFormData = (request: TravelRequest) => {
+  // Safely handle travelers (accepting both object with name and string)
+  const getTravelerName = (traveler: { name?: string } | string | undefined): string => {
+    if (!traveler) return '';
+    return typeof traveler === 'string' ? traveler : traveler.name || '';
   };
+
+  // Process travelers array
+  const processedTravelers = request.travelers.map(getTravelerName);
+  const passengerCount = processedTravelers.filter(name => name.trim() !== '').length.toString();
+
+  if (actorType === 'driver') {
+    setFormData(prev => ({
+      ...prev,
+      serviceProviderName: request.serviceProviderName || '',
+      assignedCarType: request.assignedCarType || '',
+      assignedDriver: request.assignedDriver || '',
+      vehicleDetails: request.vehicleDetails || '',
+      actualStartingDate: '',
+      actualReturnDate: '',
+      startingKilometers: '',
+      endingKilometers: '',
+      kmDifference: '',
+      cargoType: request.cargoType || '',
+      cargoWeight: '',
+      numberOfPassengers: passengerCount,
+      travelers: processedTravelers.length ? processedTravelers : ['']
+    }));
+    if (request.cargoType) {
+      setSelectedCargoTypes(
+        request.cargoType.split(',').map(t => t.trim()).filter(Boolean)
+      );
+    } else {
+      setSelectedCargoTypes([]);
+    }
+  } else {
+    setFormData({
+      paymentType: request.paymentType || '',
+      startingPlace: request.startingPlace,
+      destinationPlace: request.destinationPlace,
+      travelers: processedTravelers.length ? processedTravelers : [''],
+      travelReason: request.travelReason,
+      carType: request.carType || '',
+      travelDistance: request.travelDistance?.toString() || '',
+      startingDate: formatDateForInput(request.startingDate) || '',
+      returnDate: request.returnDate ? formatDateForInput(request.returnDate) : '',
+      department: request.department,
+      jobStatus: request.jobStatus,
+      claimantName: request.claimantName,
+      accountNumber: request.accountNumber || '',
+      teamLeaderName: request.teamLeaderName,
+      approvement: request.approvement || '',
+      serviceProviderName: request.serviceProviderName || '',
+      assignedCarType: request.assignedCarType || '',
+      assignedDriver: request.assignedDriver || '',
+      driverPhone: request.driverPhone || '',
+      vehicleDetails: request.vehicleDetails || '',
+      actualStartingDate: request.actualStartingDate ? formatDateForInput(request.actualStartingDate) : '',
+      actualReturnDate: request.actualReturnDate ? formatDateForInput(request.actualReturnDate) : '',
+      startingKilometers: request.startingKilometers?.toString() || '',
+      endingKilometers: request.endingKilometers?.toString() || '',
+      kmDifference: request.kmDifference?.toString() || '',
+      cargoType: request.cargoType || '',
+      cargoWeight: request.cargoWeight?.toString() || '',
+      numberOfPassengers: passengerCount,
+      status: request.status,
+    });
+
+    if (request.cargoType) {
+      setSelectedCargoTypes(
+        request.cargoType.split(',').map(t => t.trim()).filter(Boolean)
+      );
+    } else {
+      setSelectedCargoTypes([]);
+    }
+  }
+};
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -444,22 +455,22 @@ export default function TravelRequestForm({ requestId, onSuccess, actorType }: T
 
   const validateServiceSection = () => {
     const newErrors: Record<string, string> = {};
-    const requiredFields = [
-      'serviceProviderName',
-      'assignedDriver',
-      'assignedCarType',
-      'actualStartingDate',
-      'startingKilometers',
-      'endingKilometers',
-      'cargoWeight'
-    ];
+    // const requiredFields = [
+    //   'serviceProviderName',
+    //   'assignedDriver',
+    //   'assignedCarType',
+    //   'actualStartingDate',
+    //   'startingKilometers',
+    //   'endingKilometers',
+    //   'cargoWeight'
+    // ];
   
-    requiredFields.forEach(field => {
-      if (!formData[field]) {
-        const fieldName = field.replace(/([A-Z])/g, ' $1').trim();
-        newErrors[field] = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required`;
-      }
-    });
+    // requiredFields.forEach(field => {
+    //   if (!formData[field]) {
+    //     const fieldName = field.replace(/([A-Z])/g, ' $1').trim();
+    //     newErrors[field] = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required`;
+    //   }
+    // });
   
     if (selectedCargoTypes.length === 0) {
       newErrors.cargoType = 'At least one cargo type must be selected';
@@ -610,14 +621,14 @@ if(status=="APPROVED"){
         status: 'PENDING'
       };
 
-      let result;
-      if (requestId) {
-        result = await TravelApi.updateRequest(requestId, requestData);
-        setRequests(prev => prev.map(req => req.id === requestId ? result : req));
-      } else {
-        result = await TravelApi.createRequest(requestData);
-        setRequests(prev => [...prev, result]);
-      }
+      // let result;
+      // if (requestId) {
+      //   result = await TravelApi.updateRequest(requestId, requestData);
+      //   setRequests(prev => prev.map(req => req.id === requestId ? result : req));
+      // } else {
+      //   result = await TravelApi.createRequest(requestData);
+      //   setRequests(prev => [...prev, result]);
+      // }
 
       showSuccessAlert(
         'Success!', 
@@ -662,6 +673,9 @@ try {
     if (!formData.assignedDriver.trim()) {
       newErrors.assignedDriver = 'Driver name is required';
     }
+     if (!formData.driverPhone.trim()) {
+      newErrors.assignedPhone = 'Driver name is required';
+    }
     if (!formData.vehicleDetails.trim()) {
       newErrors.vehicleDetails = 'Vehicle details are required';
     }
@@ -689,7 +703,8 @@ try {
         assignedCarType: formData.assignedCarType,
         assignedDriver: formData.assignedDriver,
         vehicleDetails: formData.vehicleDetails,
-        status: 'ASSIGNED'
+        driverPhone: formData.driverPhone,
+        //status: 'ASSIGNED'
       });
 
       if (!formData.vehicleDetails) {
@@ -797,7 +812,7 @@ try {
         cargoType: selectedCargoTypes.join(', '),
         cargoWeight: parseFloat(formData.cargoWeight),
         numberOfPassengers: formData.travelers.filter(t => t.trim()).length,
-        status: 'FINISHED'
+        //status: 'FINISHED'
       };
 
       await TravelApi.completeTravelRequest(completionData);
@@ -885,8 +900,7 @@ try {
     setShowServiceModal(false);
     setShowFuelModal(false);
   };
-
-  const isFormDisabled = actorType !== 'user' || (selectedRequest && actorType === 'user');
+  const isFormDisabled = actorType !== 'user' || (selectedRequest !== null && actorType === 'user');
   const showSearchBar = (actorType === 'manager' || actorType === 'corporator');
 
   const renderDriverModal = () => (
@@ -1939,7 +1953,11 @@ try {
                         <div className="mt-8 flex space-x-4">
                           <motion.button
                             type="button"
-                            onClick={() => handleStatusChange(selectedRequest.id, 'APPROVED')}
+                            onClick={() => {
+                            if (selectedRequest && selectedRequest.id !== undefined) {
+                           handleStatusChange(selectedRequest.id, 'APPROVED');
+                           }
+                            }}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             disabled={isApproving}
@@ -1952,21 +1970,25 @@ try {
                             <FiCheckCircle className="mr-2" />
                             Approve
                           </motion.button>
-                          <motion.button
-                            type="button"
-                            onClick={() => handleStatusChange(selectedRequest.id, 'REJECTED')}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            disabled={isApproving}
-                            className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium transition-all ${
-                              isApproving
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-red-600 hover:bg-red-700'
+<motion.button
+  type="button"
+  onClick={() => {
+    if (selectedRequest && selectedRequest.id !== undefined) {
+      handleStatusChange(selectedRequest.id, 'REJECTED');
+    }
+  }}
+  whileHover={{ scale: 1.02 }}
+  whileTap={{ scale: 0.98 }}
+  disabled={isApproving}
+                         className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium transition-all ${
+                          isApproving
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-red-600 hover:bg-red-700'
                             }`}
-                          >
+                            >
                             <FiAlertCircle className="mr-2" />
-                            Reject
-                          </motion.button>
+                           Reject
+                        </motion.button>
                         </div>
                       )}
                     </form> 
@@ -2118,6 +2140,23 @@ try {
                           />
                           {errors.assignedDriver && (
                             <p className="mt-1 text-sm text-red-500">{errors.assignedDriver}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Driver Phone *
+                          </label>
+                          <input
+                            type="text"
+                            name="driverPhone"
+                            placeholder="Auto-filled from plate selection"
+                            value={formData.driverPhone}
+                            onChange={handleChange}
+                            className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-100"
+                          />
+                          {errors.driverPhone && (
+                            <p className="mt-1 text-sm text-red-500">{errors.driverPhone}</p>
                           )}
                         </div>
 

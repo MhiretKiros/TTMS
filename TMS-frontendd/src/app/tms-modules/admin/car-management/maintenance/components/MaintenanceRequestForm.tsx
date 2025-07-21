@@ -44,6 +44,35 @@ interface Car {
   status: string;
 }
 
+interface FilePreview {
+  url: string;
+  type: 'image' | 'pdf' | 'other';
+}
+
+interface FormData {
+  plateNumber: string;
+  vehicleType: string;
+  reportingDriver: string;
+  categoryWorkProcess: string;
+  kilometerReading: string;
+  defectDetails: string;
+  mechanicDiagnosis: string;
+  requestingPersonnel: string;
+  authorizingPersonnel: string;
+  fuelAmount: string;
+  status: 'PENDING' | 'CHECKED' | 'REJECTED' | 'INSPECTION' | 'COMPLETED' | 'APPROVED' | 'FINISHED';
+  attachments: string[];
+  physicalContent: string[];
+  notes: string[];
+  carImages: (File | string)[];
+  signatures: Signature[];
+  returnFiles: (File | string)[];
+  returnKilometerReading: string;
+  returnNotes: string;
+  returnFuelAmount: string;
+  returnSignatures: Signature[];
+}
+
 const defectCategories = [
   "Engine", "Transmission", "Brakes", "Suspension", 
   "Electrical", "Body", "Interior", "Tires", "Other"
@@ -52,7 +81,7 @@ const defectCategories = [
 export default function MaintenanceRequestForm({ requestId, actorType, onSuccess }: MaintenanceRequestFormProps) {
   const router = useRouter();
   const [showRequestForm, setShowRequestForm] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     plateNumber: '',
     vehicleType: '',
     reportingDriver: '',
@@ -63,16 +92,16 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     requestingPersonnel: '',
     authorizingPersonnel: '',
     fuelAmount: '',
-    status: 'PENDING' as 'PENDING' | 'CHECKED' | 'REJECTED' | 'INSPECTION' | 'COMPLETED' | 'APPROVED' | 'FINISHED',
+    status: 'PENDING',
     attachments: [''],
     physicalContent: [''],
     notes: [''],
-    carImages: [] as (File | string)[],
+    carImages: [],
     signatures: [
       { role: 'Driver', name: '', signature: '', date: new Date().toISOString().split('T')[0] },
       { role: 'Mechanic', name: '', signature: '', date: new Date().toISOString().split('T')[0] }
     ],
-    returnFiles: [] as (File | string)[],
+    returnFiles: [],
     returnKilometerReading: '',
     returnNotes: '',
     returnFuelAmount: '',
@@ -95,8 +124,8 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showAcceptanceModal, setShowAcceptanceModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
-  const [filePreviews, setFilePreviews] = useState<Array<{ url: string; type: 'image' | 'pdf' | 'other' }>>([]);
-  const [returnFilePreviews, setReturnFilePreviews] = useState<Array<{ url: string; type: 'image' | 'pdf' | 'other' }>>([]);
+  const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
+  const [returnFilePreviews, setReturnFilePreviews] = useState<FilePreview[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [carSearch, setCarSearch] = useState('');
   const [showCarDropdown, setShowCarDropdown] = useState(false);
@@ -118,32 +147,36 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
   useEffect(() => {
     const loadRequests = async () => {
       try {
-        let data;
+        let data: MaintenanceRequest[] = [];
         if (actorType === 'driver') {
-          data = await axios.get(`${API_BASE_URL}/driver`).then(res => res.data);
+          const response = await axios.get<MaintenanceRequest[]>(`${API_BASE_URL}/driver`);
+          data = response.data;
           // Filter requests for the current driver only
-          data = data.filter((request: MaintenanceRequest) => 
+          data = data.filter((request) => 
             request.reportingDriver?.toLowerCase() === driverName.toLowerCase()
           );
           setRequests(data);
           setFilteredRequests(data);
         } else if (actorType === 'distributor') {
-          data = await axios.get(`${API_BASE_URL}/distributor`).then(res => res.data);
+          const response = await axios.get<MaintenanceRequest[]>(`${API_BASE_URL}/distributor`);
+          data = response.data;
           setRequests(data);
           setFilteredRequests(data);
         } else if (actorType === 'maintenance') {
-          data = await axios.get(`${API_BASE_URL}/maintenance`).then(res => res.data);
+          const response = await axios.get<MaintenanceRequest[]>(`${API_BASE_URL}/maintenance`);
+          data = response.data;
           setRequests(data);
           setFilteredRequests(data);
         } else if (actorType === 'inspector') {
-          data = await axios.get(`${API_BASE_URL}/inspector`).then(res => res.data);
+          const response = await axios.get<MaintenanceRequest[]>(`${API_BASE_URL}/inspector`);
+          data = response.data;
           setRequests(data);
           setFilteredRequests(data);
         }
         
         if (requestId) {
-          const request = data.find((r: MaintenanceRequest) => r.id === requestId) || 
-                         await axios.get(`${API_BASE_URL}/${requestId}`).then(res => res.data);
+          const request = data.find((r) => r.id === requestId) || 
+                         (await axios.get<MaintenanceRequest>(`${API_BASE_URL}/${requestId}`)).data;
           if (request) {
             setSelectedRequest(request);
             populateFormData(request);
@@ -160,7 +193,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
   useEffect(() => {
     const fetchCars = async () => {
       try {
-        const response = await axios.get(CARS_API_URL);
+        const response = await axios.get<{rentCarList: Car[]}>(CARS_API_URL);
         setCars(response.data.rentCarList);
       } catch (error) {
         console.error('Failed to fetch cars:', error);
@@ -214,7 +247,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     });
 
     if (request.carImages && request.carImages.length > 0) {
-      const previews = request.carImages.map((file: string) => ({
+      const previews: FilePreview[] = request.carImages.map((file: string) => ({
         url: `${API_BASE_URL}/files/${file}`,
         type: file.endsWith('.pdf') ? 'pdf' : 
               ['jpg', 'jpeg', 'png', 'gif'].some(ext => file.toLowerCase().endsWith(ext)) ? 'image' : 'other'
@@ -223,7 +256,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     }
 
     if (request.returnFiles && request.returnFiles.length > 0) {
-      const previews = request.returnFiles.map((file: string) => ({
+      const previews: FilePreview[] = request.returnFiles.map((file: string) => ({
         url: `${API_BASE_URL}/files/${file}`,
         type: file.endsWith('.pdf') ? 'pdf' : 
               ['jpg', 'jpeg', 'png', 'gif'].some(ext => file.toLowerCase().endsWith(ext)) ? 'image' : 'other'
@@ -288,7 +321,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     }
   };
 
-  const handleFilesUpload = (e: React.ChangeEvent<HTMLInputElement>, isReturnFiles = false) => {
+const handleFilesUpload = (e: React.ChangeEvent<HTMLInputElement>, isReturnFiles = false) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
       const validFiles = newFiles.filter(file => 
@@ -305,7 +338,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       }
 
       if (validFiles.length > 0) {
-        const newPreviews = validFiles.map(file => ({
+        const newPreviews: FilePreview[] = validFiles.map(file => ({
           url: URL.createObjectURL(file),
           type: file.type.startsWith('image/') ? 'image' : 
                 file.type === 'application/pdf' ? 'pdf' : 'other'
@@ -327,6 +360,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       }
     }
   };
+
 
   const removeFile = (index: number, isReturnFile = false) => {
     Swal.fire({
@@ -443,12 +477,14 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         signatures: formData.signatures
       };
 
-      let result;
+      let result: MaintenanceRequest;
       if (requestId) {
-        result = await axios.put(`${API_BASE_URL}/${requestId}`, requestData).then(res => res.data);
+        const response = await axios.put<MaintenanceRequest>(`${API_BASE_URL}/${requestId}`, requestData);
+        result = response.data;
         setRequests(prev => prev.map(req => req.id === requestId ? result : req));
       } else {
-        result = await axios.post(API_BASE_URL, requestData).then(res => res.data);
+        const response = await axios.post<MaintenanceRequest>(API_BASE_URL, requestData);
+        result = response.data;
         setRequests(prev => [...prev, result]);
       }
 
@@ -491,10 +527,10 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       setReturnFilePreviews([]);
 
       await addNotification(
-      'New Automobile Vehicle Registered', 
-      '/tms-modules/admin/car-management/vehicle-inspection', 
-      'INSPECTOR' // Role that should see this notification
-    );
+        'New Automobile Vehicle Registered', 
+        '/tms-modules/admin/car-management/vehicle-inspection', 
+        'INSPECTOR'
+      );
     } catch (error: any) {
       setApiError(error.response?.data?.message || `Failed to ${requestId ? 'update' : 'submit'} request`);
     } finally {
@@ -511,14 +547,15 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         return;
       }
       
-      await axios.patch(`${API_BASE_URL}/${id}/status?status=${status}`).then(res => res.data);
+      const response = await axios.patch<MaintenanceRequest>(`${API_BASE_URL}/${id}/status?status=${status}`);
+      const updatedRequest = response.data;
       
       setRequests(prev => prev.map(req => 
-        req.id === id ? { ...req, status } : req
+        req.id === id ? updatedRequest : req
       ));
       
       if (selectedRequest?.id === id) {
-        setSelectedRequest(prev => prev ? { ...prev, status } : null);
+        setSelectedRequest(updatedRequest);
       }
 
       showSuccessAlert(
@@ -528,34 +565,32 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       
       if(status === 'APPROVED') {
         await addNotification(
-          `New Maintainance Request Approved By Head Of Mechanic`,
+          `New Maintenance Request Approved By Head Of Mechanic`,
           `/tms-modules/admin/car-management/maintenance`,
-          'INSPECTOR' // Role that should see this notification
+          'INSPECTOR'
         );
       }
 
       if(status === 'CHECKED') {
-      try {
-      await addNotification(
-        `New Maintainance Request Approved By Distributor`,
-        `/tms-modules/admin/car-management/maintenance`,
-        'HEAD_OF_MECHANIC' // Role that should see this notification
-      );
-      
-    } catch (notificationError) {
-      console.error('Failed to add notification:', notificationError);
-      // Optionally show error to user
-    }
+        try {
+          await addNotification(
+            `New Maintenance Request Approved By Distributor`,
+            `/tms-modules/admin/car-management/maintenance`,
+            'HEAD_OF_MECHANIC'
+          );
+        } catch (notificationError) {
+          console.error('Failed to add notification:', notificationError);
+        }
+      }
 
-   }
-      const data = await axios.get(
+      const responseData = await axios.get<MaintenanceRequest[]>(
         actorType === 'distributor' ? `${API_BASE_URL}/distributor` : 
         actorType === 'maintenance' ? `${API_BASE_URL}/maintenance` : 
         actorType === 'inspector' ? `${API_BASE_URL}/inspector` :
         `${API_BASE_URL}/driver`
-      ).then(res => res.data);
+      );
       
-      setRequests(data);
+      setRequests(responseData.data);
       setFilteredRequests([]);
       closeModals();
     } catch (error) {
@@ -612,20 +647,18 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         'Acceptance form submitted successfully and car status updated'
       );
 
-       try {
-      await addNotification(
-        `Vehicle ${selectedRequest.plateNumber} acccepted successfully for mentainance`,
-        `/tms-modules/admin/car-management/approved-maintenance-requests`,
-        'INSPECTOR'
-      );
-
-    } catch (notificationError) {
-      console.error('Failed to add notification:', notificationError);
-      // Optionally show error to user
-    }
+      try {
+        await addNotification(
+          `Vehicle ${selectedRequest.plateNumber} accepted successfully for maintenance`,
+          `/tms-modules/admin/car-management/approved-maintenance-requests`,
+          'INSPECTOR'
+        );
+      } catch (notificationError) {
+        console.error('Failed to add notification:', notificationError);
+      }
       
-      const data = await axios.get(`${API_BASE_URL}/driver`).then(res => res.data);
-      setRequests(data);
+      const response = await axios.get<MaintenanceRequest[]>(`${API_BASE_URL}/driver`);
+      setRequests(response.data);
       setFilteredRequests([]);
       closeModals();
     } catch (error) {
@@ -641,16 +674,13 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
     try {
       setIsSubmitting(true);
       
-      // First validate the form
       if (!validateReturnForm()) {
         setIsSubmitting(false);
         return;
       }
 
-      // Prepare form data for file uploads
       const formDataObj = new FormData();
       
-      // Upload new files if any (regular files)
       const filesToUpload = formData.carImages.filter(file => file instanceof File) as File[];
       if (filesToUpload.length > 0) {
         filesToUpload.forEach(file => {
@@ -662,7 +692,6 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         });
       }
 
-      // Upload return files if any
       const returnFilesToUpload = formData.returnFiles.filter(file => file instanceof File) as File[];
       if (returnFilesToUpload.length > 0) {
         const returnFormData = new FormData();
@@ -675,7 +704,6 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         });
       }
 
-      // Prepare return data payload
       const returnData = {
         returnKilometerReading: parseFloat(formData.returnKilometerReading),
         returnNotes: formData.returnNotes,
@@ -688,10 +716,8 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
         }))
       };
 
-      // Submit return data and complete the process
       await axios.post(`${API_BASE_URL}/${selectedRequest.id}/complete-return`, returnData);
       
-      // Update car status to Available
       await axios.put(`${CAR_STATUS_API_URL}/${selectedRequest.plateNumber}`, {
         status: 'Available'
       });
@@ -702,30 +728,29 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       );
       
       try {
-      await addNotification(
-        `Vehicle ${selectedRequest.plateNumber} returned successfully from mentainance`,
-        `/tms-modules/admin/car-management/maintenance`,
-        'DRIVER'
-      );
-    } catch (notificationError) {
-      console.error('Failed to add notification:', notificationError);
-      // Optionally show error to user
-    }
-      // Refresh requests
-      const data = await axios.get(
+        await addNotification(
+          `Vehicle ${selectedRequest.plateNumber} returned successfully from maintenance`,
+          `/tms-modules/admin/car-management/maintenance`,
+          'DRIVER'
+        );
+      } catch (notificationError) {
+        console.error('Failed to add notification:', notificationError);
+      }
+
+      const response = await axios.get<MaintenanceRequest[]>(
         actorType === 'driver' ? `${API_BASE_URL}/driver` :
         actorType === 'distributor' ? `${API_BASE_URL}/distributor` :
         actorType === 'maintenance' ? `${API_BASE_URL}/maintenance` :
         `${API_BASE_URL}/inspector`
-      ).then(res => res.data);
+      );
       
-      setRequests(data);
+      setRequests(response.data);
       if (actorType === 'driver') {
-        setFilteredRequests(data.filter((req: MaintenanceRequest) => 
+        setFilteredRequests(response.data.filter((req) => 
           req.reportingDriver.toLowerCase() === searchQuery.toLowerCase()
         ));
       } else {
-        setFilteredRequests(data);
+        setFilteredRequests(response.data);
       }
       
       closeModals();
@@ -814,6 +839,8 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
       setFilteredRequests(exactMatch ? [exactMatch] : []);
     }
   };
+
+  // ... [rest of the component code remains the same, just with proper type annotations]
 
   const renderRequestForm = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -1125,7 +1152,7 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
                   selectedRequest?.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
                   selectedRequest?.status === 'INSPECTION' ? 'bg-purple-100 text-purple-800' :
                   selectedRequest?.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                  selectedRequest?.status === 'FINISHED' ? 'bg-green-200 text-green-800' :
+                  selectedRequest?.status === 'COMPLETED' ? 'bg-green-200 text-green-800' :
                   'bg-green-100 text-green-800'
                 }`}>
                   {selectedRequest?.status}
@@ -1420,8 +1447,12 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
             <div className="mt-8 flex space-x-4">
               <button
                 type="button"
-                onClick={() => handleStatusChange(selectedRequest.id, 'CHECKED')}
                 disabled={isApproving}
+               onClick={() => {
+               if (selectedRequest && selectedRequest.id !== undefined) {
+               handleStatusChange(selectedRequest.id, 'CHECKED');
+                }
+                }}
                 className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium transition-all ${
                   isApproving
                     ? 'bg-gray-400 cursor-not-allowed'
@@ -1451,7 +1482,11 @@ export default function MaintenanceRequestForm({ requestId, actorType, onSuccess
             <div className="mt-8 flex space-x-4">
               <button
                 type="button"
-                onClick={() => handleStatusChange(selectedRequest.id, 'APPROVED')}
+                onClick={() => {
+                if (selectedRequest && selectedRequest.id !== undefined) {
+                 handleStatusChange(selectedRequest.id, 'APPROVED');
+                  }
+                 }}
                 disabled={isApproving}
                 className={`inline-flex items-center px-4 py-2 rounded-lg text-white font-medium transition-all ${
                   isApproving

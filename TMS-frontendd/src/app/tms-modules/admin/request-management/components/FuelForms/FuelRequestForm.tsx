@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { FuelRequest } from '../../types/fuelTypes';
 import { TravelApi, TravelRequest } from '../../api/handlers';
 import { SearchBar } from '../SearchBar';
 import styles from './styles.module.css';
@@ -32,8 +31,8 @@ interface FuelRequestFormProps {
     tripExplanation?: string;
     claimantName?: string;
     serviceNumber?: string;
-    actualStartingDate?: Date;
-    actualReturnDate?: Date;
+    actualStartingDate?: string;
+    actualReturnDate?: string;
     accountNumber?: string;
     paymentType?: string;
   };

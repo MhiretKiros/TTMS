@@ -60,6 +60,7 @@ const parseMotorCapacity = (motorCapacity: string): number => {
 };
 
 const positionLabels = {
+  'Level 1': 'Director',
   'Level 2': 'Director',
   'Level 3': 'Sub Director',
   'Level 4': 'Division',
@@ -67,6 +68,7 @@ const positionLabels = {
 };
 
 const positionPriority = {
+  'Level 1': 1,
   'Level 2': 2,
   'Level 3': 3,
   'Level 4': 4,

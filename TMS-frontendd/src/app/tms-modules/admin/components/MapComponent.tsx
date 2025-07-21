@@ -5,6 +5,13 @@ import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Explicitly type vehicle position as a tuple
+type Vehicle = {
+  name: string;
+  status: string;
+  position: [number, number];
+};
+
 export default function MapComponent() {
   const mapRef = useRef(null);
   const isInitialized = useRef(false);
@@ -15,7 +22,7 @@ export default function MapComponent() {
     isInitialized.current = true;
   }, []);
 
-  const vehicles = [
+  const vehicles: Vehicle[] = [
     { name: "VEH-003", status: "In Use", position: [51.505, -0.09] },
     { name: "VEH-002", status: "Available", position: [51.51, -0.1] },
     { name: "VEH-003", status: "Maintenance", position: [51.49, -0.07] }
@@ -39,7 +46,7 @@ export default function MapComponent() {
             <strong>{vehicle.name}</strong><br />
             Status: {vehicle.status}
           </Popup>
-        </Marker>
+            </Marker>
       ))}
     </MapContainer>
   );

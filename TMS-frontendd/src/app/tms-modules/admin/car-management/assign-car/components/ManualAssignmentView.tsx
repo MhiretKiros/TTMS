@@ -32,7 +32,7 @@ export interface PendingRequest {
   department: string;
   requestDate: string;
   requestedCarType?: string;
-  status: 'pending' | 'in_transfer' | 'waiting';
+  status: 'pending' | 'in_transfer' | 'waiting'| 'semiassigned';
   totalPercentage?: number;
   priority?: number;
   plateNumbers?: string;
