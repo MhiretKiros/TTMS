@@ -1,5 +1,4 @@
 'use client';
-import {useNotification} from '@/app/contexts/NotificationContext';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,7 +43,7 @@ interface RentCar {
   fuelType?: string;
 }
 
-interface BaseAssignment {
+interface Assignment {
   id: number;
   requestLetterNo: string;
   requesterName: string;
@@ -56,9 +55,11 @@ interface BaseAssignment {
   shortNoticePercentage?: string;
   mobilityIssue?: string;
   gender?: string;
+  requestDate?: string | Date;
   car?: Car;
   rentCar?: RentCar;
   status: 'Active' | 'Completed' | 'Upcoming' | 'Approved' | 'Assigned' | 'Pending' | 'Rejected';
+  assignedDate: string;
   allPlateNumbers?: string;
   allCarModels?: string;
   carIds?: string[];
@@ -67,30 +68,7 @@ interface BaseAssignment {
   numberOfCar?: string;
 }
 
-interface ApiAssignment extends BaseAssignment {
-  requestDate?: Date | string;
-  assignedDate: Date | string;
-}
-
-interface Assignment extends BaseAssignment {
-  requestDate?: string;
-  assignedDate: string;
-}
-
-interface AssignedCarTableProps {
-  assignments: Assignment[];
-  onEdit: (assignment: Assignment) => void;
-  onDelete: (id: number) => Promise<void>;
-  onView: (id: number) => void;
-  activeFilter: string | null;
-  onFilterClick: (filterType: string) => void;
-  actorType: ActorType;
-  onRowClick: (assignment: Assignment) => void;
-  refreshData: () => Promise<void>;
-}
-
 export default function CarAssignment() {
-  const { addNotification } = useNotification();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('assigned');
   const [actorType, setActorType] = useState<ActorType>('manager');
@@ -108,6 +86,7 @@ export default function CarAssignment() {
   const [selectedRequest, setSelectedRequest] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Auto-detect user role on component mount
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -115,6 +94,7 @@ export default function CarAssignment() {
         const user = JSON.parse(storedUser);
         const role = user.role?.toUpperCase();
         
+        // Map role to actorType
         if (role === 'HEAD_OF_DISTRIBUTOR') {
           setActorType('top-manager');
         } else {
@@ -129,35 +109,31 @@ export default function CarAssignment() {
   }, []);
 
   const loadAssignments = async () => {
-  try {
-    setIsLoading(true);
-    const response = await fetchAllAssignments();
-    if (response.success && Array.isArray(response.data)) {
-      const formattedAssignments = response.data.map((assignment: any) => ({
-        ...assignment,
-        requestDate: assignment.requestDate 
-          ? new Date(assignment.requestDate).toISOString() 
-          : undefined,
-        assignedDate: assignment.assignedDate 
-          ? new Date(assignment.assignedDate).toISOString() 
-          : new Date().toISOString() // fallback to current date if not provided
-      }));
-      setAssignments(formattedAssignments);
-      applyFilters(formattedAssignments, searchTerm, activeStatusFilter, activeLevelFilter);
-    } else {
-      throw new Error(response.message || 'Invalid data format received');
+    try {
+      setIsLoading(true);
+      const response = await fetchAllAssignments();
+      if (response.success && Array.isArray(response.data)) {
+        // Ensure requestDate is properly formatted as string
+        const formattedAssignments = response.data.map((assignment: any) => ({
+          ...assignment,
+          requestDate: assignment.requestDate ? new Date(assignment.requestDate).toISOString() : undefined
+        }));
+        setAssignments(formattedAssignments);
+        applyFilters(formattedAssignments, searchTerm, activeStatusFilter, activeLevelFilter);
+      } else {
+        throw new Error(response.message || 'Invalid data format received');
+      }
+    } catch (error) {
+      console.error('Load Assignments Error:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: error instanceof Error ? error.message : 'Failed to load assignments',
+        icon: 'error',
+      });
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Load Assignments Error:', error);
-    Swal.fire({
-      title: 'Error!',
-      text: error instanceof Error ? error.message : 'Failed to load assignments',
-      icon: 'error',
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const applyFilters = (
     dataToFilter: Assignment[],
@@ -222,31 +198,6 @@ export default function CarAssignment() {
     });
   };
 
-  // const handleSubmitAssignment = async (formData: Assignment) => {
-  //   try {
-  //     setIsSubmitting(true);
-  //     const { success, message } = selectedAssignment
-  //       ? await updateAssignment(formData.id, formData)
-  //       : await createAssignment(formData);
-  //     if (success) {
-  //       await showSuccessAlert(message || 'Assignment saved successfully');
-  //       await loadAssignments();
-  //       setIsFormOpen(false);
-  //       setSelectedAssignment(null);
-  //     } else {
-  //       throw new Error(message);
-  //     }
-  //   } catch (error) {
-  //     Swal.fire({
-  //       title: 'Error!',
-  //       text: error instanceof Error ? error.message : 'Failed to save assignment',
-  //       icon: 'error',
-  //     });
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // };
-
   const handleDeleteAssignment = async (id: number) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -297,6 +248,7 @@ export default function CarAssignment() {
     try {
       setIsSubmitting(true);
 
+      // 1. Update assignment status directly
       const assignmentResponse = await axios.put(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignment/status/${selectedRequest.id}`,
         { status: status === 'Approved' ? 'Approved' : 'Pending' }
@@ -306,6 +258,7 @@ export default function CarAssignment() {
         throw new Error(assignmentResponse.data.message || 'Failed to update assignment status');
       }
 
+      // 2. Only update car/rent car status if "Approve" was clicked
       if (status === 'Rejected') {
         if (selectedRequest.car) {
           await axios.put(
@@ -324,36 +277,16 @@ export default function CarAssignment() {
             )
           );
         }
-
-        try {
-          await addNotification(
-            `Vehicle with plate number ${selectedRequest.car?.plateNumber || selectedRequest.rentCar?.plateNumber} has been Rejected and set to Pending. Please check the status of the vehicle and reassign`,
-            `/tms-modules/admin/car-management/assign-car`,
-            'DISTRIBUTOR'
-          );
-        } catch (notificationError) {
-          console.error('Failed to add notification:', notificationError);
-        }
       }
 
-      if (status === 'Approved') {
-        try {
-          await addNotification(
-            `Vehicle with plate number ${selectedRequest.car?.plateNumber || selectedRequest.rentCar?.plateNumber} has been Approved and set to Approved. Please proceed with the acceptance of the vehicle`,
-            `/tms-modules/admin/car-management/assign-car`,
-            'DISTRIBUTOR'
-          );
-        } catch (notificationError) {
-          console.error('Failed to add notification:', notificationError);
-        }
-      }
-
+      // Show success message
       await showSuccessAlert(
         status === 'Approved'
           ? 'Request approved and vehicle assigned!'
           : 'Request rejected and set to pending.'
       );
 
+      // Refresh data and close modal
       await loadAssignments();
       setShowRequestModal(false);
     } catch (error) {
@@ -389,6 +322,13 @@ export default function CarAssignment() {
     );
   }
 
+  // Helper function to format date for display
+  const formatDateForDisplay = (dateString?: string | Date) => {
+    if (!dateString) return '-';
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    return isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 md:px-8 w-full">
       <motion.div
@@ -397,6 +337,79 @@ export default function CarAssignment() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-7xl mx-auto"
       >
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gradient bg-clip-text text-transparent bg-gradient-to-r from-[#3c8dbc] to-[#2c6da4]">
+            Vehicle Assignment Management
+          </h1>
+
+          <div className="flex flex-wrap gap-3 w-full md:w-auto">
+            {/* Removed the toggle button since we're auto-detecting role */}
+            {activeTab === 'assigned' && (
+              <>
+                <div className="relative flex-1 md:w-64">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search assignments..."
+                    className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3c8dbc] focus:border-transparent text-sm"
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                  />
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                  <FiFilter className="text-gray-600" />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+                  onClick={loadAssignments}
+                >
+                  <FiRefreshCw className="text-gray-600" />
+                </motion.button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.5 }}
+          className="flex border-b border-gray-200 mb-6"
+        >
+          <button
+            className={`px-4 py-2 text-sm font-medium focus:outline-none ${
+              activeTab === 'assigned'
+                ? 'border-b-2 border-[#3c8dbc] text-[#3c8dbc]'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('assigned')}
+          >
+            Assigned Vehicles
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium focus:outline-none ${
+              activeTab === 'assign'
+                ? 'border-b-2 border-[#3c8dbc] text-[#3c8dbc]'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => {
+              setActiveTab('assign');
+              setActiveForm('assign');
+            }}
+          >
+            Assign Vehicle
+          </button>
+        </motion.div>
+
+        {/* Tab Content */}
         <div className="space-y-6 w-full">
           {activeTab === 'assign' && (
             <motion.div
@@ -421,9 +434,25 @@ export default function CarAssignment() {
                   </div>
 
                   {activeForm === 'assign' ? (
-                    <AssignCarManagerForm />
+                    <AssignCarManagerForm
+                      // assignment={selectedAssignment}
+                      // isSubmitting={isSubmitting}
+                      // onSubmit={handleSubmitAssignment}
+                      // onCancel={() => {
+                      //   setIsFormOpen(false);
+                      //   setSelectedAssignment(null);
+                      // }}
+                    />
                   ) : (
-                    <AssignCarForm />
+                    <AssignCarForm
+                      // assignment={selectedAssignment}
+                      // isSubmitting={isSubmitting}
+                      // onSubmit={handleSubmitAssignment}
+                      // onCancel={() => {
+                      //   setIsFormOpen(false);
+                      //   setSelectedAssignment(null);
+                      // }}
+                    />
                   )}
                 </>
               )}
@@ -444,6 +473,7 @@ export default function CarAssignment() {
                   onLevelFilter={handleLevelFilter}
                   activeStatusFilter={activeStatusFilter}
                   activeLevelFilter={activeLevelFilter}
+                 // actorType={actorType}
                 />
               </motion.div>
 
@@ -487,6 +517,7 @@ export default function CarAssignment() {
                     className="w-full"
                   >
                     <AssignedCarTable
+                    refreshData={loadAssignments}
                       assignments={filteredAssignments}
                       onEdit={(assignment) => {
                         setSelectedAssignment(assignment);
@@ -502,7 +533,6 @@ export default function CarAssignment() {
                       }}
                       actorType={actorType}
                       onRowClick={handleRowClick}
-                      refreshData={loadAssignments}
                     />
                   </motion.div>
                 )}
@@ -512,6 +542,7 @@ export default function CarAssignment() {
         </div>
       </motion.div>
 
+      {/* Modal */}
       <AnimatePresence>
         {showRequestModal && selectedRequest && (
           <motion.div
@@ -540,6 +571,7 @@ export default function CarAssignment() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Request Info */}
                   <motion.div
                     whileHover={{ y: -5 }}
                     className="bg-gradient-to-br from-[#e6f2fa] to-[#d4e6f5] p-6 rounded-lg"
@@ -551,7 +583,7 @@ export default function CarAssignment() {
                     <div className="space-y-4">
                       {[
                         { label: 'Request Letter No', value: selectedRequest.requestLetterNo },
-                        { label: 'Request Date', value: selectedRequest.requestDate ? new Date(selectedRequest.requestDate).toLocaleDateString() : 'N/A' },
+                        { label: 'Request Date', value: formatDateForDisplay(selectedRequest.requestDate) },
                         { label: 'Requester Name', value: selectedRequest.requesterName },
                         { label: 'Department', value: selectedRequest.department },
                         { label: 'Position', value: selectedRequest.position },
@@ -563,7 +595,7 @@ export default function CarAssignment() {
                         { label: 'Gender', value: selectedRequest.gender },
                         { label: 'Total Percentage', value: `${selectedRequest.totalPercentage || 0}%` },
                         { label: 'Status', value: selectedRequest.status },
-                        { label: 'Assigned Date', value: new Date(selectedRequest.assignedDate).toLocaleDateString() },
+                        { label: 'Assigned Date', value: selectedRequest.assignedDate || 'N/A' },
                       ].map((item, index) => (
                         <div key={index} className="flex border-b pb-3 border-gray-100">
                           <span className="font-medium text-gray-600 w-48">{item.label}:</span>
@@ -573,6 +605,7 @@ export default function CarAssignment() {
                     </div>
                   </motion.div>
 
+                  {/* Vehicle Info */}
                   <motion.div
                     whileHover={{ y: -5 }}
                     className="bg-gradient-to-br from-[#d4e6f5] to-[#e6f2fa] p-6 rounded-lg"
@@ -661,6 +694,7 @@ export default function CarAssignment() {
                   </motion.div>
                 </div>
 
+                {/* Summary Section */}
                 <div className="mt-6 bg-gradient-to-r from-[#e6f2fa] to-[#d4e6f5] p-6 rounded-lg">
                   <h3 className="text-xl font-semibold mb-4 flex items-center">
                     <span className="w-3 h-3 bg-[#3c8dbc] rounded-full mr-2" />
@@ -710,6 +744,7 @@ export default function CarAssignment() {
                   </div>
                 </div>
 
+                {/* Approval Buttons */}
                 {selectedRequest.status === 'Assigned' && actorType === 'top-manager' && (
                   <div className="mt-6 flex justify-end space-x-4 pt-4 border-t border-gray-200">
                     <motion.button

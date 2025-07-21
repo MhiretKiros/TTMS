@@ -48,7 +48,7 @@ export async function fetchAllFieldServices(): Promise<{
   fieldServices?: FieldService[];
 }> {
   try {
-    const response = await fetch('http://localhost:8080/api/travel-requests/corporator');
+    const response = await fetch(`${API_BASE_URL}/api/travel-requests/corporator`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -71,7 +71,7 @@ export async function fetchAllFieldServices(): Promise<{
 
 export async function fetchInspections() {
   try {
-    const response = await axios.get('http://localhost:8080/api/inspections/get-all');
+    const response = await axios.get(`${API_BASE_URL}/api/inspections/get-all`);
 
     if (response.data && Array.isArray(response.data.inspections)) {
       return {
@@ -133,7 +133,7 @@ export const fetchAllCars = async (): Promise<ApiResponse<{
 
 export async function fetchAssignmentHistories() {
   try {
-    const response = await axios.get('http://localhost:8080/auth/assignment/all');
+    const response = await axios.get(`${API_BASE_URL}/auth/assignment/all`);
     return {
       success: true,
       message: 'Assignment histories retrieved successfully',

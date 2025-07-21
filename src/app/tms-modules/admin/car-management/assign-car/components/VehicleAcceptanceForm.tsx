@@ -50,7 +50,69 @@ const vehicleParts = [
   'Hood',                           // 0 (shortest)
   'Roof',                           // 1 (medium)
   'Air conditioning controls',      // 2 (longest)
-  // ... rest of the vehicle parts
+
+  'Trunk lid',                      // 3 (shortest)
+  'Left mirror',                    // 4 (medium)
+  'Radio/navigation system',        // 5 (longest)
+
+  'Right wheel', 
+  'Right mirror',                   // 6 (shortest)                   // 7 (medium)
+  'Front right parking light',      // 8 (longest)
+
+  'Left wheel',                     // 9 (shortest)
+  'Right rear door',                //10 (medium)
+  'Front left parking light',       //11 (longest)
+
+  'Left rear door', 
+  'Right rear light',               //12 (shortest)                //13 (medium)
+  'Front right headlight',          //14 (longest)
+
+  'Seat belts', 
+  'Left rear light',                //15 (shortest)                    //16 (medium)
+  'Front left headlight',           //17 (longest)
+
+  'Floor mats',                     //18 (shortest)
+  'Spare wheel',                    //19 (medium)
+  'Front right fog light',          //20 (longest)
+
+  'Handbrake',                      //21 (shortest)
+  'Tire condition',                 //22 (medium)
+  'Front left fog light',           //23 (longest)
+
+  'Dashboard',                      //24 (shortest)
+  'Rear window',                    //25 (medium)
+  'Front right turn signal',        //26 (longest)
+
+  'Sun visors',                     //27 (shortest)
+  'Rear bumper',                    //28 (medium)
+  'Front left turn signal',         //29 (longest)
+
+  'Left front door',
+  'Right rear fender',              //30 (shortest)                //31 (medium)
+  'Right front parking light',      //32 (longest)
+
+  'Right front door',               //33 (shortest)
+  'Left rear fender',               //34 (medium)
+  'Right front headlight',          //35 (longest)
+
+  'Left front fender',              //36 (shortest)
+  'Left rear fender',               //37 (medium)
+  'Instrument cluster',             //38 (longest)
+
+  'Seats condition',
+  'Right front fender',             //39 (shortest)                //40 (medium)
+  'Steering column cover',          //41 (longest)
+
+  'Windshield', 
+  'Center console',                 //42 (shortest)                  //43 (medium)
+  'Steering wheel',                 //44 (longest)
+
+  'Front grille',
+  'Front bumper',
+  'Interior trim',                  //45 (shortest)
+                     //46 (medium)
+                     //47 (longest)
+
   'Headliner'                       //48 (shortest)
 ];
 
