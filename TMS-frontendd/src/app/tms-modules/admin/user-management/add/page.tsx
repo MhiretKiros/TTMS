@@ -6,6 +6,9 @@ import Swal from 'sweetalert2';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
 import { User, UserResponse } from '../types/user';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+
+
 export default function AddUser() {
   const router = useRouter();
   const [user, setUser] = useState<User>({
@@ -48,7 +51,7 @@ export default function AddUser() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post<UserResponse>(
-        'http://localhost:8080/auth/register', 
+        `${API_BASE_URL}/auth/register`, 
         user,
         { headers: { Authorization: `Bearer ${token}` } }
       );

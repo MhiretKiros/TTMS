@@ -153,6 +153,8 @@ export default function ViewCarPage() {
                 { label: "Plate Number", value: car.plateNumber },
                 { label: "Owner Name", value: car.ownerName },
                 { label: "Owner Phone", value: car.ownerPhone },
+                {label: "Agent Name", value: car.agentName},
+                {label: "Agent Name", value: car.agentPhone},
                 { label: "Model", value: car.model },
                 { label: "Car Type", value: car.carType }
               ].map((item, index) => (
@@ -282,7 +284,7 @@ export default function ViewCarPage() {
               {[
                 { label: "Registered Date", value: new Date(car.registeredDate).toLocaleDateString() },
                 { label: "Parking Location", value: car.parkingLocation },
-                { label: "Created By", value: car.createdBy }
+                { label: "Created By", value: car.createdBy}
               ].map((item, index) => (
                 <motion.div
                   key={index}

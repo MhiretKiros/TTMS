@@ -10,8 +10,8 @@ interface OrganizationCar {
   plateNumber: string;
   ownerName: string;
   ownerPhone: string;
-  AgentName: '',
-  AgentPhone: '',
+  agentName: '',
+  agentPhone: '',
   model: string;
   carType: string;
   manufactureYear: string;
@@ -183,6 +183,8 @@ export default function ViewOrganizationCarPage() {
                 { label: "Plate Number", value: car.plateNumber },
                 { label: "Owner Name", value: car.ownerName },
                 { label: "Owner Phone", value: car.ownerPhone },
+                {label: "Agent Name", value: car.agentName},
+                {label: "Agent Name", value: car.agentPhone},
                 { label: "Model", value: car.model },
                 { label: "Car Type", value: car.carType },
                 { label: "Manufacture Year", value: car.manufactureYear },
@@ -242,7 +244,7 @@ export default function ViewOrganizationCarPage() {
                 { label: "Driver Name", value: car.driverName || 'N/A' },
                 { label: "Driver Attributes", value: car.driverAttributes || '-' },
                 { label: "Driver Address", value: car.driverAddress || '-' },
-                { label: "Load Capacity", value: `${car.loadCapacity} kg` },
+                { label: "Load Capacity", value: `${car.loadCapacity} seats` },
                 { label: "Parking Location", value: car.parkingLocation },
                 { label: "Registered Date", value: new Date(car.registeredDate).toLocaleDateString() }
               ].map((item, index) => (

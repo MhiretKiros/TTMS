@@ -8,6 +8,9 @@ import { FaUser, FaSignOutAlt, FaSignInAlt, FaUserPlus, FaTimes, FaEnvelope, FaL
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import Swal from 'sweetalert2';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+
+
 export interface User {
   id?: number;
   name: string;
@@ -79,7 +82,7 @@ export default function Navbar() {
     setLoading({...loading, login: true});
     
     try {
-      const response = await axios.post<UserResponse>('http://localhost:8080/auth/login', {
+      const response = await axios.post<UserResponse>(`${API_BASE_URL}/auth/login`, {
         email: formData.email,
         password: formData.password
       });
@@ -88,7 +91,7 @@ export default function Navbar() {
         // Store token immediately after successful login
         localStorage.setItem('token', response.data.token);
         try {
-          const otpResponse = await axios.post<UserResponse>('http://localhost:8080/auth/request-otp', {
+          const otpResponse = await axios.post<UserResponse>(`${API_BASE_URL}/auth/request-otp`, {
             email: formData.email
           });
 
@@ -157,7 +160,7 @@ export default function Navbar() {
     setLoading({...loading, otp: true});
     
     try {
-      const response = await axios.post<UserResponse>('http://localhost:8080/auth/verify-otp', {
+      const response = await axios.post<UserResponse>(`${API_BASE_URL}/auth/verify-otp`, {
         email: loginEmail,
         otp: otp
       });
@@ -213,7 +216,7 @@ export default function Navbar() {
     setLoading({...loading, register: true});
     
     try {
-      const response = await axios.post<UserResponse>('http://localhost:8080/auth/register', formData);
+      const response = await axios.post<UserResponse>(`${API_BASE_URL}/auth/register`, formData);
       
       if (response.data.status === 200) {
         await Swal.fire({
