@@ -5,7 +5,6 @@ import { useRef } from 'react'; // Added useRef
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiLoader, FiCalendar, FiUser, FiClipboard, FiPercent, FiPrinter } from 'react-icons/fi'; // Added FiPrinter
-import { useReactToPrint } from 'react-to-print';
 import toast, { Toaster } from 'react-hot-toast';
 
 enum InspectionStatus {
