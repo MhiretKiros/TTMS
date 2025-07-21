@@ -32,6 +32,12 @@ const allSidebarItems = [
         roles: ['ADMIN', 'DISTRIBUTOR']
       },
       { 
+        title: 'Assignment Details',
+        link: '/tms-modules/admin/car-management/view-assigned-employee', 
+        icon: <FiTruck />,
+        roles: ['DRIVER']
+      },
+      { 
         title: 'Vehicle Inspection', 
         link: '/tms-modules/admin/car-management/vehicle-inspection', 
         icon: <FiSettings />,
