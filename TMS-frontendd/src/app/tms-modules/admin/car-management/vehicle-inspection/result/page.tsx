@@ -146,23 +146,23 @@ export default function CarInspectionResultPage() {
     const inspectionId = searchParams.get('inspectionId');
     const componentRef = useRef<HTMLDivElement>(null);
 
-    const pageStyle = `
-      @media print {
-        body {
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-        }
-        .no-print {
-          display: none !important;
-        }
-      }
-    `;
+    // const pageStyle = `
+    //   @media print {
+    //     body {
+    //       -webkit-print-color-adjust: exact !important;
+    //       color-adjust: exact !important;
+    //     }
+    //     .no-print {
+    //       display: none !important;
+    //     }
+    //   }
+    // `;
 
-    const handlePrint = useReactToPrint({
-        content: () => componentRef.current, // Correct way to pass the ref's content
-        documentTitle: `InspectionReport-${inspectionResult?.plateNumber || 'UnknownPlate'}`,
-        pageStyle: pageStyle,
-    });
+    // const handlePrint = useReactToPrint({
+    //     content: () => componentRef.current,
+    //     documentTitle: `InspectionReport-${inspectionResult?.plateNumber || 'UnknownPlate'}`,
+    //     pageStyle: pageStyle,
+    // });
 
     const fetchInspectionDetails = useCallback(async () => {
         if (!inspectionId) {
@@ -375,13 +375,13 @@ export default function CarInspectionResultPage() {
             <Toaster position="top-center" />
             <div className="container max-w-5xl mx-auto px-4" >
 <div className="flex justify-end mb-4">
-                    <button
+                    {/* <button
                         onClick={handlePrint}
                         className="no-print px-3 py-1.5 bg-white text-blue-600 rounded-md shadow hover:bg-gray-100 transition-colors text-sm flex items-center gap-2"
                     >
                         <FiPrinter className="h-4 w-4" />
                         Print to PDF
-                    </button>
+                    </button> */}
                 </div>
                 <div className="bg-white rounded-lg shadow-xl overflow-hidden" ref={componentRef}>
                     <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-5">

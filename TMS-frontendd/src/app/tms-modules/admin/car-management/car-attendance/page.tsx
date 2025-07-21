@@ -81,9 +81,9 @@ export default function CarAttendancePage() {
      console.log('Fetching suggestions for:', plateNumberInput, 'with carType:', carType);
        setIsFetchingSuggestions(true);
        debouncedFetchSuggestions(plateNumberInput, carType)
-         .then(suggestions => {
+         .then(async suggestions => {
           console.log('Suggestions received:', suggestions);
-           setPlateSuggestions(suggestions);
+           setPlateSuggestions(await suggestions);
          })
          .catch(error => {
 
@@ -119,20 +119,18 @@ export default function CarAttendancePage() {
         }
 
         // Now check for an existing morning arrival record for today
-        const vehicleType = mapCarTypeToVehicleType(details.carType);
-        const existingMorningArrival = await findTodaysMorningArrivalRecordAPI(plate, vehicleType);
+        const existingMorningArrival = await findTodaysMorningArrivalRecordAPI(plate, mapCarTypeToVehicleType(details.carType), details);
 
         if (existingMorningArrival) {
           setMorningArrivalRecordDetails(existingMorningArrival);
-          setMorningKm(existingMorningArrival.morningKm.toString());
+          setMorningKm(existingMorningArrival.morningKm?.toString() || '');
 
-          // Check if evening KM is also recorded, meaning the day is complete
           if (existingMorningArrival.nightKm !== null && typeof existingMorningArrival.nightKm !== 'undefined') {
             setIsDayComplete(true);
             setIsEveningDepartureMode(true); // Keep true for UI context
             setNightKm(existingMorningArrival.nightKm.toString());
-            // Calculate and set daily KM difference for display
-            const dailyDiff = existingMorningArrival.nightKm - existingMorningArrival.morningKm;
+            // Calculate and set daily KM difference for display, ensuring morningKm is not null
+            const dailyDiff = existingMorningArrival.nightKm - (existingMorningArrival.morningKm ?? 0);
             if (!isNaN(dailyDiff) && dailyDiff >= 0) {
               setKmDifference(dailyDiff);
             } else {
@@ -150,7 +148,7 @@ export default function CarAttendancePage() {
           setIsDayComplete(false);
           setIsEveningDepartureMode(false);
           // Fetch last evening KM for all car types to calculate overnight difference
-          const lastEveningRecord = await findLastEveningDepartureRecordAPI(plate, vehicleType);
+          const lastEveningRecord = await findLastEveningDepartureRecordAPI(plate, mapCarTypeToVehicleType(details.carType), details);
           if (lastEveningRecord && lastEveningRecord.nightKm !== null) {
             setPreviousEveningKm(lastEveningRecord.nightKm);
             setFormMessage({ type: 'success', text: `Car ${plate} (${details.carType}) details loaded. Ready for Morning Arrival. Previous Evening KM: ${lastEveningRecord.nightKm}.` });
@@ -184,7 +182,11 @@ export default function CarAttendancePage() {
       const morningArrivalKmVal = morningArrivalRecordDetails.morningKm;
       const eveningDepartureKmVal = parseFloat(nightKm); // 'nightKm' state holds evening departure KM
 
-      if (!isNaN(morningArrivalKmVal) && !isNaN(eveningDepartureKmVal) && eveningDepartureKmVal >= morningArrivalKmVal) {
+      if (
+        morningArrivalKmVal !== null &&
+        !isNaN(eveningDepartureKmVal) &&
+        eveningDepartureKmVal >= morningArrivalKmVal
+      ) {
         setKmDifference(eveningDepartureKmVal - morningArrivalKmVal);
       } else {
         setKmDifference(null); // Reset difference if invalid input
@@ -230,14 +232,22 @@ export default function CarAttendancePage() {
       if (isEveningDepartureMode && morningArrivalRecordDetails) {
         // --- Handle Evening Departure KM Recording ---
         const eveningDepartureKmVal = parseFloat(nightKm);
-        if (isNaN(eveningDepartureKmVal) || eveningDepartureKmVal < morningArrivalRecordDetails.morningKm) {
+        const morningArrivalKmVal = morningArrivalRecordDetails.morningKm;
+
+        if (morningArrivalKmVal === null) {
+          setFormMessage({ type: 'error', text: 'Morning arrival KM is missing. Cannot record evening departure.' });
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (isNaN(eveningDepartureKmVal) || eveningDepartureKmVal < morningArrivalKmVal) {
           setFormMessage({ type: 'error', text: 'Evening Departure KM must be a valid number and greater than or equal to Morning Arrival KM.' });
           setIsSubmitting(false);
           return;
         }
 
         // Recalculate difference just before saving to be safe
-        const finalKmDifference = eveningDepartureKmVal - morningArrivalRecordDetails.morningKm;
+        const finalKmDifference = eveningDepartureKmVal - morningArrivalKmVal;
         if (isNaN(finalKmDifference) || finalKmDifference < 0) {
            setFormMessage({ type: 'error', text: 'KM difference calculation failed.' });
            setIsSubmitting(false); return;
@@ -286,22 +296,26 @@ export default function CarAttendancePage() {
     }
   };
 
-  const handleAttendanceSubmit = async (payload: any) => {
+  const handleAttendanceSubmit = async (payload: MorningArrivalRequest) => {
     try {
-      payload.isMorning = isMorningAttendance();
+      const payloadWithTimeCheck = {
+        ...payload,
+        isMorning: isMorningAttendance(),
+      };
 
       // Show confirm dialog if not morning
-      if (!payload.isMorning) {
+      if (!payloadWithTimeCheck.isMorning) {
         const confirmed = window.confirm(
           "Warning: You are not within the morning attendance time (7:00 - 15:00).\nDo you want to proceed with registering the attendance?"
         );
         if (!confirmed) {
           // User cancelled, do not proceed
+          setIsSubmitting(false); // Ensure submitting state is reset
           return;
         }
       }
 
-      await recordMorningArrivalAPI(payload);
+      await recordMorningArrivalAPI(payloadWithTimeCheck, selectedCarDetails);
       // ...success logic...
     } catch (err: any) {
       let errorMsg = "Failed to record attendance.";
@@ -444,7 +458,7 @@ export default function CarAttendancePage() {
                 <p><span className="font-semibold">KM/Liter:</span> {selectedCarDetails.kmPerLiter} km/l</p>
             </div>
             {isEveningDepartureMode && morningArrivalRecordDetails && (
-                 <p className="text-sm text-center bg-yellow-100 p-2 rounded-md"><span className="font-semibold">Morning Arrival was at:</span> {morningArrivalRecordDetails.morningKm} KM on {formatDate(morningArrivalRecordDetails.attendanceDate)}</p>
+                 <p className="text-sm text-center bg-yellow-100 p-2 rounded-md"><span className="font-semibold">Morning Arrival was at:</span> {morningArrivalRecordDetails.morningKm} KM on {formatDate(morningArrivalRecordDetails.date)}</p>
             )}
             {!isEveningDepartureMode && !isDayComplete && previousEveningKm !== null && (
               <p className="text-sm text-center bg-blue-100 p-2 rounded-md"><span className="font-semibold">Previous Evening Departure KM:</span> {previousEveningKm}</p>

@@ -1,4 +1,5 @@
 export interface Car {
+    [x: string]: any;
     id: number; 
     plateNumber: string;
     ownerName: string;
@@ -15,7 +16,7 @@ export interface Car {
     status: 'NOT_INSPECTED' | 'InspectedAndReady' | 'Maintenance' | 'Inactive' | 'APPROVED' | 'Pending'|'Rejected';
     registeredDate: string;
     parkingLocation: string;
-   
+    cretedBy: string;
   }
   
   export interface ApiResponse<T> {
