@@ -1,6 +1,6 @@
 // api/assignmentServices.ts
 import axios from 'axios';
-import { API_BASE_URL } from '@/config';
+import { API_BASE_URL } from '../../../../../../config'; // Assuming config.ts is in the root
 import { AssignmentHistory, ApiResponse } from '../types';
 
 const BASE_URL = `${API_BASE_URL}/auth/assignment`;
@@ -70,7 +70,7 @@ export const updateAssignmentStatus = async (id: number): Promise<ApiResponse<As
   }
 };
 
-export const createAssignment = async (request: AssignmentRequest): Promise<ApiResponse<AssignmentHistory>> => {
+export const createAssignment = async (request: AssignmentHistory): Promise<ApiResponse<AssignmentHistory>> => {
   try {
     const response = await fetch('/api/auth/car/assign', {
       method: 'POST',
@@ -96,7 +96,7 @@ export const createAssignment = async (request: AssignmentRequest): Promise<ApiR
   }
 };
 
-export const updateAssignment = async (id: number, request: AssignmentRequest): Promise<ApiResponse<AssignmentHistory>> => {
+export const updateAssignment = async (id: number, request: any): Promise<ApiResponse<AssignmentHistory>> => {
   try {
     const response = await fetch(`${BASE_URL}/update/${id}`, {
       method: 'PUT',
