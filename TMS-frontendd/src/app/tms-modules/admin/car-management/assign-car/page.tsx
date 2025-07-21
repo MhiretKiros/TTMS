@@ -222,30 +222,30 @@ export default function CarAssignment() {
     });
   };
 
-  const handleSubmitAssignment = async (formData: Assignment) => {
-    try {
-      setIsSubmitting(true);
-      const { success, message } = selectedAssignment
-        ? await updateAssignment(formData.id, formData)
-        : await createAssignment(formData);
-      if (success) {
-        await showSuccessAlert(message || 'Assignment saved successfully');
-        await loadAssignments();
-        setIsFormOpen(false);
-        setSelectedAssignment(null);
-      } else {
-        throw new Error(message);
-      }
-    } catch (error) {
-      Swal.fire({
-        title: 'Error!',
-        text: error instanceof Error ? error.message : 'Failed to save assignment',
-        icon: 'error',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // const handleSubmitAssignment = async (formData: Assignment) => {
+  //   try {
+  //     setIsSubmitting(true);
+  //     const { success, message } = selectedAssignment
+  //       ? await updateAssignment(formData.id, formData)
+  //       : await createAssignment(formData);
+  //     if (success) {
+  //       await showSuccessAlert(message || 'Assignment saved successfully');
+  //       await loadAssignments();
+  //       setIsFormOpen(false);
+  //       setSelectedAssignment(null);
+  //     } else {
+  //       throw new Error(message);
+  //     }
+  //   } catch (error) {
+  //     Swal.fire({
+  //       title: 'Error!',
+  //       text: error instanceof Error ? error.message : 'Failed to save assignment',
+  //       icon: 'error',
+  //     });
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
 
   const handleDeleteAssignment = async (id: number) => {
     const result = await Swal.fire({
