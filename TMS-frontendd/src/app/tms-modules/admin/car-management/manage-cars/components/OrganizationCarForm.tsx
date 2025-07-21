@@ -9,6 +9,8 @@ interface OrganizationCar {
   plateNumber: string;
   ownerName: string;
   ownerPhone: string;
+  agentName: string;
+  agentPhone: string;
   model: string;
   carType: string;
   manufactureYear: string;
@@ -36,6 +38,8 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
     plateNumber: '',
     ownerName: '',
     ownerPhone: '',
+    agentName: '',
+    agentPhone: '',
     model: '',
     carType: 'Minibus',
     manufactureYear: new Date().getFullYear().toString(),
@@ -67,6 +71,8 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
         plateNumber: '',
         ownerName: '',
         ownerPhone: '',
+        agentName: '',
+        agentPhone: '',
         model: '',
         carType: 'Minibus',
         manufactureYear: new Date().getFullYear().toString(),
@@ -203,8 +209,43 @@ const OrganizationCarForm = ({ car, onClose, onSubmit, isSubmitting }: {
                       className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={isSubmitting}
                     />
+                    
                     {/* Optional: Add phone validation */}
                   </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Owner Name *</label>
+                <input
+                  type="text"
+                  name="agentName"
+                  value={formData.agentName}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    errors.agentName ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  disabled={isSubmitting}
+                />
+                {errors.agentName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.agentName}</p>
+                )}
+              </div>
+
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Owner Phone *</label>
+                <input
+                  type="tel"
+                  name="agentPhone"
+                  value={formData.agentPhone}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    errors.agentPhone ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  disabled={isSubmitting}
+                />
+                {errors.agentPhone && (
+                  <p className="mt-1 text-sm text-red-600">{errors.agentPhone}</p>
+                )}
+              </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Model *</label>
