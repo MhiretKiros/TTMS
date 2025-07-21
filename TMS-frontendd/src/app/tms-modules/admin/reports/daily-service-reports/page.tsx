@@ -76,7 +76,7 @@ export default function DailyServiceReportsPage() {
 
     if (filters.plateNumber) {
       result = result.filter(service => 
-        (service.plateNumber || '').toLowerCase().includes(filters.plateNumber.toLowerCase())
+        (service.plateNumber || '').toLowerCase().includes(filters.plateNumber?.toLowerCase() ?? '')
       );
     }
 

@@ -78,12 +78,10 @@ export default function FieldServiceReportsPage() {
       );
     }
 
-  
-
    if (filters.plateNumber) {
-  result = result.filter(service => 
-    (service.vehicleDetails || '').toLowerCase().includes(filters.plateNumber.toLowerCase())
-  );
+ result = result.filter(service =>
+ (service.vehicleDetails || '').toLowerCase().includes(filters.plateNumber!.toLowerCase())
+ );
 }
 
     if (filters.start && filters.end) {

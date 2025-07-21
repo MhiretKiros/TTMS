@@ -5,7 +5,7 @@ import axios, { AxiosError } from 'axios';
 import { FiEdit, FiTrash2, FiUserPlus, FiSearch } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import { User, UserResponse } from './types/user';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import AddUser from './components/AddUser';
 import EditUser from './components/EditUser';
 
@@ -34,7 +34,7 @@ export default function UserList() {
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/get-all-users`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       if (response.data?.ourUserLists) {
         setUsers(response.data.ourUserLists);
       }
@@ -71,7 +71,7 @@ export default function UserList() {
           `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/delete/${id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        
+
         Swal.fire({
           title: 'Deleted!',
           text: 'User has been deleted.',
@@ -98,39 +98,43 @@ export default function UserList() {
     user.myUsername.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const modalVariants = {
+  const modalVariants: Variants = {
     hidden: { opacity: 0, y: -50, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
+    visible: {
+      opacity: 1,
+      y: 0,
       scale: 1,
-      transition: { 
-        type: "spring", 
-        damping: 25, 
-        stiffness: 500,
-        duration: 0.4 
-      } 
+      transition: {
+        ease: 'easeOut',
+        duration: 0.4,
+      }
     },
-    exit: { 
-      opacity: 0, 
-      y: 50, 
+    exit: {
+      opacity: 0,
+      y: 50,
       scale: 0.95,
-      transition: { 
-        duration: 0.3 
-      } 
+      transition: {
+        ease: 'easeIn',
+        duration: 0.3
+      }
     }
   };
 
-  const backdropVariants = {
+  const backdropVariants: Variants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 0.5 }
+    visible: {
+      opacity: 0.5,
+      transition: {
+        duration: 0.2
+      }
+    }
   };
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
-        <button 
+        <button
           onClick={() => setIsAddModalOpen(true)}
           className="bg-[#3c8dbc] hover:bg-[#367fa9] text-white px-4 py-2 rounded-md flex items-center"
         >
@@ -216,25 +220,24 @@ export default function UserList() {
       {/* Add User Modal */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <motion.div 
+          <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             initial="hidden"
             animate="visible"
             exit="exit"
           >
-            <motion.div 
-              className="fixed inset-0 bg-black" 
+            <motion.div
+              className="fixed inset-0 bg-black"
               variants={backdropVariants}
               onClick={() => setIsAddModalOpen(false)}
             />
-            
-            <motion.div 
+            <motion.div
               className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto overflow-hidden"
               variants={modalVariants}
             >
-              <AddUser 
-                onClose={() => setIsAddModalOpen(false)} 
-                onUserAdded={fetchUsers} 
+              <AddUser
+                onClose={() => setIsAddModalOpen(false)}
+                onUserAdded={fetchUsers}
               />
             </motion.div>
           </motion.div>
@@ -244,29 +247,28 @@ export default function UserList() {
       {/* Edit User Modal */}
       <AnimatePresence>
         {isEditModalOpen && selectedUserId && (
-          <motion.div 
+          <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             initial="hidden"
             animate="visible"
             exit="exit"
           >
-            <motion.div 
-              className="fixed inset-0 bg-black" 
+            <motion.div
+              className="fixed inset-0 bg-black"
               variants={backdropVariants}
               onClick={() => setIsEditModalOpen(false)}
             />
-            
-            <motion.div 
+            <motion.div
               className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto overflow-hidden"
               variants={modalVariants}
             >
-              <EditUser 
-                userId={selectedUserId} 
+              <EditUser
+                userId={selectedUserId}
                 onClose={() => {
                   setIsEditModalOpen(false);
                   setSelectedUserId(null);
-                }} 
-                onUserUpdated={fetchUsers} 
+                }}
+                onUserUpdated={fetchUsers}
               />
             </motion.div>
           </motion.div>
