@@ -407,7 +407,7 @@ const slides = [
                 </div>
                 <div className="md:w-1/2 relative">
                   <Image 
-                    src="/images/features/driver-performance.jpg" 
+                    src="/images/car8.jpeg" 
                     alt="Driver performance dashboard"
                     layout="fill"
                     objectFit="cover"
@@ -559,34 +559,34 @@ const testimonials = [
     position: "Fleet Manager, TransGlobal",
     quote: "Reduced our operational costs by 28% in the first quarter. The analytics are incredibly insightful.",
     rating: 5,
-    avatar: "/images/testimonials/avatar1.jpg"
+    avatar: "/images/insa14.jpeg"
   },
   {
     name: "Michael Chen",
     position: "COO, QuickDeliver",
     quote: "The driver portal has significantly improved our on-time delivery rates. Highly recommend!",
     rating: 4,
-    avatar: "/images/testimonials/avatar2.jpg"
+    avatar: "/images/insa16.jpeg"
   },
   {
     name: "David Rodriguez",
     position: "Logistics Director, MegaFreight",
     quote: "Implementation was seamless and the support team is exceptional. Game changer for our business.",
     rating: 5,
-    avatar: "/images/testimonials/avatar3.jpg"
+    avatar: "/images/insa5.png"
   },
   {
     name: "Emma Wilson",
     position: "Operations Manager, UrbanTransit",
     quote: "The route optimization alone paid for the system in the first three months.",
     rating: 5,
-    avatar: "/images/testimonials/avatar4.jpg"
+    avatar: "/images/insa1.png"
   },
   {
     name: "James Peterson",
     position: "CEO, GreenFleet",
     quote: "Best decision we made for our growing logistics company. The ROI is outstanding.",
     rating: 5,
-    avatar: "/images/testimonials/avatar5.jpg"
+    avatar: "/images/insa4.png"
   }
 ];

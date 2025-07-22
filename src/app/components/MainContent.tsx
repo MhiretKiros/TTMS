@@ -1,4 +1,3 @@
-// src/components/MainContent.js
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -7,15 +6,17 @@ import { useRouter } from "next/navigation";
 
 export default function MainContent() {
   const router = useRouter();
-  const areaChartRef = useRef(null);
-  const pieChartRef = useRef(null);
+  const areaChartRef = useRef<HTMLCanvasElement>(null);
+  const pieChartRef = useRef<HTMLCanvasElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 3;
 
   useEffect(() => {
+    if (!areaChartRef.current || !pieChartRef.current) return;
+
     // Area Chart
     const areaCtx = areaChartRef.current.getContext("2d");
-    const areaChart = new Chart(areaCtx, {
+    const areaChart = new Chart(areaCtx!, {
       type: "line",
       data: {
         labels: [
@@ -43,7 +44,7 @@ export default function MainContent() {
 
     // Pie Chart
     const pieCtx = pieChartRef.current.getContext("2d");
-    const pieChart = new Chart(pieCtx, {
+    const pieChart = new Chart(pieCtx!, {
       type: "pie",
       data: {
         labels: ["Engineering", "Management", "Economics", "Marketing", "Others"],
@@ -76,6 +77,8 @@ export default function MainContent() {
       pieChart.destroy();
     };
   }, []);
+
+
 
   const employees = [
     { name: "John Doe", department: "Engineering", position: "Software Engineer", salary: "$100,000" },

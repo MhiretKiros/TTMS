@@ -384,7 +384,7 @@ export default function AdminDashboard() {
         animate="visible"
       >
         {summaryCardData.map((card, idx) => (
-          <Link key={idx} href={card.href} passHref legacyBehavior>
+          <Link key={idx} href={card.href} passHref>
             <motion.div
               variants={itemVariants}
               whileHover={cardHoverVariants}
@@ -763,7 +763,7 @@ export default function AdminDashboard() {
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {quickActions.map((action, idx) => (
-            <Link key={idx} href={action.href} passHref legacyBehavior>
+            <Link key={idx} href={action.href} passHref>
               <motion.div
                 whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
                 whileTap={{ scale: 0.95 }}

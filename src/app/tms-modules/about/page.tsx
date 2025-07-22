@@ -13,7 +13,7 @@ export default function AboutPage() {
       <div className="relative bg-gradient-to-br from-blue-700 to-blue-900 text-white pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <Image 
-            src="/map-pattern.png" 
+            src="/images/insa4.png" 
             alt="Map pattern" 
             layout="fill" 
             objectFit="cover"
@@ -168,25 +168,25 @@ const timelineItems = [
     year: "2015",
     title: "Company Founded",
     description: "Started with a vision to revolutionize fleet management through technology.",
-    image: "/office-2015.jpg"
+    image: "/images/insa1.png"
   },
   {
     year: "2017",
     title: "First Major Client",
     description: "Secured our first enterprise client, validating our product in the market.",
-    image: "/client-meeting.jpg"
+    image: "/images/insa5.png"
   },
   {
     year: "2019",
     title: "AI Integration",
     description: "Implemented machine learning for predictive analytics and route optimization.",
-    image: "/ai-tech.jpg"
+    image: "/images/insa4.png"
   },
   {
     year: "2022",
     title: "Global Expansion",
     description: "Expanded operations to Europe and Asia, serving clients in 15 countries.",
-    image: "/global-map.jpg"
+    image: "/images/insa13.jpeg"
   }
 ];
 
@@ -195,25 +195,25 @@ const teamMembers = [
     name: "Alex Johnson",
     position: "CEO & Founder",
     bio: "Transportation industry veteran with 20+ years of experience.",
-    image: "/ceo.jpg"
+    image: "/images/insa14.png"
   },
   {
     name: "Maria Garcia",
     position: "CTO",
     bio: "Led technology development for Fortune 500 logistics companies.",
-    image: "/cto.jpg"
+    image: "/images/insa16.png"
   },
   {
     name: "James Wilson",
     position: "Head of Product",
     bio: "Specializes in user experience and product innovation.",
-    image: "/product.jpg"
+    image: "/images/insa17.jpeg"
   },
   {
     name: "Sarah Lee",
     position: "VP Operations",
     bio: "Oversees customer success and implementation teams.",
-    image: "/operations.jpg"
+    image: "/images/insa15.jpeg"
   }
 ];
 

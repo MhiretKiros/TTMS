@@ -128,7 +128,7 @@ export default function ServicesPage() {
             
             <div className="relative">
               <Image 
-                src="/features-dashboard.png" 
+                src="/images/insa17.jpeg" 
                 alt="Features dashboard" 
                 width={600} 
                 height={500}
@@ -246,8 +246,8 @@ const coreServices = [
       "Fuel management",
       "Driver performance analytics"
     ],
-    image: "/fleet-management.jpg",
-    icon: "/steering-wheel.svg",
+    image: "/images/insa10.jpeg",
+    icon: "/images/insaprofile.png",
     color: "bg-purple-100",
     link: "/services/fleet-management"
   },
@@ -260,8 +260,8 @@ const coreServices = [
       "Geofencing capabilities",
       "Delivery time estimation"
     ],
-    image: "/route-optimization.jpg",
-    icon: "/route.svg",
+    image: "/images/insa11.jpeg",
+    icon: "/images/insa15.jpeg",
     color: "bg-blue-100",
     link: "/services/route-optimization"
   },
@@ -274,8 +274,8 @@ const coreServices = [
       "Training modules",
       "Compliance tracking"
     ],
-    image: "/driver-management.jpg",
-    icon: "/driver.svg",
+    image: "/images/insa17.jpeg",
+    icon: "/images/insa18.png",
     color: "bg-green-100",
     link: "/services/driver-management"
   },
@@ -288,8 +288,8 @@ const coreServices = [
       "Shock/vibration alerts",
       "Theft prevention"
     ],
-    image: "/asset-tracking.jpg",
-    icon: "/gps.svg",
+    image: "/images/insa13.jpeg",
+    icon: "/images/insaprofile.png",
     color: "bg-red-100",
     link: "/services/asset-tracking"
   },
@@ -302,8 +302,8 @@ const coreServices = [
       "Automated reports",
       "Predictive analytics"
     ],
-    image: "/analytics.jpg",
-    icon: "/analytics.svg",
+    image: "/images/insa5.png",
+    icon: "/images/insaprofile.png",
     color: "bg-yellow-100",
     link: "/services/analytics"
   },
@@ -316,8 +316,8 @@ const coreServices = [
       "Driver certification tracking",
       "Audit preparation"
     ],
-    image: "/compliance.jpg",
-    icon: "/checklist.svg",
+    image: "/images/insa4.png",
+    icon: "/images/insaprofile.png",
     color: "bg-indigo-100",
     link: "/services/compliance"
   }
@@ -327,17 +327,17 @@ const featuresLeft = [
   {
     title: "Real-time GPS Tracking",
     description: "Monitor your entire fleet in real-time with live updates every 30 seconds. Set up geofences and receive instant alerts for deviations.",
-    icon: "/gps-icon.svg"
+    icon: "/images/insaprofile.png"
   },
   {
     title: "Predictive Maintenance",
     description: "Our AI analyzes vehicle data to predict maintenance needs before they become costly repairs, reducing downtime by up to 40%.",
-    icon: "/maintenance-icon.svg"
+    icon: "/images/insaprofile.png"
   },
   {
     title: "Driver Behavior Analysis",
     description: "Identify risky driving patterns like harsh braking and acceleration to improve safety and reduce fuel consumption.",
-    icon: "/driver-icon.svg"
+    icon: "/images/insaprofile.png"
   }
 ];
 
