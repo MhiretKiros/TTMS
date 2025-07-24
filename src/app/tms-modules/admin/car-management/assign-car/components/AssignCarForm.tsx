@@ -4,6 +4,8 @@ import axios from 'axios';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from '@/app/contexts/NotificationContext';
+import Swal from 'sweetalert2';
+import { FaFileImage, FaFilePdf, FaTrash } from 'react-icons/fa';
 
 interface Car {
   id: number | string;
@@ -34,6 +36,8 @@ interface FormData {
   shortNoticePercentage: 'low' | 'medium' | 'high';
   mobilityIssue: 'yes' | 'no';
   gender: 'male' | 'female';
+  driverLicense?: File | null;
+  licenseExpiryDate?: string;
 }
 
 interface AssignmentResult {
@@ -52,6 +56,8 @@ interface PendingRequest {
   totalPercentage: number;
   createdAt: string;
   status: 'Pending' | 'Assigned' | 'Not Assigned';
+  driverLicense?: string;
+  licenseExpiryDate?: string;
 }
 
 const parseMotorCapacity = (motorCapacity: string): number => {
@@ -91,7 +97,9 @@ export default function RentalRequestForm() {
     travelWorkPercentage: 'low',
     shortNoticePercentage: 'low',
     mobilityIssue: 'no',
-    gender: 'male'
+    gender: 'male',
+    driverLicense: null,
+    licenseExpiryDate: ''
   });
 
   const { addNotification } = useNotification();
@@ -101,6 +109,7 @@ export default function RentalRequestForm() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [proposedCar, setProposedCar] = useState<Car | null>(null);
+  const [licensePreview, setLicensePreview] = useState<string | null>(null);
 
   // Automatic checking state
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
@@ -124,6 +133,66 @@ export default function RentalRequestForm() {
     setTotalPercentage(total);
   }, [formData.travelWorkPercentage, formData.shortNoticePercentage, 
       formData.mobilityIssue, formData.gender]);
+
+ 
+ // Check license expiry date
+  useEffect(() => {
+    if (formData.licenseExpiryDate) {
+      const expiryDate = new Date(formData.licenseExpiryDate);
+      const today = new Date();
+      const fiveDaysFromNow = new Date();
+      fiveDaysFromNow.setDate(today.getDate() + 5);
+      
+      if (expiryDate <= fiveDaysFromNow && expiryDate >= today) {
+        Swal.fire({
+          title: 'License Expiry Alert',
+          text: `Driver's license will expire in ${Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))} days!`,
+          icon: 'warning',
+          confirmButtonText: 'OK'
+        });
+      } else if (expiryDate < today) {
+        Swal.fire({
+          title: 'License Expired',
+          text: 'Driver\'s license has already expired!',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+      }
+    }
+  }, [formData.licenseExpiryDate]);
+  // Handle file upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Check if file is PDF or image
+      if (!file.type.match('application/pdf') && !file.type.match('image.*')) {
+        Swal.fire({
+          title: 'Invalid File',
+          text: 'Please upload a PDF or image file',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        driverLicense: file
+      }));
+      
+      // Create preview for images
+      if (file.type.match('image.*')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setLicensePreview(event.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setLicensePreview(null);
+      }
+    }
+  };
 
   // Enhanced filterAndSortCars function
   const filterAndSortCars = (cars: Car[], position: string, isHighPriorityReq: boolean) => {
@@ -280,8 +349,11 @@ const fetchPendingRequests = async (): Promise<PendingRequest[]> => {
             travelWorkPercentage: req.travelWorkPercentage.toLowerCase() as 'low' | 'medium' | 'high',
             shortNoticePercentage: req.shortNoticePercentage.toLowerCase() as 'low' | 'medium' | 'high',
             mobilityIssue: req.mobilityIssue.toLowerCase() as 'yes' | 'no',
-            gender: req.gender.toLowerCase() as 'male' | 'female'
+            gender: req.gender.toLowerCase() as 'male' | 'female',
+            licenseExpiryDate: req.licenseExpiryDate
           },
+          driverLicense: req.driverLicense,
+          licenseExpiryDate: req.licenseExpiryDate,
           totalPercentage: req.totalPercentage,
           createdAt: req.assignedDate,
           status: req.status as 'Pending' | 'Assigned' | 'Not Assigned'
@@ -349,6 +421,23 @@ const checkForAutoAssignments = useCallback(async () => {
         const bestCar = eligibleCars[0];
         console.log('Found matching car:', bestCar.plateNumber);
         
+        // Check license expiry if exists
+        if (request.licenseExpiryDate) {
+          const expiryDate = new Date(request.licenseExpiryDate);
+          const today = new Date();
+          const fiveDaysFromNow = new Date();
+          fiveDaysFromNow.setDate(today.getDate() + 5);
+          
+          if (expiryDate <= fiveDaysFromNow) {
+            Swal.fire({
+              title: 'License Expiry Alert',
+              text: `Driver's license for ${request.formData.requesterName} will expire soon!`,
+              icon: 'warning',
+              confirmButtonText: 'OK'
+            });
+          }
+        }
+        
         // Set the assignment and show confirmation
         setAutoAssignment({
           car: bestCar,
@@ -415,6 +504,28 @@ const checkForAutoAssignments = useCallback(async () => {
 
   const handleAssign = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Validate license and expiry date
+    if (!formData.driverLicense) {
+      Swal.fire({
+        title: 'Missing License',
+        text: 'Please upload driver license document',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    
+    if (!formData.licenseExpiryDate) {
+      Swal.fire({
+        title: 'Missing Expiry Date',
+        text: 'Please enter license expiry date',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    
     setIsAssigning(true);
     setAssignmentResult(null);
   
@@ -431,29 +542,34 @@ const checkForAutoAssignments = useCallback(async () => {
       );
   
       if (eligibleCars.length === 0) {
-        const payload = {
-          requestLetterNo: formData.requestLetterNo,
-          requestDate: new Date().toISOString().split('T')[0],
-          requesterName: formData.requesterName,
-          rentalType: formData.rentalType,
-          position: formData.position,
-          department: formData.department,
-          phoneNumber: formData.phoneNumber,
-          travelWorkPercentage: formData.travelWorkPercentage,
-          shortNoticePercentage: formData.shortNoticePercentage,
-          mobilityIssue: formData.mobilityIssue,
-          gender: formData.gender,
-          totalPercentage: totalPercentage,
-          status: 'Pending',
-          carId: null,
-          plateNumber: null
-        };
+        const formDataToSend = new FormData();
+        formDataToSend.append('requestLetterNo', formData.requestLetterNo);
+        formDataToSend.append('requestDate', new Date().toISOString().split('T')[0]);
+        formDataToSend.append('requesterName', formData.requesterName);
+        formDataToSend.append('rentalType', formData.rentalType);
+        formDataToSend.append('position', formData.position);
+        formDataToSend.append('department', formData.department);
+        formDataToSend.append('phoneNumber', formData.phoneNumber);
+        formDataToSend.append('travelWorkPercentage', formData.travelWorkPercentage);
+        formDataToSend.append('shortNoticePercentage', formData.shortNoticePercentage);
+        formDataToSend.append('mobilityIssue', formData.mobilityIssue);
+        formDataToSend.append('gender', formData.gender);
+        formDataToSend.append('totalPercentage', totalPercentage.toString());
+        formDataToSend.append('status', 'Pending');
+        formDataToSend.append('licenseExpiryDate', formData.licenseExpiryDate || '');
+        if (formData.driverLicense) {
+          formDataToSend.append('driverLicense', formData.driverLicense);
+        }
   
         const endpoint = formData.rentalType === 'organizational' 
           ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/assign` 
           : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`;
   
-        const response = await axios.post(endpoint, payload);
+        const response = await axios.post(endpoint, formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
   
         if (response.data.codStatus === 200 || response.data.status === 200) {
           setAssignmentResult({
@@ -474,8 +590,11 @@ const checkForAutoAssignments = useCallback(async () => {
             travelWorkPercentage: 'low',
             shortNoticePercentage: 'low',
             mobilityIssue: 'no',
-            gender: 'male'
+            gender: 'male',
+            driverLicense: null,
+            licenseExpiryDate: ''
           });
+          setLicensePreview(null);
         } else {
           throw new Error(response.data.message || 'Failed to save unassigned request');
         }
@@ -518,15 +637,20 @@ const checkForAutoAssignments = useCallback(async () => {
       const isOrgCar = approvedOrgCars.some(c => c.id === car.id);
   
       // Prepare the update payload according to your backend requirements
-      const updatePayload = {
-        status: 'Assigned',
-        carId: car.id,
-        rentalType: request.formData.rentalType,
-        plateNumber: car.plateNumber,
-        assignmentDate: new Date().toISOString()
-      };
+      const formDataToSend = new FormData();
+      formDataToSend.append('status', 'Assigned');
+      formDataToSend.append('carId', car.id.toString());
+      formDataToSend.append('rentalType', request.formData.rentalType);
+      formDataToSend.append('plateNumber', car.plateNumber);
+      formDataToSend.append('assignmentDate', new Date().toISOString());
+      formDataToSend.append('licenseExpiryDate', request.licenseExpiryDate || '');
+      if (request.driverLicense) {
+        // If driverLicense is a URL, we might need to fetch it first
+        // This part depends on your API implementation
+        // For now, we'll assume it's handled by the backend
+      }
   
-      console.log('Update payload:', updatePayload);
+      console.log('Update payload:', formDataToSend);
   
       // Determine the correct endpoint based on car type
       const endpoint = isOrgCar 
@@ -534,7 +658,7 @@ const checkForAutoAssignments = useCallback(async () => {
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assignments/update/${request.id}`;
   
       // Make the API call to update assignment history
-      const updateResponse = await axios.put(endpoint, updatePayload, {
+      const updateResponse = await axios.put(endpoint, formDataToSend, {
         timeout: 10000,
         headers: {
           'Content-Type': 'application/json'
@@ -576,17 +700,16 @@ const checkForAutoAssignments = useCallback(async () => {
         assignmentDate: new Date().toISOString().split('T')[0] 
       });
   
-       try {
-      await addNotification(
-        `New vehicle has been assigned to ${formData.requesterName} needs Approved`,
-        `/tms-modules/admin/car-management/assign-car`,
-        'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
-      );
+      try {
+        await addNotification(
+          `New vehicle has been assigned to ${request.formData.requesterName} needs Approved`,
+          `/tms-modules/admin/car-management/assign-car`,
+          'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
+        );
+      } catch (notificationError) {
+        console.error('Failed to add notification:', notificationError);
+      }
       
-    } catch (notificationError) {
-      console.error('Failed to add notification:', notificationError);
-      // Optionally show error to user
-    }
       // Refresh data
       await fetchAllData();
       
@@ -624,28 +747,35 @@ const checkForAutoAssignments = useCallback(async () => {
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/rent-car/status/${proposedCar.plateNumber}`
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/status/${proposedCar.plateNumber}`;
   
-      const payload = {
-        requestLetterNo: formData.requestLetterNo,
-        requestDate: new Date().toISOString().split('T')[0],
-        requesterName: formData.requesterName,
-        rentalType: formData.rentalType,
-        position: formData.position,
-        department: formData.department,
-        phoneNumber: formData.phoneNumber,
-        travelWorkPercentage: formData.travelWorkPercentage,
-        shortNoticePercentage: formData.shortNoticePercentage,
-        mobilityIssue: formData.mobilityIssue,
-        gender: formData.gender,
-        totalPercentage: totalPercentage,
-        status: 'Assigned',
-        [isOrgCar ? 'rentCarId' : 'carId']: proposedCar.id,
-        plateNumber: proposedCar.plateNumber,
-        model: proposedCar.model,
-        numberOfCar: '1',
-      };
+      const formDataToSend = new FormData();
+      formDataToSend.append('requestLetterNo', formData.requestLetterNo);
+      formDataToSend.append('requestDate', new Date().toISOString().split('T')[0]);
+      formDataToSend.append('requesterName', formData.requesterName);
+      formDataToSend.append('rentalType', formData.rentalType);
+      formDataToSend.append('position', formData.position);
+      formDataToSend.append('department', formData.department);
+      formDataToSend.append('phoneNumber', formData.phoneNumber);
+      formDataToSend.append('travelWorkPercentage', formData.travelWorkPercentage);
+      formDataToSend.append('shortNoticePercentage', formData.shortNoticePercentage);
+      formDataToSend.append('mobilityIssue', formData.mobilityIssue);
+      formDataToSend.append('gender', formData.gender);
+      formDataToSend.append('totalPercentage', totalPercentage.toString());
+      formDataToSend.append('status', 'Assigned');
+      formDataToSend.append(isOrgCar ? 'rentCarId' : 'carId', proposedCar.id.toString());
+      formDataToSend.append('plateNumber', proposedCar.plateNumber);
+      formDataToSend.append('model', proposedCar.model);
+      formDataToSend.append('numberOfCar', '1');
+      formDataToSend.append('licenseExpiryDate', formData.licenseExpiryDate || '');
+      if (formData.driverLicense) {
+        formDataToSend.append('driverLicense', formData.driverLicense);
+      }
   
       const [assignmentResponse, statusResponse] = await Promise.all([
-        axios.post(endpoint, payload),
+        axios.post(endpoint, formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }),
         axios.put(statusEndpoint, { 
           status: 'Assigned',
           assignmentDate: new Date().toISOString().split('T')[0] 
@@ -687,20 +817,22 @@ const checkForAutoAssignments = useCallback(async () => {
         travelWorkPercentage: 'low',
         shortNoticePercentage: 'low',
         mobilityIssue: 'no',
-        gender: 'male'
+        gender: 'male',
+        driverLicense: null,
+        licenseExpiryDate: ''
       });
+      setLicensePreview(null);
   
       try {
-      await addNotification(
-        `New vehicle has been assigned to ${formData.requesterName} needs Approved`,
-        `/tms-modules/admin/car-management/assign-car`,
-        'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
-      );
+        await addNotification(
+          `New vehicle has been assigned to ${formData.requesterName} needs Approved`,
+          `/tms-modules/admin/car-management/assign-car`,
+          'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
+        );
+      } catch (notificationError) {
+        console.error('Failed to add notification:', notificationError);
+      }
       
-    } catch (notificationError) {
-      console.error('Failed to add notification:', notificationError);
-      // Optionally show error to user
-    }
       setShowConfirmation(false);
       setShowSuccessModal(true);
       setProposedCar(null);
@@ -969,6 +1101,79 @@ const checkForAutoAssignments = useCallback(async () => {
             </motion.div>
           </div>
 
+          {/* Driver License and Expiry Date Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <div className="form-group">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Driver License (PDF or Image)
+                </label>
+                <div className="flex items-center gap-2">
+                  {!formData.driverLicense ? (
+                    <input
+                      type="file"
+                      name="driverLicense"
+                      onChange={handleFileChange}
+                      className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      required
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg border border-gray-300">
+                      <div className="flex items-center gap-2">
+                        {formData.driverLicense.type.includes('pdf') ? (
+                          <FaFilePdf className="text-red-500 text-xl" />
+                        ) : (
+                          <FaFileImage className="text-blue-500 text-xl" />
+                        )}
+                        <span className="text-sm text-gray-700 truncate max-w-xs">
+                          {formData.driverLicense.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, driverLicense: null }));
+                          setLicensePreview(null);
+                        }}
+                        className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {licensePreview && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600 mb-1">License Preview:</p>
+                    <img 
+                      src={licensePreview} 
+                      alt="License Preview" 
+                      className="max-w-xs max-h-40 border border-gray-200 rounded"
+                    />
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <div className="form-group">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  License Expiry Date
+                </label>
+                <input
+                  type="date"
+                  name="licenseExpiryDate"
+                  value={formData.licenseExpiryDate}
+                  onChange={handleChange}
+                  className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            </motion.div>
+          </div>
+
           <motion.div 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -1017,7 +1222,6 @@ const checkForAutoAssignments = useCallback(async () => {
                 <div className="mb-6">
                   <h4 className="text-lg font-semibold text-gray-800 mb-3">Request Details</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
                     <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                       <div>
                         <p className="text-sm text-blue-600">Requester</p>
@@ -1031,6 +1235,14 @@ const checkForAutoAssignments = useCallback(async () => {
                         <p className="text-sm text-blue-600">Position</p>
                         <p className="font-medium text-gray-800">
                           {positionLabels[formData.position]}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div>
+                        <p className="text-sm text-blue-600">License Expiry</p>
+                        <p className="font-medium text-gray-800">
+                          {formData.licenseExpiryDate || 'Not provided'}
                         </p>
                       </div>
                     </div>
@@ -1287,6 +1499,14 @@ const checkForAutoAssignments = useCallback(async () => {
                                     <p className="text-sm text-gray-600">Requester</p>
                                     <p className="font-medium text-gray-800">
                                       {assignmentResult.assignedRequest.requesterName}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                                  <div>
+                                    <p className="text-sm text-gray-600">License Expiry</p>
+                                    <p className="font-medium text-gray-800">
+                                      {assignmentResult.assignedRequest.licenseExpiryDate || 'Not provided'}
                                     </p>
                                   </div>
                                 </div>

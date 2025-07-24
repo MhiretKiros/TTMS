@@ -161,6 +161,7 @@ export default function AddUser({ onClose, onUserAdded }: AddUserProps) {
           <option value="CORPORATOR">Corporator</option>
           <option value="HEAD_OF_MECHANIC">Head of Mechanic</option>
           <option value="USER">User</option>
+          <option value="EMPLOYEE">Employee</option>
           <option value="DRIVER">Driver</option>
           <option value="HEAD_OF_DISTRIBUTOR">Head of Distributor</option>
         </select>

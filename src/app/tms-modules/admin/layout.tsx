@@ -114,17 +114,30 @@ const allSidebarItems = [
     ],
   },
   {
-    title: 'Parking Management',
+    title: 'Vehicle Map View',
     icon: <FiBox />,
-    link: '/tms-modules/admin/parking-management',
-    roles: ['ADMIN'],
+    link: '/tms-modules/admin/vehicle-map-view',
+    roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR', 'DRIVER', 'EMPLOYEE'],
     subItems: [
+      { 
+        title: 'View Vehicles',
+        link: '/tms-modules/admin/vehicle-map-view', 
+        icon: <FiClipboard />,
+        roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR'
+      , 'DRIVER', 'EMPLOYEE']
+      },
       { 
         title: 'View Parking', 
         link: '/tms-modules/admin/parking-management/view-parking', 
         icon: <FiClipboard />,
         roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR'
       , 'DRIVER']
+      },
+       { 
+        title: 'Generate QR Code', 
+        link: '/tms-modules/admin/qr-code-generator', 
+        icon: <FiUser />,
+        roles: ['ADMIN', 'DISTRIBUTOR', 'DRIVER']
       },
     ],
   },
@@ -141,6 +154,7 @@ const allSidebarItems = [
         roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR'
       ]
       },
+       
     ],
   },
   {
@@ -161,6 +175,7 @@ const allSidebarItems = [
         icon: <FiUser />,
         roles: ['ADMIN']
       },
+  
     ],
   },
   {

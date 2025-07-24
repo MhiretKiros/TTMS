@@ -62,103 +62,6 @@ export default function DriverCarView() {
     }
   }, []);
 
-  const fetchDriverCar = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (!driverName) throw new Error('Driver name not available');
-
-      const response = await fetch(`${API_BASE_URL}/auth/organization-car/service-buses`);
-      if (!response.ok) throw new Error('Failed to fetch service cars');
-      
-      const data = await response.json();
-      const serviceCars = data.cars || [];
-      const assignedCar = serviceCars.find((car: any) => 
-        car.organizationCar?.driverName?.toLowerCase() === driverName.toLowerCase()
-      );
-
-      if (!assignedCar || !assignedCar.organizationCar) {
-        throw new Error('No vehicle assigned to you');
-      }
-
-      const carData = assignedCar.organizationCar;
-      const carInfo: CarInfo = {
-        id: carData.id,
-        plateNumber: carData.plateNumber,
-        model: carData.model || 'Unknown Model',
-        totalSeats: carData.loadCapacity || 14,
-        availableSeats: carData.loadCapacity || 14,
-        driverName: carData.driverName,
-        assignedEmployees: [],
-        carType: 'service',
-        source: 'Organization',
-        route: '',
-        destination: '',
-        waypoints: []
-      };
-
-      try {
-        const assignmentsResponse = await fetch(`${API_BASE_URL}/api/assignments`);
-        if (assignmentsResponse.ok) {
-          const assignmentsData = await assignmentsResponse.json();
-          const validAssignments = Array.isArray(assignmentsData) ? assignmentsData : [];
-          
-          const assignedEmployeeIds = validAssignments
-            .filter((assignment: any) => assignment.assignedCarPlateNumber === carInfo.plateNumber)
-            .map((assignment: any) => assignment.employeeId);
-
-          const assignedEmployees = await Promise.all(
-            assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
-          );
-
-          carInfo.assignedEmployees = assignedEmployees;
-          carInfo.availableSeats = carInfo.totalSeats - assignedEmployees.length;
-        }
-      } catch (err) {
-        console.error('Error fetching assignments:', err);
-      }
-
-      try {
-        const routesResponse = await fetch(`${API_BASE_URL}/api/routes`);
-        if (routesResponse.ok) {
-          const routesData = await routesResponse.json();
-          const validRoutes = Array.isArray(routesData) ? routesData : [];
-          
-          const carRoute = validRoutes.find((route: any) => 
-            route.plateNumber === carInfo.plateNumber
-          );
-
-          if (carRoute?.waypoints?.length) {
-            const waypoints = await Promise.all(
-              carRoute.waypoints.map(async (wp: any) => ({
-                latitude: Number(wp.latitude),
-                longitude: Number(wp.longitude),
-                name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
-              }))
-            );
-
-            carInfo.waypoints = waypoints;
-            carInfo.route = waypoints.map(wp => wp.name ?? '').join(' → ');
-            carInfo.destination = waypoints[waypoints.length - 1].name || '';
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching routes:', err);
-      }
-
-      setDriverCar(carInfo);
-    } catch (err: any) {
-      console.error("Error fetching driver car data:", err);
-      setError(err.message || "An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (driverName) fetchDriverCar();
-  }, [driverName]);
-
   async function fetchEmployeeDetails(employeeId: string): Promise<Employee> {
     try {
       const response = await fetch(`${API_BASE_URL}/api/employees/${employeeId}`);
@@ -166,7 +69,6 @@ export default function DriverCarView() {
       
       const employeeData = await response.json();
       
-      // Ensure we always return a valid Employee object
       return {
         employeeId: employeeData.employeeId || employeeId,
         name: employeeData.name || 'Unknown Employee',
@@ -174,7 +76,6 @@ export default function DriverCarView() {
       };
     } catch (err) {
       console.error(`Error fetching details for employee ${employeeId}:`, err);
-      // Return a default object so the UI doesn't crash
       return { 
         employeeId,
         name: 'Unknown Employee',
@@ -198,6 +99,185 @@ export default function DriverCarView() {
       return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
   }
+
+  const fetchDriverCar = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!driverName) throw new Error('Driver name not available');
+
+      // Fetch both service and rent cars like in the first code
+      const [serviceCarsResponse, rentCarsResponse, assignmentsResponse, routesResponse, rentCarRoutesResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/auth/organization-car/service-buses`),
+        fetch(`${API_BASE_URL}/auth/rent-car/bus-minibus`),
+        fetch(`${API_BASE_URL}/api/employees`),
+        fetch(`${API_BASE_URL}/api/routes`),
+        fetch(`${API_BASE_URL}/auth/rent-car-routes`),
+      ]);
+
+      if (!serviceCarsResponse.ok) throw new Error('Failed to fetch service cars');
+      if (!rentCarsResponse.ok) throw new Error('Failed to fetch rent cars');
+      if (!assignmentsResponse.ok) throw new Error('Failed to fetch employee assignments');
+      if (!routesResponse.ok) throw new Error('Failed to fetch routes');
+      if (!rentCarRoutesResponse.ok) throw new Error('Failed to fetch rent car routes');
+
+      const [serviceCarsData, rentCarsData, assignmentsData, routesData, rentCarRoutesData] = await Promise.all([
+        serviceCarsResponse.json(),
+        rentCarsResponse.json(),
+        assignmentsResponse.json(),
+        routesResponse.json(),
+        rentCarRoutesResponse.json(),
+      ]);
+
+      // Process service cars
+      const serviceCarPromises = (serviceCarsData.cars || serviceCarsData.organizationCarList || [])
+        .filter((car: any) => car.organizationCar?.plateNumber)
+        .map(async (carData: any) => {
+          const car = carData.organizationCar;
+          const totalSeats = car.loadCapacity || 14;
+          
+          // Get assigned employees
+          const assignedEmployeeIds = Array.isArray(assignmentsData) 
+            ? assignmentsData
+                .filter((assignment: any) => assignment.assignedCarPlateNumber === car.plateNumber)
+                .map((assignment: any) => assignment.employeeId)
+            : [];
+
+          const assignedEmployees = await Promise.all(
+            assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
+          );
+
+          // Get route information
+          let routeInfo = '';
+          let destination = '';
+          let waypoints: Waypoint[] = [];
+          
+          const carRoute = Array.isArray(routesData) 
+            ? routesData.find((route: any) => route.plateNumber === car.plateNumber)
+            : null;
+
+          if (carRoute?.waypoints?.length) {
+            waypoints = await Promise.all(
+              carRoute.waypoints.map(async (wp: any) => ({
+                latitude: Number(wp.latitude),
+                longitude: Number(wp.longitude),
+                name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+              }))
+            );
+
+            if (waypoints.length > 0) {
+              routeInfo = waypoints.map(wp => wp.name ?? '').join(' → ');
+              destination = waypoints[waypoints.length - 1].name || '';
+            }
+          }
+
+          return {
+            id: `service-${car.id}`,
+            plateNumber: car.plateNumber,
+            model: car.model || 'Unknown Model',
+            totalSeats,
+            availableSeats: totalSeats - assignedEmployees.length,
+            route: routeInfo,
+            destination,
+            waypoints,
+            assignedEmployees,
+            driverName: car.driverName || '',
+            carType: 'service',
+            source: 'Organization',
+          };
+        });
+
+      // Process rent cars
+      const rawRentCars = (rentCarsData.rentCarList || rentCarsData.rentCars || rentCarsData.busAndMinibusList || [])
+        .filter((carData: any) => carData.plateNumber || carData.rentCar?.plateNumber);
+
+      const rentCarPromises = rawRentCars.map(async (carData: any) => {
+        const car = carData.rentCar || carData;
+        const plateNumber = car.plateNumber;
+        const totalSeats = car.numberOfSeats || 0;
+        
+        // Get assigned employees
+        const assignedEmployeeIds = Array.isArray(assignmentsData)
+          ? assignmentsData
+              .filter((assignment: any) => 
+                assignment.carType === 'RENT' && 
+                assignment.assignedCarPlateNumber === plateNumber
+              )
+              .map((assignment: any) => assignment.employeeId)
+          : [];
+
+        const assignedEmployees = await Promise.all(
+          assignedEmployeeIds.map((id: string) => fetchEmployeeDetails(id))
+        );
+
+        // Get route information
+        let routeInfo = 'N/A';
+        let destination = 'N/A';
+        let waypoints: Waypoint[] = [];
+        
+        const routeInfoData = Array.isArray(rentCarRoutesData)
+          ? rentCarRoutesData.find((r: any) => 
+              r.plateNumber === plateNumber || 
+              r.rentCar?.plateNumber === plateNumber
+            )
+          : null;
+
+        if (routeInfoData?.waypoints?.length) {
+          waypoints = await Promise.all(
+            routeInfoData.waypoints.map(async (wp: any) => ({
+              latitude: Number(wp.latitude),
+              longitude: Number(wp.longitude),
+              name: await fetchLocationName(Number(wp.latitude), Number(wp.longitude)),
+            }))
+          );
+
+          if (waypoints.length > 0) {
+            routeInfo = waypoints.map(wp => wp.name ?? '').join(' → ');
+            destination = waypoints[waypoints.length - 1].name || 'N/A';
+          }
+        }
+
+        return {
+          id: `rent-${car.id}`,
+          plateNumber,
+          model: car.model || 'Unknown Model',
+          totalSeats,
+          availableSeats: totalSeats - assignedEmployees.length,
+          route: routeInfo,
+          destination,
+          waypoints,
+          assignedEmployees,
+          driverName: car.driverName || '',
+          carType: 'rent',
+          source: 'Rented',
+        };
+      });
+
+      const resolvedServiceCars = await Promise.all(serviceCarPromises);
+      const resolvedRentCars = await Promise.all(rentCarPromises);
+      const allCars = [...resolvedServiceCars, ...resolvedRentCars];
+
+      // Find the car assigned to this driver
+      const assignedCar = allCars.find(car => 
+        car.driverName.toLowerCase() === driverName.toLowerCase()
+      );
+
+      if (!assignedCar) {
+        throw new Error('No vehicle assigned to you');
+      }
+
+      setDriverCar(assignedCar);
+    } catch (err: any) {
+      console.error("Error fetching driver car data:", err);
+      setError(err.message || "An unexpected error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (driverName) fetchDriverCar();
+  }, [driverName]);
 
   if (isLoading) {
     return (
@@ -266,7 +346,7 @@ export default function DriverCarView() {
           </div>
         </div>
 
-             {expanded && (
+        {expanded && (
           <div className="border-t p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 className="font-medium text-lg flex items-center mb-3">
