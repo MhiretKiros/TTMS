@@ -30,6 +30,16 @@ export default function AddUser({ onClose, onUserAdded }: AddUserProps) {
     }));
   };
 
+  const validatePassword = (password: string): string | undefined => {
+    if (!password) return 'Password is required';
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Z]/.test(password)) return 'Must contain at least one uppercase letter';
+    if (!/[a-z]/.test(password)) return 'Must contain at least one lowercase letter';
+    if (!/[0-9]/.test(password)) return 'Must contain at least one number';
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return 'Must contain at least one special character';
+    return undefined;
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Partial<User> = {};
     if (!user.name.trim()) newErrors.name = 'Name is required';
@@ -37,9 +47,10 @@ export default function AddUser({ onClose, onUserAdded }: AddUserProps) {
       newErrors.email = 'Valid email is required';
     }
     if (!user.myUsername.trim()) newErrors.myUsername = 'Username is required';
-    if (!user.password || user.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
+    
+    const passwordError = validatePassword(user.password);
+    if (passwordError) newErrors.password = passwordError;
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -143,30 +154,53 @@ export default function AddUser({ onClose, onUserAdded }: AddUserProps) {
             onChange={handleChange}
             className={`w-full px-4 py-2 border rounded-lg ${errors.password ? 'border-red-500' : 'border-gray-300'} focus:ring-2 focus:ring-[#3c8dbc] focus:border-[#3c8dbc]`}
           />
-          {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+          {errors.password && (
+            <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+          )}
+          {user.password && !errors.password && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-500">Password requirements:</p>
+              <ul className="text-xs text-gray-500 list-disc pl-5">
+                <li className={user.password.length >= 8 ? 'text-green-500' : ''}>
+                  At least 8 characters
+                </li>
+                <li className={/[A-Z]/.test(user.password) ? 'text-green-500' : ''}>
+                  At least one uppercase letter
+                </li>
+                <li className={/[a-z]/.test(user.password) ? 'text-green-500' : ''}>
+                  At least one lowercase letter
+                </li>
+                <li className={/[0-9]/.test(user.password) ? 'text-green-500' : ''}>
+                  At least one number
+                </li>
+                <li className={/[!@#$%^&*(),.?":{}|<>]/.test(user.password) ? 'text-green-500' : ''}>
+                  At least one special character
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
 
         <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-        <select
-          name="role"
-          value={user.role}
-          onChange={handleChange}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3c8dbc] focus:border-[#3c8dbc]"
-        >
-          <option value="ADMIN">Admin</option>
-          <option value="DISTRIBUTOR">Distributor</option>
-          <option value="NEZEK">Nezek</option>
-          <option value="INSPECTOR">Inspector</option>
-          <option value="CORPORATOR">Corporator</option>
-          <option value="HEAD_OF_MECHANIC">Head of Mechanic</option>
-          <option value="USER">User</option>
-          <option value="EMPLOYEE">Employee</option>
-          <option value="DRIVER">Driver</option>
-          <option value="HEAD_OF_DISTRIBUTOR">Head of Distributor</option>
-        </select>
-      </div>
-
+          <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+          <select
+            name="role"
+            value={user.role}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3c8dbc] focus:border-[#3c8dbc]"
+          >
+            <option value="ADMIN">Admin</option>
+            <option value="DISTRIBUTOR">Distributor</option>
+            <option value="NEZEK">Nezek</option>
+            <option value="INSPECTOR">Inspector</option>
+            <option value="CORPORATOR">Corporator</option>
+            <option value="HEAD_OF_MECHANIC">Head of Mechanic</option>
+            <option value="USER">User</option>
+            <option value="EMPLOYEE">Employee</option>
+            <option value="DRIVER">Driver</option>
+            <option value="HEAD_OF_DISTRIBUTOR">Head of Distributor</option>
+          </select>
+        </div>
 
         <div className="flex justify-end space-x-3 pt-4">
           <button

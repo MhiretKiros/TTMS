@@ -1,7 +1,4 @@
 // types/index.ts
-export type LatLngTuple = [number, number];
-
-// types/user.ts
 export type UserRole = 'ADMIN' | 'DISTRIBUTOR' | 'HEAD_OF_DISTRIBUTOR' | 'DRIVER' | 'EMPLOYEE' | 'GUEST';
 
 export interface User {
@@ -11,7 +8,8 @@ export interface User {
   role: UserRole;
   avatar: string;
 }
-export type OrganizationCar = {
+
+export interface OrganizationCar {
   id?: string;
   organizationCar?: {
     id?: string;
@@ -19,18 +17,26 @@ export type OrganizationCar = {
     model?: string;
     lat?: string | number;
     lng?: string | number;
+    driverName?: string;
+    deviceImei?: string;
+    status?: string;
   };
-};
+}
 
-export type RentCar = {
+export interface RentCar {
   id?: string;
   plateNumber?: string;
   model?: string;
   lat?: string | number;
   lng?: string | number;
-};
+  driverName?: string;
+  deviceImei?: string;
+  status?: string;
+}
 
-export type Vehicle = {
+export type LatLngTuple = [number, number];
+
+export interface Vehicle {
   id: string;
   name: string;
   plateNumber: string;
@@ -39,18 +45,27 @@ export type Vehicle = {
   type: 'organization' | 'rented';
   model: string;
   distanceFromReference?: number;
+  deviceImei?: string;
   original: OrganizationCar | RentCar;
-};
+}
 
-// export type Vehicle = {
-//   id: string;
-//   name: string;
-//   plateNumber: string;
-//   status: "Available" | "In Use" | "Maintenance";
-//   position: [number, number]; // [lat, lng]
-//   type: "organization" | "rented";
-//   model: string;
-//   speed?: number; // km/h (for simulation)
-//   heading?: number; // 0-359 degrees (for simulation)
-//   distanceFromReference?: number;
-// };
+export interface VehicleHistoryPoint {
+  position: LatLngTuple;
+  timestamp: string;
+  speed?: number;
+}
+
+export interface VehicleLocationUpdate {
+  vehicleId: string;
+  vehicleType: string;
+  plateNumber: string;
+  driverName: string;
+  vehicleModel: string;
+  vehicleStatus: string;
+  latitude: number;
+  longitude: number;
+  speed: number;
+  heading: number;
+  timestamp: string;
+  deviceImei: string;
+}

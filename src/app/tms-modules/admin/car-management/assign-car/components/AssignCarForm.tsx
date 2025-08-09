@@ -37,6 +37,7 @@ interface FormData {
   mobilityIssue: 'yes' | 'no';
   gender: 'male' | 'female';
   driverLicense?: File | null;
+  driverLicenseNumber?: string;
   licenseExpiryDate?: string;
 }
 
@@ -58,6 +59,7 @@ interface PendingRequest {
   status: 'Pending' | 'Assigned' | 'Not Assigned';
   driverLicense?: string;
   licenseExpiryDate?: string;
+  driverLicenseNumber?: string;
 }
 
 const parseMotorCapacity = (motorCapacity: string): number => {
@@ -99,7 +101,8 @@ export default function RentalRequestForm() {
     mobilityIssue: 'no',
     gender: 'male',
     driverLicense: null,
-    licenseExpiryDate: ''
+    licenseExpiryDate: '',
+    driverLicenseNumber: ''
   });
 
   const { addNotification } = useNotification();
@@ -161,38 +164,77 @@ export default function RentalRequestForm() {
     }
   }, [formData.licenseExpiryDate]);
   // Handle file upload
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+// In your React component, enhance the file handling:
+
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      // Check if file is PDF or image
-      if (!file.type.match('application/pdf') && !file.type.match('image.*')) {
-        Swal.fire({
-          title: 'Invalid File',
-          text: 'Please upload a PDF or image file',
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-        return;
-      }
-      
-      setFormData(prev => ({
-        ...prev,
-        driverLicense: file
-      }));
-      
-      // Create preview for images
-      if (file.type.match('image.*')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setLicensePreview(event.target?.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setLicensePreview(null);
-      }
+        const file = e.target.files[0];
+        
+        // Validate file type
+        if (!file.type.match('application/pdf') && !file.type.match('image.*')) {
+            Swal.fire({
+                title: 'Invalid File',
+                text: 'Please upload a PDF or image file',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        // Validate file size (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire({
+                title: 'File Too Large',
+                text: 'Maximum file size is 5MB',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            driverLicense: file
+        }));
+        
+        // Create preview for images only
+        if (file.type.match('image.*')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setLicensePreview(event.target?.result as string);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            setLicensePreview(null);
+        }
     }
-  };
+};
+
+// Update the file display in your JSX:
+{formData.driverLicense && (
+    <div className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg border border-gray-300">
+        <div className="flex items-center gap-2">
+            {formData.driverLicense.type.includes('pdf') ? (
+                <FaFilePdf className="text-red-500 text-xl" />
+            ) : (
+                <FaFileImage className="text-blue-500 text-xl" />
+            )}
+            <span className="text-sm text-gray-700 truncate max-w-xs">
+                {formData.driverLicense.name}
+            </span>
+        </div>
+        <button
+            type="button"
+            onClick={() => {
+                setFormData(prev => ({ ...prev, driverLicense: null }));
+                setLicensePreview(null);
+            }}
+            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100"
+        >
+            <FaTrash />
+        </button>
+    </div>
+)}
 
   // Enhanced filterAndSortCars function
   const filterAndSortCars = (cars: Car[], position: string, isHighPriorityReq: boolean) => {
@@ -350,10 +392,12 @@ const fetchPendingRequests = async (): Promise<PendingRequest[]> => {
             shortNoticePercentage: req.shortNoticePercentage.toLowerCase() as 'low' | 'medium' | 'high',
             mobilityIssue: req.mobilityIssue.toLowerCase() as 'yes' | 'no',
             gender: req.gender.toLowerCase() as 'male' | 'female',
-            licenseExpiryDate: req.licenseExpiryDate
+            licenseExpiryDate: req.licenseExpiryDate,
+            driverLicenseNumber: req.driverLicenseNumber 
           },
           driverLicense: req.driverLicense,
           licenseExpiryDate: req.licenseExpiryDate,
+          driverLicenseNumber: req.driverLicenseNumber,
           totalPercentage: req.totalPercentage,
           createdAt: req.assignedDate,
           status: req.status as 'Pending' | 'Assigned' | 'Not Assigned'
@@ -557,6 +601,8 @@ const checkForAutoAssignments = useCallback(async () => {
         formDataToSend.append('totalPercentage', totalPercentage.toString());
         formDataToSend.append('status', 'Pending');
         formDataToSend.append('licenseExpiryDate', formData.licenseExpiryDate || '');
+        formDataToSend.append('driverLicenseNumber', formData.driverLicenseNumber || '');
+
         if (formData.driverLicense) {
           formDataToSend.append('driverLicense', formData.driverLicense);
         }
@@ -592,7 +638,8 @@ const checkForAutoAssignments = useCallback(async () => {
             mobilityIssue: 'no',
             gender: 'male',
             driverLicense: null,
-            licenseExpiryDate: ''
+            licenseExpiryDate: '',
+            driverLicenseNumber: ''
           });
           setLicensePreview(null);
         } else {
@@ -639,11 +686,12 @@ const checkForAutoAssignments = useCallback(async () => {
       // Prepare the update payload according to your backend requirements
       const formDataToSend = new FormData();
       formDataToSend.append('status', 'Assigned');
-      formDataToSend.append('carId', car.id.toString());
+      formDataToSend.append(isOrgCar ? 'rentCarId' : 'carId', car.id.toString());
       formDataToSend.append('rentalType', request.formData.rentalType);
       formDataToSend.append('plateNumber', car.plateNumber);
       formDataToSend.append('assignmentDate', new Date().toISOString());
       formDataToSend.append('licenseExpiryDate', request.licenseExpiryDate || '');
+      formDataToSend.append('driverLicenseNumber', request.formData.driverLicenseNumber || '');
       if (request.driverLicense) {
         // If driverLicense is a URL, we might need to fetch it first
         // This part depends on your API implementation
@@ -766,6 +814,7 @@ const checkForAutoAssignments = useCallback(async () => {
       formDataToSend.append('model', proposedCar.model);
       formDataToSend.append('numberOfCar', '1');
       formDataToSend.append('licenseExpiryDate', formData.licenseExpiryDate || '');
+      formDataToSend.append('driverLicenseNumber', formData.driverLicenseNumber || '');
       if (formData.driverLicense) {
         formDataToSend.append('driverLicense', formData.driverLicense);
       }
@@ -819,7 +868,8 @@ const checkForAutoAssignments = useCallback(async () => {
         mobilityIssue: 'no',
         gender: 'male',
         driverLicense: null,
-        licenseExpiryDate: ''
+        licenseExpiryDate: '',
+        driverLicenseNumber: ''
       });
       setLicensePreview(null);
   
@@ -1103,6 +1153,22 @@ const checkForAutoAssignments = useCallback(async () => {
 
           {/* Driver License and Expiry Date Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <div className="form-group">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  License Number 
+                </label>
+                <input
+                  type="text"
+                  name="driverLicenseNumber"
+                  value={formData.driverLicenseNumber}
+                  onChange={handleChange}
+                  className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
+                  required
+                />
+              </div>
+            </motion.div>
+
             <motion.div whileHover={{ scale: 1.02 }}>
               <div className="form-group">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">

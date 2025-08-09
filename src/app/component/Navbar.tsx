@@ -16,7 +16,7 @@ export interface User {
   name: string;
   email: string;
   myUsername: string;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'ADMIN' | 'DISTRIBUTOR' | 'HEAD_OF_DISTRIBUTOR';
   token?: string;
   refreshedToken?: string;
 }
@@ -106,7 +106,7 @@ export default function Navbar() {
         };
 
          localStorage.setItem('user', JSON.stringify(userData));
-         if(response.data.ourUser.role=="ADMIN"){
+         if(response.data.ourUser.role=="USER"){
             setLoginEmail(formData.email);
             setOtpModalOpen(true);
             setLoginOpen(false);
@@ -117,6 +117,13 @@ export default function Navbar() {
               confirmButtonColor: '#3d7aed'
             });
          }else{
+          // if (response.data.ourUser.role=="DISTRIBUTOR" || response.data.ourUser.role=="HEAD_OF_DISTRIBUTOR" ){
+          // router.push('/tms-modules/admin');
+
+          // }
+          // else {
+          // router.push('/tms-modules/dashboard');
+          // }
           router.push('/tms-modules/admin');
           router.refresh();
            await Swal.fire({

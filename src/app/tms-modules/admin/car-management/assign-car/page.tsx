@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlusCircle, FiSearch, FiFilter, FiRefreshCw, FiTool, FiTruck, FiMessageSquare } from 'react-icons/fi';
@@ -66,6 +66,12 @@ interface Assignment {
   model?: string;
   totalPercentage?: number;
   numberOfCar?: string;
+  licenseExpiryDate?: string;
+  driverLicenseFilename?: string;
+  driverLicenseFilepath?: string;
+  driverLicenseNumber?: string;
+  driverLicenseIssuedDate?: string;
+  driverLicenseExpiryDate?: string;
 }
 
 export default function CarAssignment() {
@@ -85,8 +91,8 @@ export default function CarAssignment() {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
+  const checkedExpirationsRef = useRef<Set<number>>(new Set());
 
-  // Auto-detect user role on component mount
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -94,7 +100,6 @@ export default function CarAssignment() {
         const user = JSON.parse(storedUser);
         const role = user.role?.toUpperCase();
         
-        // Map role to actorType
         if (role === 'HEAD_OF_DISTRIBUTOR') {
           setActorType('top-manager');
         } else {
@@ -108,15 +113,99 @@ export default function CarAssignment() {
     setLoading(false);
   }, []);
 
+  const showExpiryAlert = (assignment: Assignment, daysRemaining: number, isExpired: boolean) => {
+    const plateNumbers = assignment.allPlateNumbers || assignment.car?.plateNumber || assignment.rentCar?.plateNumber || 'N/A';
+    
+    let alertContent = `
+      <div class="text-left">
+        <p class="font-bold">Driver: ${assignment.requesterName}</p>
+        <p>Assigned Vehicle: ${plateNumbers}</p>
+        <p class="${isExpired ? 'text-red-600 font-bold' : 'text-yellow-600'}">
+          ${isExpired ? 'License has expired!' : `License expires in ${daysRemaining} days!`}
+        </p>
+        <p>Expiry Date: ${new Date(assignment.licenseExpiryDate as string).toLocaleDateString()}</p>
+        <p>License Number: ${assignment.driverLicenseNumber || 'N/A'}</p>
+    `;
+
+    if (assignment.driverLicenseFilename) {
+      const isImage = assignment.driverLicenseFilename.match(/\.(jpg|jpeg|png|gif)$/i);
+      if (isImage) {
+        alertContent += `
+          <div class="mt-3">
+            <p class="font-semibold">License Preview:</p>
+            <img src="${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/licenses/file/${assignment.driverLicenseFilename}" 
+                 class="max-w-full max-h-40 border border-gray-200 rounded mt-1" />
+          </div>
+        `;
+      } else {
+        alertContent += `
+          <div class="mt-3">
+            <p class="font-semibold">License Document:</p>
+            <a href="${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/licenses/file/${assignment.driverLicenseFilename}" 
+               target="_blank" class="text-blue-600 hover:underline">View PDF</a>
+          </div>
+        `;
+      }
+    }
+
+    alertContent += `</div>`;
+
+    Swal.fire({
+      title: isExpired ? 'License Expired!' : 'License Expiry Warning',
+      html: alertContent,
+      icon: isExpired ? 'error' : 'warning',
+      confirmButtonText: 'OK',
+      customClass: {
+        popup: 'text-left'
+      }
+    });
+  };
+
+  const checkLicenseExpirations = useCallback(() => {
+    if (!assignments.length) return;
+
+    const today = new Date();
+    const fiveDaysFromNow = new Date();
+    fiveDaysFromNow.setDate(today.getDate() + 5);
+    
+    const assignmentsToCheck = assignments.filter(
+      assignment => assignment.licenseExpiryDate && !checkedExpirationsRef.current.has(assignment.id)
+    );
+
+    if (assignmentsToCheck.length === 0) return;
+
+    let needsUpdate = false;
+
+    assignmentsToCheck.forEach(assignment => {
+      const expiryDate = new Date(assignment.licenseExpiryDate as string);
+      const daysRemaining = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if ((expiryDate <= fiveDaysFromNow && expiryDate >= today) || expiryDate < today) {
+        showExpiryAlert(assignment, daysRemaining, expiryDate < today);
+        checkedExpirationsRef.current.add(assignment.id);
+        needsUpdate = true;
+      }
+    });
+
+    if (needsUpdate) {
+      // Force update if needed
+    }
+  }, [assignments]);
+
   const loadAssignments = async () => {
     try {
       setIsLoading(true);
       const response = await fetchAllAssignments();
       if (response.success && Array.isArray(response.data)) {
-        // Ensure requestDate is properly formatted as string
         const formattedAssignments = response.data.map((assignment: any) => ({
           ...assignment,
-          requestDate: assignment.requestDate ? new Date(assignment.requestDate).toISOString() : undefined
+          requestDate: assignment.requestDate ? new Date(assignment.requestDate).toISOString() : undefined,
+          licenseExpiryDate: assignment.licenseExpiryDate || undefined,
+          driverLicenseFilename: assignment.driverLicenseFilename || undefined,
+          driverLicenseFilepath: assignment.driverLicenseFilepath || undefined,
+          driverLicenseNumber: assignment.driverLicenseNumber || undefined,
+          driverLicenseIssuedDate: assignment.driverLicenseIssuedDate || undefined,
+          driverLicenseExpiryDate: assignment.driverLicenseExpiryDate || undefined
         }));
         setAssignments(formattedAssignments);
         applyFilters(formattedAssignments, searchTerm, activeStatusFilter, activeLevelFilter);
@@ -188,6 +277,7 @@ export default function CarAssignment() {
     applyFilters(assignments, searchTerm, activeStatusFilter, level);
   };
 
+
   const showSuccessAlert = (message: string) => {
     return Swal.fire({
       title: 'Success!',
@@ -248,7 +338,6 @@ export default function CarAssignment() {
     try {
       setIsSubmitting(true);
 
-      // 1. Update assignment status directly
       const assignmentResponse = await axios.put(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/assignment/status/${selectedRequest.id}`,
         { status: status === 'Approved' ? 'Approved' : 'Pending' }
@@ -258,7 +347,6 @@ export default function CarAssignment() {
         throw new Error(assignmentResponse.data.message || 'Failed to update assignment status');
       }
 
-      // 2. Only update car/rent car status if "Approve" was clicked
       if (status === 'Rejected') {
         if (selectedRequest.car) {
           await axios.put(
@@ -279,14 +367,12 @@ export default function CarAssignment() {
         }
       }
 
-      // Show success message
       await showSuccessAlert(
         status === 'Approved'
           ? 'Request approved and vehicle assigned!'
           : 'Request rejected and set to pending.'
       );
 
-      // Refresh data and close modal
       await loadAssignments();
       setShowRequestModal(false);
     } catch (error) {
@@ -308,6 +394,15 @@ export default function CarAssignment() {
   }, []);
 
   useEffect(() => {
+    if (assignments.length > 0) {
+      checkLicenseExpirations();
+      
+      const interval = setInterval(checkLicenseExpirations, 60 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [assignments, checkLicenseExpirations]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       applyFilters(assignments, searchTerm, activeStatusFilter, activeLevelFilter);
     }, 300);
@@ -322,11 +417,61 @@ export default function CarAssignment() {
     );
   }
 
-  // Helper function to format date for display
   const formatDateForDisplay = (dateString?: string | Date) => {
     if (!dateString) return '-';
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     return isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
+  };
+
+  const renderLicenseSection = (assignment: Assignment) => {
+    if (!assignment.driverLicenseNumber && !assignment.driverLicenseFilename && !assignment.licenseExpiryDate) {
+      return null;
+    }
+
+    return (
+      <motion.div
+        whileHover={{ y: -5 }}
+        className="bg-gradient-to-br from-[#e6f2fa] to-[#d4e6f5] p-6 rounded-lg"
+      >
+        <h3 className="text-xl font-semibold mb-4 flex items-center">
+          <span className="w-3 h-3 bg-[#3c8dbc] rounded-full mr-2" />
+          Driver License Information
+        </h3>
+        <div className="space-y-4">
+          {[
+            { label: 'License Number', value: assignment.driverLicenseNumber || '-' },
+            { label: 'Expiry Date', value: formatDateForDisplay(assignment.licenseExpiryDate) },
+          ].map((item, index) => (
+            <div key={index} className="flex border-b pb-3 border-gray-100">
+              <span className="font-medium text-gray-600 w-48">{item.label}:</span>
+              <span className="text-gray-800">{item.value}</span>
+            </div>
+          ))}
+
+          {assignment.driverLicenseFilename && (
+            <div className="mt-4">
+              <p className="font-medium text-gray-600 mb-2">License Document:</p>
+              {assignment.driverLicenseFilename.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                <img 
+                  src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/licenses/file/${assignment.driverLicenseFilename}`}
+                  className="max-w-full max-h-40 border border-gray-200 rounded"
+                  alt="Driver License"
+                />
+              ) : (
+                <a 
+                  href={`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/licenses/file/${assignment.driverLicenseFilename}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  View License Document
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
   };
 
   return (
@@ -694,6 +839,9 @@ export default function CarAssignment() {
                   </motion.div>
                 </div>
 
+                {/* License Information Section */}
+                {renderLicenseSection(selectedRequest)}
+                
                 {/* Summary Section */}
                 <div className="mt-6 bg-gradient-to-r from-[#e6f2fa] to-[#d4e6f5] p-6 rounded-lg">
                   <h3 className="text-xl font-semibold mb-4 flex items-center">

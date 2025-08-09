@@ -1,66 +1,30 @@
 // app/vehicle-map/page.tsx
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Types
-type LatLngTuple = [number, number];
+import { vehicleWebSocket } from './utils/vehicleWebSocket';
+import { format, subHours } from 'date-fns';
+import { User, Vehicle, VehicleHistoryPoint, UserRole, OrganizationCar, RentCar, VehicleLocationUpdate } from './type';
+import MapWrapper from './components/MapWrapper';
+import DriverLocationSender from './components/DriverLocationSender';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 
-type UserRole = 'ADMIN' | 'DISTRIBUTOR' | 'HEAD_OF_DISTRIBUTOR' | 'DRIVER' | 'EMPLOYEE' | 'GUEST';
+type LatLngTuple = [number, number];
 
-interface User {
-  name: string;
-  email: string;
-  myUsername: string;
-  role: UserRole;
-  avatar: string;
-}
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
 
-interface OrganizationCar {
-  id?: string;
-  organizationCar?: {
-    id?: string;
-    plateNumber?: string;
-    model?: string;
-    lat?: string | number;
-    lng?: string | number;
-    driverName?: string;
-    deviceImei?: string;
-    status?: string;
-  };
-}
-
-interface RentCar {
-  id?: string;
-  plateNumber?: string;
-  model?: string;
-  lat?: string | number;
-  lng?: string | number;
-  driverName?: string;
-  deviceImei?: string;
-  status?: string;
-}
-
-interface Vehicle {
-  id: string;
-  name: string;
-  plateNumber: string;
-  status: string;
-  position: LatLngTuple;
-  type: 'organization' | 'rented';
-  model: string;
-  distanceFromReference?: number;
-  deviceImei?: string;
-  original: OrganizationCar | RentCar;
-}
-
-// Custom hook for current user
 const useCurrentUser = () => {
   const [currentUser, setCurrentUser] = useState<User>(() => {
     if (typeof window !== 'undefined') {
@@ -92,133 +56,16 @@ const useCurrentUser = () => {
   return currentUser;
 };
 
-// Helper function to calculate distance
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+const calculateTotalDistance = (path: VehicleHistoryPoint[]): number => {
+  let totalDistance = 0;
+  for (let i = 1; i < path.length; i++) {
+    const prev = path[i - 1].position;
+    const curr = path[i].position;
+    totalDistance += calculateDistance(prev[0], prev[1], curr[0], curr[1]);
+  }
+  return totalDistance;
 };
 
-// Map Component
-const MapComponent = ({ 
-  vehicles, 
-  selectedVehicle, 
-  center 
-}: { 
-  vehicles: Vehicle[]; 
-  selectedVehicle?: Vehicle; 
-  center?: LatLngTuple 
-}) => {
-  const mapRef = useRef<any>(null);
-  const isInitialized = useRef(false);
-
-  // Custom marker icons
-  const orgCarIcon = new L.Icon({
-    iconUrl: '/images/org-car.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowUrl: '/images/marker-shadow.png',
-    shadowSize: [41, 41]
-  });
-
-  const rentCarIcon = new L.Icon({
-    iconUrl: '/images/rent-car.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowUrl: '/images/marker-shadow.png',
-    shadowSize: [41, 41]
-  });
-
-  useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-  }, []);
-
-  useEffect(() => {
-    if (selectedVehicle && mapRef.current) {
-      mapRef.current.flyTo(selectedVehicle.position, 15);
-    } else if (center && mapRef.current && !selectedVehicle) {
-      mapRef.current.flyTo(center, 13);
-    }
-  }, [selectedVehicle, center]);
-
-  // Fix for default marker icons in Next.js
-  useEffect(() => {
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: '/images/car1.jpeg',
-      iconUrl: '/images/car1.jpeg',
-      shadowUrl: '/images/car1.jpeg',
-    });
-  }, []);
-
-  // Ensure map is properly sized after container changes
-  useEffect(() => {
-    if (mapRef.current) {
-      setTimeout(() => {
-        mapRef.current.invalidateSize();
-      }, 0);
-    }
-  }, [selectedVehicle]);
-
-  return (
-    <MapContainer
-      ref={mapRef}
-      center={selectedVehicle?.position || center || [51.505, -0.09]}
-      zoom={selectedVehicle ? 15 : 13}
-      style={{ height: '100%', width: '100%' }}
-      className="w-full h-full"
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='© OpenStreetMap contributors'
-      />
-      {vehicles.map((vehicle) => (
-        <Marker 
-          key={vehicle.id} 
-          position={vehicle.position}
-          icon={vehicle.type === 'organization' ? orgCarIcon : rentCarIcon}
-          eventHandlers={{
-            click: () => {
-              if (mapRef.current) {
-                mapRef.current.flyTo(vehicle.position, 15);
-              }
-            },
-          }}
-        >
-          <Popup>
-            <div className="min-w-[200px]">
-              <strong>{vehicle.name}</strong><br />
-              Plate: {vehicle.plateNumber}<br />
-              Model: {vehicle.model}<br />
-              Status: <span className={`${
-                vehicle.status === 'Available' ? 'text-green-600' :
-                vehicle.status === 'In Use' ? 'text-yellow-600' :
-                vehicle.status === 'Maintenance' ? 'text-red-600' : 'text-gray-600'
-              }`}>
-                {vehicle.status}
-              </span><br />
-              Type: {vehicle.type === 'organization' ? 'Organization' : 'Rental'}<br />
-              {vehicle.distanceFromReference !== undefined && (
-                <span>Distance: {vehicle.distanceFromReference.toFixed(2)} km</span>
-              )}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
-  );
-};
-
-// Main Page Component
 export default function VehicleMapPage() {
   const currentUser = useCurrentUser();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -228,10 +75,70 @@ export default function VehicleMapPage() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [mapKey, setMapKey] = useState(Date.now());
   const [employees, setEmployees] = useState<any[]>([]);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPath, setHistoryPath] = useState<VehicleHistoryPoint[]>([]);
+  const [historyTimeRange, setHistoryTimeRange] = useState({
+    start: format(subHours(new Date(), 6), "yyyy-MM-dd'T'HH:mm"),
+    end: format(new Date(), "yyyy-MM-dd'T'HH:mm")
+  });
+
   const welloSefer: LatLngTuple = [8.992820, 38.773790];
 
-  // Fetch initial vehicle list (only once)
-  const fetchInitialVehicles = async () => {
+  // Handle WebSocket connection status
+  useEffect(() => {
+    const unsubscribeStatus = vehicleWebSocket.subscribeToStatus((connected) => {
+      setIsWebSocketConnected(connected);
+    });
+
+    return () => {
+      unsubscribeStatus();
+    };
+  }, []);
+
+  // Handle WebSocket updates
+  useEffect(() => {
+    const handleVehicleUpdate = (update: VehicleLocationUpdate) => {
+      setVehicles(prevVehicles => {
+        const updatedVehicles = [...prevVehicles];
+        const vehicleIndex = updatedVehicles.findIndex(
+          v => v.deviceImei === update.deviceImei
+        );
+
+        if (vehicleIndex !== -1) {
+          const vehicle = updatedVehicles[vehicleIndex];
+          const distance = calculateDistance(
+            welloSefer[0], welloSefer[1], 
+            update.latitude, update.longitude
+          );
+
+          updatedVehicles[vehicleIndex] = {
+            ...vehicle,
+            position: [update.latitude, update.longitude],
+            status: update.vehicleStatus,
+            distanceFromReference: distance
+          };
+
+          if (selectedVehicle?.deviceImei === update.deviceImei) {
+            setSelectedVehicle(updatedVehicles[vehicleIndex]);
+          }
+        }
+
+        return updatedVehicles;
+      });
+    };
+
+    const unsubscribe = vehicleWebSocket.subscribe(handleVehicleUpdate);
+    vehicleWebSocket.connect();
+
+    return () => {
+      unsubscribe();
+      vehicleWebSocket.disconnect();
+    };
+  }, [selectedVehicle]);
+
+  const fetchInitialVehicles = useCallback(async () => {
     try {
       setLoading(true);
       const [orgRes, rentRes] = await Promise.all([
@@ -282,48 +189,16 @@ export default function VehicleMapPage() {
         };
       }).filter((car: Vehicle) => car.plateNumber !== 'N/A');
 
-      const allVehicles = [...orgCars, ...rentCars];
-      setVehicles(allVehicles);
+      setVehicles([...orgCars, ...rentCars]);
     } catch (err) {
       console.error('Error fetching vehicles:', err);
       setError('Failed to load vehicle data.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Update vehicle locations and calculate distances
-  const updateVehicleLocations = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/vehicle-tracking/locations`);
-      if (!response.ok) throw new Error('Failed to fetch vehicle locations');
-      const locations = await response.json();
-
-      const locationMap = new Map<string, any>();
-      locations.forEach((loc: any) => locationMap.set(loc.deviceImei, loc));
-
-      setVehicles(prevVehicles =>
-        prevVehicles.map(vehicle => {
-          const loc = vehicle.deviceImei ? locationMap.get(vehicle.deviceImei) : null;
-          const lat = loc?.latitude ?? vehicle.position[0];
-          const lng = loc?.longitude ?? vehicle.position[1];
-          const distance = calculateDistance(welloSefer[0], welloSefer[1], lat, lng);
-
-          return {
-            ...vehicle,
-            position: [lat, lng],
-            distanceFromReference: distance,
-            status: loc?.vehicleStatus || vehicle.status
-          };
-        })
-      );
-    } catch (err) {
-      console.error('Error updating vehicle locations:', err);
-    }
-  };
-
-  // Fetch employees for EMPLOYEE role
-  const fetchAssignedEmployees = async () => {
+  const fetchAssignedEmployees = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/employees`);
       if (!response.ok) throw new Error('Failed to fetch employees');
@@ -333,116 +208,49 @@ export default function VehicleMapPage() {
       console.error("Error fetching employees:", err);
       setError('Failed to load employee data');
     }
-  };
+  }, []);
 
-  // Set up WebSocket for real-time updates
-  useEffect(() => {
-    if (currentUser.role === 'GUEST') return;
+  const fetchVehicleHistory = useCallback(async () => {
+  if (!selectedVehicle) return;
 
-    let socket: WebSocket | null = null;
-    let reconnectInterval: NodeJS.Timeout;
-    const maxReconnectAttempts = 5;
-    let reconnectAttempts = 0;
+  try {
+    setHistoryLoading(true);
+    const startTime = new Date(historyTimeRange.start).toISOString();
+    const endTime = new Date(historyTimeRange.end).toISOString();
 
-    const connectWebSocket = () => {
-      if (socket) {
-        socket.close();
-      }
+    const response = await fetch(
+      `${API_BASE_URL}/api/vehicle-tracking/history/${selectedVehicle.id}/between?vehicleType=${selectedVehicle.type}&start=${startTime}&end=${endTime}`
+    );
 
-      const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-      const host = window.location.host;
-      const wsUrl = `${protocol}${host}/ws-vehicle-updates`;
+    if (!response.ok) {
+      throw new Error('Failed to fetch vehicle history');
+    }
 
-      socket = new WebSocket(wsUrl);
+    const data = await response.json();
+    const path = data.map((point: any) => ({
+      position: [point.latitude, point.longitude] as LatLngTuple,
+      timestamp: point.timestamp,
+      speed: point.speed,
+    }));
 
-      socket.onopen = () => {
-        console.log('WebSocket connected');
-        reconnectAttempts = 0;
-        socket?.send(JSON.stringify({
-          type: 'subscribe',
-          userId: currentUser.myUsername,
-          role: currentUser.role
-        }));
-      };
+    setHistoryPath(path);
+  } catch (err) {
+    console.error('Error fetching vehicle history:', err);
+    setError('Failed to load vehicle history');
+    setHistoryPath([]);
+  } finally {
+    setHistoryLoading(false);
+  }
+}, [selectedVehicle, historyTimeRange]);
 
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setVehicles(prev => prev.map(vehicle => {
-            if (vehicle.deviceImei === data.deviceImei) {
-              const distance = calculateDistance(
-                welloSefer[0], 
-                welloSefer[1], 
-                data.latitude, 
-                data.longitude
-              );
-              
-              return {
-                ...vehicle,
-                position: [data.latitude, data.longitude],
-                distanceFromReference: distance,
-                status: data.vehicleStatus || vehicle.status
-              };
-            }
-            return vehicle;
-          }));
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
 
-      socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-
-      socket.onclose = (event) => {
-        console.log(`WebSocket disconnected. Code: ${event.code}, Reason: ${event.reason}`);
-        
-        if (reconnectAttempts < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          reconnectAttempts++;
-          console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts}) in ${delay}ms...`);
-          
-          reconnectInterval = setTimeout(() => {
-            connectWebSocket();
-          }, delay);
-        } else {
-          console.log('Max reconnection attempts reached. Falling back to polling.');
-        }
-      };
-    };
-
-    connectWebSocket();
-
-    return () => {
-      if (socket) {
-        socket.close();
-      }
-      clearTimeout(reconnectInterval);
-    };
-  }, [currentUser.role, currentUser.myUsername]);
-
-  // Initial data fetch
   useEffect(() => {
     fetchInitialVehicles();
     if (currentUser.role === 'EMPLOYEE') {
       fetchAssignedEmployees();
     }
-  }, [currentUser.role]);
+  }, [currentUser.role, fetchInitialVehicles, fetchAssignedEmployees]);
 
-  // Set up interval for location updates
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      updateVehicleLocations();
-    }, 10000); // Update every 10 seconds
-
-    // Initial update
-    updateVehicleLocations();
-
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // Filter vehicles based on role and search term
   const filteredVehicles = useMemo(() => {
     let result = vehicles.filter(vehicle =>
       vehicle.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -450,7 +258,6 @@ export default function VehicleMapPage() {
       vehicle.status.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Role-based filtering
     switch(currentUser.role) {
       case 'DRIVER':
         return result.filter(vehicle => {
@@ -480,6 +287,23 @@ export default function VehicleMapPage() {
   const totalOrgVehicles = vehicles.filter(v => v.type === 'organization').length;
   const totalRentVehicles = vehicles.filter(v => v.type === 'rented').length;
 
+  const handleVehicleSelect = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setShowHistoryPanel(true);
+    setHistoryTimeRange({
+      start: format(subHours(new Date(), 6), "yyyy-MM-dd'T'HH:mm"),
+      end: format(new Date(), "yyyy-MM-dd'T'HH:mm")
+    });
+  };
+
+  const handleHistorySearch = () => {
+    fetchVehicleHistory();
+  };
+
+  const handleReconnect = () => {
+    vehicleWebSocket.connect();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -498,20 +322,41 @@ export default function VehicleMapPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 h-full flex flex-col">
-      {/* User Info Banner */}
-      <div className="bg-blue-50 p-3 rounded-lg mb-4 flex items-center">
-        <img 
-          src={currentUser.avatar} 
-          alt="User avatar" 
-          className="w-8 h-8 rounded-full mr-3"
-        />
-        <div>
-          <p className="font-medium">{currentUser.name}</p>
-          <p className="text-sm text-gray-600">Role: {currentUser.role}</p>
+      <div className="flex justify-between items-center">
+        <div className="bg-blue-50 p-3 rounded-lg mb-4 flex items-center">
+          <img 
+            src={currentUser.avatar} 
+            alt="User avatar" 
+            className="w-8 h-8 rounded-full mr-3"
+          />
+          <div>
+            <p className="font-medium">{currentUser.name}</p>
+            <p className="text-sm text-gray-600">Role: {currentUser.role}</p>
+          </div>
+        </div>
+        <div className={`px-3 py-1 rounded-full text-sm flex items-center ${
+          isWebSocketConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {isWebSocketConnected ? (
+            <>
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+              Live Tracking: Connected
+            </>
+          ) : (
+            <>
+              <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+              Live Tracking: Disconnected
+              <button 
+                onClick={handleReconnect}
+                className="ml-2 text-xs underline"
+              >
+                Reconnect
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Top Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold mb-2">Organization Vehicles</h3>
@@ -523,9 +368,7 @@ export default function VehicleMapPage() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex flex-col lg:flex-row gap-6 flex-grow">
-        {/* Left Side - Vehicle List */}
         <div className="w-full lg:w-1/3 bg-white rounded-lg shadow-md p-4 flex flex-col">
           <div className="mb-4">
             <input
@@ -549,7 +392,7 @@ export default function VehicleMapPage() {
                     className={`p-3 rounded-md cursor-pointer hover:bg-gray-100 ${
                       selectedVehicle?.id === vehicle.id ? 'bg-blue-100 border border-blue-300' : ''
                     }`}
-                    onClick={() => setSelectedVehicle(vehicle)}
+                    onClick={() => handleVehicleSelect(vehicle)}
                   >
                     <div className="flex justify-between items-center">
                       <span className="font-medium">{vehicle.name}</span>
@@ -580,19 +423,111 @@ export default function VehicleMapPage() {
           </div>
         </div>
 
-        {/* Right Side - Map */}
         <div className="w-full lg:w-2/3 flex flex-col">
           <div className="bg-white rounded-lg shadow-md overflow-hidden h-[450px]">
-            <MapComponent 
+            <MapWrapper 
               key={mapKey}
               vehicles={filteredVehicles}
               selectedVehicle={selectedVehicle || undefined}
               center={welloSefer}
+              historyPath={historyPath}
             />
           </div>
 
-          {/* Bottom Vehicle Info - Hidden for EMPLOYEE role */}
-          {selectedVehicle && currentUser.role !== 'EMPLOYEE' && (
+          {showHistoryPanel && selectedVehicle && (
+            <div className="bg-white rounded-lg shadow-md p-4 mt-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Vehicle History</h3>
+                <button 
+                  onClick={() => setShowHistoryPanel(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full p-2 border rounded-md"
+                    value={historyTimeRange.start}
+                    onChange={(e) => setHistoryTimeRange(prev => ({
+                      ...prev,
+                      start: e.target.value
+                    }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full p-2 border rounded-md"
+                    value={historyTimeRange.end}
+                    onChange={(e) => setHistoryTimeRange(prev => ({
+                      ...prev,
+                      end: e.target.value
+                    }))}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleHistorySearch}
+                    disabled={historyLoading}
+                    className={`w-full p-2 rounded-md text-white ${
+                      historyLoading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                  >
+                    {historyLoading ? 'Loading...' : 'View History'}
+                  </button>
+                </div>
+              </div>
+
+              {historyLoading && (
+                <div className="text-center py-4">Loading history data...</div>
+              )}
+
+              {!historyLoading && historyPath.length > 0 && (
+                <div className="mt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-medium">Path Summary</h4>
+                    <span className="text-sm text-gray-600">
+                      {historyPath.length} points
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-50 p-3 rounded-md">
+                      <p className="text-sm text-gray-600">Start Time</p>
+                      <p className="font-medium">
+                        {new Date(historyPath[0].timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-md">
+                      <p className="text-sm text-gray-600">End Time</p>
+                      <p className="font-medium">
+                        {new Date(historyPath[historyPath.length - 1].timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-md">
+                      <p className="text-sm text-gray-600">Distance Traveled</p>
+                      <p className="font-medium">
+                        {calculateTotalDistance(historyPath).toFixed(2)} km
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!historyLoading && historyPath.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  No history data found for the selected time range
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedVehicle && currentUser.role !== 'EMPLOYEE' && !showHistoryPanel && (
             <div className="bg-white rounded-lg shadow-md p-4 mt-4">
               <h3 className="text-lg font-semibold mb-2">Vehicle Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -635,10 +570,19 @@ export default function VehicleMapPage() {
                   )}
                 </div>
               </div>
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowHistoryPanel(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  View History
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
+      <DriverLocationSender />
     </div>
   );
 }

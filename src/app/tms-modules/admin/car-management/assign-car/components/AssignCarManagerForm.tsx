@@ -3,7 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { FiActivity, FiBriefcase, FiCheckCircle, FiChevronDown, FiUser } from 'react-icons/fi';
+import { FaFileImage, FaFilePdf, FaTrash } from 'react-icons/fa';
 import { useNotification } from '@/app/contexts/NotificationContext';
+import Swal from 'sweetalert2';
+
 interface Car {
   id: number | string;
   plateNumber: string;
@@ -40,6 +43,9 @@ interface FormData {
   mobilityIssue: 'yes' | 'no';
   gender: 'male' | 'female';
   selectedModels: string[];
+  driverLicense?: File | null;
+  driverLicenseNumber?: string;
+  licenseExpiryDate?: string;
 }
 
 interface AssignmentResult {
@@ -123,10 +129,13 @@ export default function AssignCarManagerForm() {
     shortNoticePercentage: 'low',
     mobilityIssue: 'no',
     gender: 'male',
-    selectedModels: []
+    selectedModels: [],
+    driverLicense: null,
+    driverLicenseNumber: '',
+    licenseExpiryDate: ''
   });
 
-  const {addNotification } = useNotification();
+  const { addNotification } = useNotification();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCarModelDropdown, setShowCarModelDropdown] = useState(false);
   const [totalPercentage, setTotalPercentage] = useState<number>(0);
@@ -140,6 +149,7 @@ export default function AssignCarManagerForm() {
   const [autoAssignCars, setAutoAssignCars] = useState<Car[]>([]);
   const [showAutoConfirm, setShowAutoConfirm] = useState(false);
   const [currentRequest, setCurrentRequest] = useState<any>(null);
+  const [licensePreview, setLicensePreview] = useState<string | null>(null);
 
   const isHighPriority = totalPercentage >= 70;
 
@@ -152,6 +162,65 @@ export default function AssignCarManagerForm() {
     setTotalPercentage(total);
   }, [formData.travelWorkPercentage, formData.shortNoticePercentage, 
       formData.mobilityIssue, formData.gender]);
+
+  // Check license expiry date
+  useEffect(() => {
+    if (formData.licenseExpiryDate) {
+      const expiryDate = new Date(formData.licenseExpiryDate);
+      const today = new Date();
+      const fiveDaysFromNow = new Date();
+      fiveDaysFromNow.setDate(today.getDate() + 5);
+      
+      if (expiryDate <= fiveDaysFromNow && expiryDate >= today) {
+        Swal.fire({
+          title: 'License Expiry Alert',
+          text: `Driver's license will expire in ${Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))} days!`,
+          icon: 'warning',
+          confirmButtonText: 'OK'
+        });
+      } else if (expiryDate < today) {
+        Swal.fire({
+          title: 'License Expired',
+          text: 'Driver\'s license has already expired!',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+      }
+    }
+  }, [formData.licenseExpiryDate]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Check if file is PDF or image
+      if (!file.type.match('application/pdf') && !file.type.match('image.*')) {
+        Swal.fire({
+          title: 'Invalid File',
+          text: 'Please upload a PDF or image file',
+          icon: 'error',
+          confirmButtonText: 'OK'
+        });
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        driverLicense: file
+      }));
+      
+      // Create preview for images
+      if (file.type.match('image.*')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setLicensePreview(event.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setLicensePreview(null);
+      }
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -272,6 +341,37 @@ export default function AssignCarManagerForm() {
   const handleAssign = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    // Validate license fields
+    if (!formData.driverLicense) {
+      Swal.fire({
+        title: 'Missing License',
+        text: 'Please upload driver license document',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    
+    if (!formData.licenseExpiryDate) {
+      Swal.fire({
+        title: 'Missing Expiry Date',
+        text: 'Please enter license expiry date',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    if (!formData.driverLicenseNumber) {
+      Swal.fire({
+        title: 'Missing License Number',
+        text: 'Please enter driver license number',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
     if (formData.selectedModels.length === 0) {
       setErrors({ selectedModels: 'Please select at least one car model' });
       return;
@@ -288,17 +388,34 @@ export default function AssignCarManagerForm() {
       );
 
       if (eligibleCars.length === 0) {
-        const payload = {
-          ...formData,
-          totalPercentage,
-          status: 'Pending',
-          carIds: [],
-          plateNumbers: '',
-          model: `/${formData.selectedModels.join(',')}`,
-          numberOfCar: `0/${formData.selectedModels.length}`
-        };
+        const formDataToSend = new FormData();
+        formDataToSend.append('requestLetterNo', formData.requestLetterNo);
+        formDataToSend.append('requestDate', new Date().toISOString().split('T')[0]);
+        formDataToSend.append('requesterName', formData.requesterName);
+        formDataToSend.append('rentalType', formData.rentalType);
+        formDataToSend.append('position', formData.position);
+        formDataToSend.append('department', formData.department);
+        formDataToSend.append('phoneNumber', formData.phoneNumber);
+        formDataToSend.append('travelWorkPercentage', formData.travelWorkPercentage);
+        formDataToSend.append('shortNoticePercentage', formData.shortNoticePercentage);
+        formDataToSend.append('mobilityIssue', formData.mobilityIssue);
+        formDataToSend.append('gender', formData.gender);
+        formDataToSend.append('totalPercentage', totalPercentage.toString());
+        formDataToSend.append('status', 'Pending');
+        formDataToSend.append('licenseExpiryDate', formData.licenseExpiryDate || '');
+        formDataToSend.append('driverLicenseNumber', formData.driverLicenseNumber || '');
+        formDataToSend.append('model', formData.selectedModels.join(','));
+        formDataToSend.append('numberOfCar', `0/${formData.selectedModels.length}`);
 
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`, payload);
+        if (formData.driverLicense) {
+          formDataToSend.append('driverLicense', formData.driverLicense);
+        }
+
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`, formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
   
         if (response.data.codStatus === 200) {
           setAssignmentResult({
@@ -387,17 +504,36 @@ export default function AssignCarManagerForm() {
         )
       );
 
-      const payload = {
-        ...formData,
-        totalPercentage,
-        status,
-        carIds: proposedCars.map(car => car.id),
-        plateNumbers: proposedCars.map(car => car.plateNumber).join(', '),
-        model: modelString,
-        numberOfCar
-      };
+      const formDataToSend = new FormData();
+      formDataToSend.append('requestLetterNo', formData.requestLetterNo);
+      formDataToSend.append('requestDate', new Date().toISOString().split('T')[0]);
+      formDataToSend.append('requesterName', formData.requesterName);
+      formDataToSend.append('rentalType', formData.rentalType);
+      formDataToSend.append('position', formData.position);
+      formDataToSend.append('department', formData.department);
+      formDataToSend.append('phoneNumber', formData.phoneNumber);
+      formDataToSend.append('travelWorkPercentage', formData.travelWorkPercentage);
+      formDataToSend.append('shortNoticePercentage', formData.shortNoticePercentage);
+      formDataToSend.append('mobilityIssue', formData.mobilityIssue);
+      formDataToSend.append('gender', formData.gender);
+      formDataToSend.append('totalPercentage', totalPercentage.toString());
+      formDataToSend.append('status', status);
+      formDataToSend.append('carIds', proposedCars.map(car => car.id).join(','));
+      formDataToSend.append('plateNumbers', proposedCars.map(car => car.plateNumber).join(','));
+      formDataToSend.append('model', modelString);
+      formDataToSend.append('numberOfCar', numberOfCar);
+      formDataToSend.append('licenseExpiryDate', formData.licenseExpiryDate || '');
+      formDataToSend.append('driverLicenseNumber', formData.driverLicenseNumber || '');
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`, payload);
+      if (formData.driverLicense) {
+        formDataToSend.append('driverLicense', formData.driverLicense);
+      }
+
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/car/assign`, formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
   
       if (response.data.codStatus === 200) {
         setAssignmentResult({
@@ -413,17 +549,15 @@ export default function AssignCarManagerForm() {
         });
         
         if (isFullyAssigned) {
-           try {
-      await addNotification(
-        `New vehicle has been assigned to ${formData.requesterName} needs Approved`,
-        `/tms-modules/admin/car-management/assign-car`,
-        'HEAD_OF_DISTRIBUTOR' // Role that should see this notification
-      );
-      
-    } catch (notificationError) {
-      console.error('Failed to add notification:', notificationError);
-      // Optionally show error to user
-    }
+          try {
+            await addNotification(
+              `New vehicle has been assigned to ${formData.requesterName} needs Approved`,
+              `/tms-modules/admin/car-management/assign-car`,
+              'HEAD_OF_DISTRIBUTOR'
+            );
+          } catch (notificationError) {
+            console.error('Failed to add notification:', notificationError);
+          }
         }
         setShowConfirmation(false);
         setShowSuccessModal(true);
@@ -460,8 +594,12 @@ export default function AssignCarManagerForm() {
       shortNoticePercentage: 'low',
       mobilityIssue: 'no',
       gender: 'male',
-      selectedModels: []
+      selectedModels: [],
+      driverLicense: null,
+      driverLicenseNumber: '',
+      licenseExpiryDate: ''
     });
+    setLicensePreview(null);
     setProposedCars([]);
   };
 
@@ -590,54 +728,54 @@ export default function AssignCarManagerForm() {
               </motion.div>
 
               <motion.div whileHover={{ scale: 1.05 }}>
-              <div className="form-group">
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Car Models (Max 3)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowCarModelDropdown(!showCarModelDropdown)}
-                    className={`w-full px-4 py-3 rounded-lg border ${
-                      errors.selectedModels ? 'border-red-500' : 'border-gray-300'
-                    } text-left flex justify-between items-center bg-gray-50`}
-                  >
-                    {formData.selectedModels.length > 0 
-                      ? formData.selectedModels.join(', ')
-                      : 'Select car models'}
-                    <FiChevronDown className={`transition-transform ${showCarModelDropdown ? 'transform rotate-180' : ''}`} />
-                  </button>
-                  
-                  {showCarModelDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-2 max-h-60 overflow-y-auto">
-                      {STATIC_CAR_MODELS.map(model => (
-                        <div key={model} className="flex items-center p-2 hover:bg-gray-100 rounded">
-                          <input
-                            type="checkbox"
-                            id={`car-${model}`}
-                            checked={formData.selectedModels.includes(model)}
-                            onChange={() => handleModelSelect(model)}
-                            disabled={!formData.selectedModels.includes(model) && formData.selectedModels.length >= 3}
-                            className="mr-2"
-                          />
-                          <label htmlFor={`car-${model}`} className="cursor-pointer">
-                            {model}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {errors.selectedModels && (
-                    <p className="mt-1 text-sm text-red-500">{errors.selectedModels}</p>
-                  )}
-                  {formData.selectedModels.length > 0 && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Selected: {formData.selectedModels.length}/3
-                    </p>
-                  )}
+                <div className="form-group">
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Car Models (Max 3)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCarModelDropdown(!showCarModelDropdown)}
+                      className={`w-full px-4 py-3 rounded-lg border ${
+                        errors.selectedModels ? 'border-red-500' : 'border-gray-300'
+                      } text-left flex justify-between items-center bg-gray-50`}
+                    >
+                      {formData.selectedModels.length > 0 
+                        ? formData.selectedModels.join(', ')
+                        : 'Select car models'}
+                      <FiChevronDown className={`transition-transform ${showCarModelDropdown ? 'transform rotate-180' : ''}`} />
+                    </button>
+                    
+                    {showCarModelDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-2 max-h-60 overflow-y-auto">
+                        {STATIC_CAR_MODELS.map(model => (
+                          <div key={model} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                            <input
+                              type="checkbox"
+                              id={`car-${model}`}
+                              checked={formData.selectedModels.includes(model)}
+                              onChange={() => handleModelSelect(model)}
+                              disabled={!formData.selectedModels.includes(model) && formData.selectedModels.length >= 3}
+                              className="mr-2"
+                            />
+                            <label htmlFor={`car-${model}`} className="cursor-pointer">
+                              {model}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {errors.selectedModels && (
+                      <p className="mt-1 text-sm text-red-500">{errors.selectedModels}</p>
+                    )}
+                    {formData.selectedModels.length > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Selected: {formData.selectedModels.length}/3
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
   
               <motion.div whileHover={{ scale: 1.02 }}>
                 <div className="form-group">
@@ -697,24 +835,114 @@ export default function AssignCarManagerForm() {
               </div>
             </motion.div>
   
-            {/* Car Model Selection */}
-           <motion.div whileHover={{ scale: 1.02 }}>
-                <div className="form-group">
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Travel/Work Percentage
-                  </label>
-                  <select
-                    name="travelWorkPercentage"
-                    value={formData.travelWorkPercentage}
-                    onChange={handleChange}
-                    className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
+            {/* Travel/Work Percentage */}
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <div className="form-group">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Travel/Work Percentage
+                </label>
+                <select
+                  name="travelWorkPercentage"
+                  value={formData.travelWorkPercentage}
+                  onChange={handleChange}
+                  className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Driver License Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <div className="form-group">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  License Number 
+                </label>
+                <input
+                  type="text"
+                  name="driverLicenseNumber"
+                  value={formData.driverLicenseNumber}
+                  onChange={handleChange}
+                  className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
+                  required
+                  placeholder="Enter license number"
+                />
+              </div>
+            </motion.div>
+
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <div className="form-group">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  License Expiry Date
+                </label>
+                <input
+                  type="date"
+                  name="licenseExpiryDate"
+                  value={formData.licenseExpiryDate}
+                  onChange={handleChange}
+                  className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            </motion.div>
+
+            <motion.div whileHover={{ scale: 1.02 }}>
+              <div className="form-group">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Driver License (PDF or Image)
+                </label>
+                <div className="flex items-center gap-2">
+                  {!formData.driverLicense ? (
+                    <input
+                      type="file"
+                      name="driverLicense"
+                      onChange={handleFileChange}
+                      className="w-full bg-gray-50 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 focus:outline-none border border-gray-300 transition-all"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      required
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg border border-gray-300">
+                      <div className="flex items-center gap-2">
+                        {formData.driverLicense.type.match('application/pdf') ? (
+                          <FaFilePdf className="text-red-500 text-xl" />
+                        ) : (
+                          <FaFileImage className="text-blue-500 text-xl" />
+                        )}
+                        <span className="text-sm text-gray-700 truncate max-w-xs">
+                          {formData.driverLicense.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, driverLicense: null }));
+                          setLicensePreview(null);
+                        }}
+                        className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </motion.div>
+                {licensePreview && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600 mb-1">License Preview:</p>
+                    <img 
+                      src={licensePreview} 
+                      alt="License Preview" 
+                      className="max-w-xs max-h-40 border border-gray-200 rounded"
+                    />
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
   
           <motion.div 

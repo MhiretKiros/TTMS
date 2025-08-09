@@ -15,12 +15,11 @@ import Footer from '@/app/component/Footer';
 const roleAccessMap = {
   ADMIN: [
     '/tms-modules/admin/*',
-    'http://172.20.137.176:3000/admin',
-    '/tms-modules/admin/Location'
   ],
   DRIVER: [
     '/tms-modules/admin',
     '/tms-modules/admin/car-management',
+     '/tms-modules/dashboard',
     '/tms-modules/admin/car-management/view-assigned-employee',
     '/tms-modules/admin/car-management/maintenance',
     '/tms-modules/admin/request-management',
@@ -30,8 +29,6 @@ const roleAccessMap = {
     '/tms-modules/admin/qr-code-generator'
   ],
   DISTRIBUTOR: [
-    '/tms-modules/admin/Location',
-    'http://172.20.137.176:3000/admin',
     '/tms-modules/admin',
     '/tms-modules/admin/car-management/service-route-assign/assigned-employees-list',
     '/tms-modules/admin/car-management/assign-car/view-assignment/*',
@@ -58,6 +55,7 @@ const roleAccessMap = {
   ],
   INSPECTOR: [
     '/tms-modules/admin',
+     '/tms-modules/dashboard',
     '/tms-modules/admin/car-management',
     '/tms-modules/admin/car-management/vehicle-inspection/*',
     '/tms-modules/admin/car-management/maintenance',
@@ -68,6 +66,7 @@ const roleAccessMap = {
   ],
   HEAD_OF_MECHANIC: [
     '/tms-modules/admin',
+     '/tms-modules/dashboard',
     '/tms-modules/admin/car-management',
     '/tms-modules/admin/car-management/maintenance',
     '/tms-modules/admin/car-management/fuel-oil-grease-request',
@@ -75,6 +74,7 @@ const roleAccessMap = {
   ],
   NEZEK: [
     '/tms-modules/admin',
+     '/tms-modules/dashboard',
     '/tms-modules/admin/car-management',
     '/tms-modules/admin/car-management/fuel-oil-grease-request',
     '/tms-modules/admin/car-management/foc-form',
@@ -82,16 +82,18 @@ const roleAccessMap = {
   ],
   CORPORATOR: [
     '/tms-modules/admin',
+     '/tms-modules/dashboard',
     '/tms-modules/admin/request-management',
     '/tms-modules/admin/request-management/request-field'
   ],
   USER: [
     '/tms-modules/admin',
+     '/tms-modules/dashboard',
     '/tms-modules/admin/request-management',
     '/tms-modules/admin/request-management/request-field'
   ],
   HEAD_OF_DISTRIBUTOR: [
-    '/tms-modules/admin/Location',
+     '/tms-modules/dashboard',
     '/tms-modules/admin/car-management/assign-car/view-assignment/*',
     '/tms-modules/admin',
     '/tms-modules/admin/car-management',
@@ -104,6 +106,7 @@ const roleAccessMap = {
     '/tms-modules/admin/reports/assignment-reports'
   ],
   EMPLOYEE: [
+     '/tms-modules/dashboard',
     '/tms-modules/admin',
     '/tms-modules/admin/vehicle-map-view'
   ]
@@ -112,11 +115,17 @@ const roleAccessMap = {
 // 2. Original sidebar items (for display only)
 const allSidebarItems = [
   {
-    title: 'Dashboard',
-    link: '/tms-modules/admin',
+    title: 'Dashboards',
+    link: '/tms-modules/dashboard',
     icon: <FiHome />,
-    roles: ['ADMIN', 'DISTRIBUTOR', 'NEZEK', 'INSPECTOR', 'CORPORATOR', 'HEAD_OF_MECHANIC', 'USER', 'DRIVER', 'HEAD_OF_DISTRIBUTOR']
+    roles: [ 'NEZEK', 'INSPECTOR', 'CORPORATOR', 'HEAD_OF_MECHANIC', 'USER', 'DRIVER']
   },
+  {
+      title: 'Dashboard',
+      link: '/tms-modules/admin',
+      icon: <FiHome />,
+      roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR']
+    },
   {
     title: 'Car Management',
     icon: <FiTruck />,
@@ -219,15 +228,17 @@ const allSidebarItems = [
     subItems: [
       { 
         title: 'View Vehicles',
-        link: '/tms-modules/admin/Location', 
+        link: '/tms-modules/admin/vehicle-map-view', 
         icon: <FiClipboard />,
-        roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR', 'DRIVER', 'EMPLOYEE']
+        roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR'
+      , 'DRIVER', 'EMPLOYEE']
       },
       { 
         title: 'View Parking', 
         link: '/tms-modules/admin/parking-management/view-parking', 
         icon: <FiClipboard />,
-        roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR', 'DRIVER']
+        roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR'
+      , 'DRIVER']
       },
        { 
         title: 'Generate QR Code', 
@@ -247,8 +258,10 @@ const allSidebarItems = [
         title: 'View Complaints', 
         link: '/tms-modules/admin/complaint-management/view-complaints', 
         icon: <FiClipboard />,
-        roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR']
+        roles: ['ADMIN', 'DISTRIBUTOR', 'HEAD_OF_DISTRIBUTOR'
+      ]
       },
+       
     ],
   },
   {
@@ -269,6 +282,7 @@ const allSidebarItems = [
         icon: <FiUser />,
         roles: ['ADMIN']
       },
+  
     ],
   },
   {
@@ -331,61 +345,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
 
-  // Track active tab state
-  const [isActiveTab, setIsActiveTab] = useState(false);
-
-  // Single tab enforcement
-  useEffect(() => {
-    const channel = new BroadcastChannel('auth_channel');
-    const tabId = Math.random().toString(36).substring(2, 15);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        channel.postMessage({ type: 'TAB_ACTIVE', tabId });
-      }
-    };
-
-    channel.onmessage = (e) => {
-      if (e.data.type === 'TAB_ACTIVE' && e.data.tabId !== tabId) {
-        // Another tab is active
-        localStorage.clear();
-        channel.postMessage({ type: 'LOGOUT' });
-        router.push('/tms-modules');
-      }
-      if (e.data.type === 'LOGOUT') {
-        localStorage.clear();
-        router.push('/tms-modules');
-      }
-    };
-
-    // Claim this tab as active
-    channel.postMessage({ type: 'TAB_ACTIVE', tabId });
-    setIsActiveTab(true);
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      channel.close();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [router]);
-
+  // 3. Enhanced permission check with dynamic route support
   const isRouteAllowed = (path: string, role: string) => {
     const normalizedPath = path.replace(/\/$/, '');
     const allowedPaths = roleAccessMap[role as keyof typeof roleAccessMap] || [];
     
     return allowedPaths.some(allowedPath => {
       const normalizedAllowedPath = allowedPath.replace(/\/$/, '');
+      
+      // Exact match
       if (normalizedPath === normalizedAllowedPath) return true;
+      
+      // Wildcard match for dynamic routes
       if (normalizedAllowedPath.endsWith('/*')) {
-        return normalizedPath.startsWith(normalizedAllowedPath.slice(0, -2));
+        const basePath = normalizedAllowedPath.slice(0, -2);
+        return normalizedPath.startsWith(basePath);
       }
+      
       return false;
     });
   };
 
+  // 4. Filter sidebar items
   const filteredSidebarItems = useMemo(() => {
     if (!userRole) return [];
+    
     return allSidebarItems.filter(item => {
       const hasMainAccess = isRouteAllowed(item.link, userRole);
       const hasSubAccess = item.subItems?.some(sub => isRouteAllowed(sub.link, userRole));
@@ -396,11 +380,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }));
   }, [userRole]);
 
+  // 5. Authentication and authorization
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        if (!isActiveTab) return;
-
         const token = localStorage.getItem('token');
         const user = localStorage.getItem('user');
         
@@ -420,8 +403,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             icon: 'error'
           });
           router.push(roleAccessMap[role as keyof typeof roleAccessMap]?.[0] || '/tms-modules');
+          return;
         }
       } catch (error) {
+        console.error('Auth error:', error);
         localStorage.clear();
         router.push('/tms-modules');
       } finally {
@@ -430,7 +415,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
 
     checkAuth();
-  }, [pathname, router, isActiveTab]);
+  }, [pathname, router]);
 
   if (loading) {
     return (
@@ -465,6 +450,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             )}
           </main>
+          <Footer />
         </div>
       </div>
     </div>

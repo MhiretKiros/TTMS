@@ -37,7 +37,7 @@ export default function UserList() {
 
       if (response.data?.ourUserLists) {
         setUsers(response.data.ourUserLists);
-      }
+      }     
       setLoading(false);
     } catch (error) {
       const axiosError = error as AxiosError<UserResponse>;

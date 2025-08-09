@@ -781,7 +781,7 @@ export default function CarInspectPage() {
             try {
               await addNotification(
                 `New Service Vehicle Inspected Successfully for ${payload.plateNumber}`,
-                `/tms-modules/admin/car-management/assign-route`,
+                `/tms-modules/admin/car-management/service-route-assign`,
                 'DISTRIBUTOR' // Role that should see this notification
               );
               
