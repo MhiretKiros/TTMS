@@ -208,7 +208,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('refreshedToken');
-    window.location.href = '/tms-modules';
+    window.location.href = '/';
   };
 
   // Animation Variants

@@ -118,13 +118,13 @@ export default function Navbar() {
             });
          }else{
           // if (response.data.ourUser.role=="DISTRIBUTOR" || response.data.ourUser.role=="HEAD_OF_DISTRIBUTOR" ){
-          // router.push('/tms-modules/admin');
+          // router.push('/tms/admin');
 
           // }
           // else {
-          // router.push('/tms-modules/dashboard');
+          // router.push('/tms/dashboard');
           // }
-          router.push('/tms-modules/admin');
+          router.push('/tms/admin');
           router.refresh();
            await Swal.fire({
               title: 'success!',
@@ -199,7 +199,7 @@ export default function Navbar() {
         });
 
         // Redirect to admin dashboard
-        router.push('/tms-modules/admin');
+        router.push('/tms/admin');
         router.refresh();
       } else {
         throw new Error(response.data.message || 'Verification failed');
@@ -271,7 +271,7 @@ export default function Navbar() {
         icon: 'success',
         confirmButtonColor: '#3d7aed'
       });
-      router.push('/tms-modules');
+      router.push('/');
       router.refresh();
     } catch (err) {
       await Swal.fire({
@@ -371,11 +371,11 @@ export default function Navbar() {
 
             {/* Desktop Navigation - right aligned */}
             <div className="hidden md:flex items-center space-x-6">
-              {[{ label: 'Home', href: '/tms-modules' },
-                { label: 'Service', href: '/tms-modules/services' },
-                ...(user ? [{ label: 'Dashboard', href: '/tms-modules/admin' }] : []),
-                ...(user?.role === 'ADMIN' ? [{ label: 'Admin Panel', href: '/tms-modules/admin' }] : []),
-                { label: 'About', href: '/tms-modules/about' },
+              {[{ label: 'Home', href: '/' },
+                { label: 'Service', href: '/tms/services' },
+                ...(user ? [{ label: 'Dashboard', href: '/tms/admin' }] : []),
+                ...(user?.role === 'ADMIN' ? [{ label: 'Admin Panel', href: '/tms/admin' }] : []),
+                { label: 'About', href: '/tms/about' },
               ].map((item, i) => (
                 <motion.div
                   key={item.href}
@@ -467,11 +467,11 @@ export default function Navbar() {
               className="md:hidden bg-white shadow-lg"
             >
               <div className="px-4 pt-2 pb-4 space-y-2">
-                {[{ label: 'Home', href: '/tms-modules' },
-                  { label: 'Service', href: '/tms-modules/service' },
-                  ...(user ? [{ label: 'Dashboard', href: '/tms-modules/admin' }] : []),
-                  ...(user?.role === 'ADMIN' ? [{ label: 'Admin Panel', href: '/tms-modules/admin' }] : []),
-                  { label: 'About', href: '/tms-modules/about' },
+                {[{ label: 'Home', href: '/' },
+                  { label: 'Service', href: '/tms/service' },
+                  ...(user ? [{ label: 'Dashboard', href: '/tms/admin' }] : []),
+                  ...(user?.role === 'ADMIN' ? [{ label: 'Admin Panel', href: '/tms/admin' }] : []),
+                  { label: 'About', href: '/tms/about' },
                 ].map((item) => (
                   <motion.div key={item.href} variants={navItemVariants} initial="hidden" animate="visible" whileHover="hover">
                     <Link
@@ -485,7 +485,7 @@ export default function Navbar() {
 
                 {user ? (
                   <>
-                    <Link href="/tms-modules/admin" className="block px-4 py-2 text-lg text-gray-700 hover:bg-gray-100">Profile</Link>
+                    <Link href="/tms/admin" className="block px-4 py-2 text-lg text-gray-700 hover:bg-gray-100">Profile</Link>
                     <button
                       onClick={handleLogout}
                       disabled={loading.logout}

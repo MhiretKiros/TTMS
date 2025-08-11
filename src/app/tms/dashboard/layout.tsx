@@ -331,6 +331,7 @@ const allSidebarItems = [
 ];
 
 
+// ... (keep all your existing roleAccessMap and allSidebarItems definitions)
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
