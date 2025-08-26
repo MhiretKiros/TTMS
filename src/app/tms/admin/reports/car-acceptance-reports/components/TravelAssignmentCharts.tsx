@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { fetchTravelRequests, fetchDailyServiceRequests } from '@/app/tms-modules/admin/reports/api/travelReports';
+import { fetchTravelRequests, fetchDailyServiceRequests } from '@/app/tms/admin/reports/api/travelReports';
 
 const COLORS = ['#3c8dbc', '#00C49F', '#FFBB28', '#FF8042'];
 

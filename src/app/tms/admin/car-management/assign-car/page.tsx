@@ -607,16 +607,17 @@ const showExpiryAlert = (assignment: Assignment, daysRemaining: number, isExpire
             {/* Removed the toggle button since we're auto-detecting role */}
             {activeTab === 'assigned' && (
               <>
-                <div className="relative flex-1 md:w-64">
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search assignments..."
-                    className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3c8dbc] focus:border-transparent text-sm"
-                    value={searchTerm}
-                    onChange={(e) => handleSearch(e.target.value)}
-                  />
-                </div>
+                <div className="relative flex-1 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search assignments..."
+                  className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3c8dbc] focus:border-transparent text-sm"
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                />
+              </div>
+
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}

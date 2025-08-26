@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { fetchTravelRequests, fetchDailyServiceRequests } from '@/app/tms-modules/admin/reports/api/travelReports';
+import { fetchTravelRequests, fetchDailyServiceRequests } from '@/app/tms/admin/reports/api/travelReports';
 
 const travelColumns: GridColDef[] = [
   { field: 'startingPlace', headerName: 'From', width: 150 },

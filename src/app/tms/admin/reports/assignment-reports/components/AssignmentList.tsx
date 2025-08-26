@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { fetchAssignmentHistories } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchAssignmentHistories } from '@/app/tms/admin/reports/api/carReports';
 import { AssignmentHistory, CarAssignmentFilters } from '../types';
 
 const columns: GridColDef[] = [

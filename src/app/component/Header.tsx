@@ -309,6 +309,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   };
 
   return (
+    // <header className="fixed top-0 left-0 w-full z-50 bg-white shadow-sm py-3 px-6 flex items-center justify-between">
     <header className="bg-white shadow-sm py-3 px-6 flex items-center justify-between">
       <div className="flex items-center space-x-4">
         <button 
@@ -321,18 +322,19 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           </svg>
         </button>
         
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <FiSearch className="text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search..."
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <FiSearch className="text-gray-400" />
         </div>
+        <input
+          type="text"
+          placeholder="Search..."
+          className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
       </div>
 
       <div className="flex items-center space-x-4">
@@ -520,14 +522,14 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           </AnimatePresence>
         </div>
         
-        <button 
+        {/* <button 
           className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
           aria-label="Help"
         >
           <FiHelpCircle className="h-5 w-5" />
-        </button>
+        </button> */}
 
-        <DarkModeToggle />
+        {/* <DarkModeToggle /> */}
 
         <div className="relative" ref={profileRef}>
           <button 

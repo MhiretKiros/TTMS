@@ -150,13 +150,13 @@ const allSidebarItems = [
         title: 'Assignment Details',
         link: '/tms/admin/car-management/view-assigned-employee', 
         icon: <FiTruck />,
-        roles: ['DRIVER']
+        roles: ['DRIVER','ADMIN']
       },
       { 
         title: 'Vehicle Inspection', 
         link: '/tms/admin/car-management/vehicle-inspection', 
         icon: <FiSettings />,
-        roles: ['ADMIN', 'INSPECTOR']
+        roles: ['ADMIN', 'INSPECTOR','ADMIN']
       },
       { 
         title: 'Assign Cars', 
@@ -216,7 +216,7 @@ const allSidebarItems = [
         title: 'Rental Maintenance', 
         link: '/tms/admin/car-management/Rental-maintenace-request/driver-request', 
         icon: <FiTool />,
-        roles: [ 'DRIVER']
+        roles: [ 'DRIVER', 'ADMIN']
       }, 
            
 
@@ -365,6 +365,45 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Track active tab state
   const [isActiveTab, setIsActiveTab] = useState(false);
 
+    // Clear token on tab close and refresh
+  //   useEffect(() => {
+  //   // Set a flag when the page is first loaded
+  //   sessionStorage.setItem('isPageActive', 'true');
+
+  //   const handleTabClose = () => {
+  //     // Only run when the tab is actually closing
+  //     sessionStorage.removeItem('isPageActive');
+  //     localStorage.removeItem('token');
+  //     localStorage.removeItem('user');
+  //   };
+
+  //   // This will only fire when the tab is closed, not refreshed
+  //   window.addEventListener('pagehide', handleTabClose);
+
+  //   return () => {
+  //     window.removeEventListener('pagehide', handleTabClose);
+  //     // If we're here because of a refresh, restore the flag
+  //     if (performance.navigation.type === performance.navigation.TYPE_RELOAD) {
+  //       sessionStorage.setItem('isPageActive', 'true');
+  //     }
+  //   };
+  // }, []);
+
+  // // Clear token on tab close and refresh
+  // useEffect(() => {
+  //   const handleBeforeUnload = () => {
+  //     // Clear the token when the tab is closing
+  //     localStorage.removeItem('token');
+  //     localStorage.removeItem('user');
+  //   };
+
+  //   window.addEventListener('beforeunload', handleBeforeUnload);
+
+  //   return () => {
+  //     window.removeEventListener('beforeunload', handleBeforeUnload);
+  //   };
+  // }, []);
+
   // Single tab enforcement
   useEffect(() => {
     const channel = new BroadcastChannel('auth_channel');
@@ -447,8 +486,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (!isRouteAllowed(pathname, role)) {
           await Swal.fire({
             title: 'Access Denied',
-            text: `Your role (${role}) cannot access ${pathname}`,
-            icon: 'error'
+            text: `Your can only access ${role} pages. `,
+            icon: 'warning',
           });
           router.push(roleAccessMap[role as keyof typeof roleAccessMap]?.[0] || '/');
         }
@@ -492,7 +531,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <main className="flex-1 p-6 overflow-y-auto bg-gray-100">
             {isRouteAllowed(pathname, userRole) ? children : (
               <div className="flex items-center justify-center h-full">
-                <p className="text-red-500">You don't have permission to view this page</p>
+                {/* <p className="text-red-500">You don't have permission to view this page</p> */}
               </div>
             )}
           </main>

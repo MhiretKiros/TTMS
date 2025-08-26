@@ -7,7 +7,7 @@ import DailyServiceStatusCharts from './components/DailyServiceStatusCharts';
 import WeeklyDailyServiceGraph from './components/WeeklyDailyServiceGraph';
 import ExportModal from './components/ExportModal';
 import { DailyService, DailyServiceReportFilters } from './types';
-import { fetchAllDailyServices } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchAllDailyServices } from '@/app/tms/admin/reports/api/carReports';
 
 export default function DailyServiceReportsPage() {
   const [filters, setFilters] = useState<DailyServiceReportFilters>({

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { fetchInspections } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchInspections } from '@/app/tms/admin/reports/api/carReports';
 import { Inspection, InspectionReportFilters } from '../types';
 
 interface WeeklyData {

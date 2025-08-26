@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { fetchAllCars } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchAllCars } from '@/app/tms/admin/reports/api/carReports';
 
 interface CarStatusChartsProps {
   filters?: {

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { fetchAssignmentHistories } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchAssignmentHistories } from '@/app/tms/admin/reports/api/carReports';
 import { CarAssignmentFilters, WeeklyData } from '../types';
 
 // Define the assignment type if not already imported

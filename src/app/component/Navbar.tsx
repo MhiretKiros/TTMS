@@ -106,7 +106,7 @@ export default function Navbar() {
         };
 
          localStorage.setItem('user', JSON.stringify(userData));
-         if(response.data.ourUser.role=="USER"){
+         if(response.data.ourUser.role=="ADMIN"){
             setLoginEmail(formData.email);
             setOtpModalOpen(true);
             setLoginOpen(false);

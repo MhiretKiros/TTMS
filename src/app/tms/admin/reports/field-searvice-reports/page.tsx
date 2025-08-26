@@ -7,7 +7,7 @@ import FieldServiceStatusCharts from './components/FieldServiceStatusCharts';
 import WeeklyFieldServiceGraph from './components/WeeklyFieldServiceGraph';
 import ExportModal from './components/ExportModal';
 import { FieldService, FieldServiceReportFilters } from './types';
-import { fetchAllFieldServices } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchAllFieldServices } from '@/app/tms/admin/reports/api/carReports';
 
 export default function FieldServiceReportsPage() {
   const [filters, setFilters] = useState<FieldServiceReportFilters>({

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { fetchAllCars } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchAllCars } from '@/app/tms/admin/reports/api/carReports';
 
 const COLORS = ['#3c8dbc', '#00C49F', '#FFBB28', '#FF8042'];
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { fetchInspections } from '@/app/tms-modules/admin/reports/api/carReports';
+import { fetchInspections } from '@/app/tms/admin/reports/api/carReports';
 import { Inspection, InspectionReportFilters } from '../types';
 
 const columns: GridColDef[] = [
