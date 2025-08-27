@@ -184,6 +184,7 @@ export default function ViewOrganizationCarPage() {
               {[
                 { label: "Plate Number", value: car.plateNumber },
                 { label: "Owner Name", value: car.ownerName },
+                { label: "Owner Email", value: car.ownerEmail },
                 { label: "Owner Phone", value: car.ownerPhone },
                 {label: "Agent Name", value: car.agentName},
                 {label: "Agent Name", value: car.agentPhone},

@@ -153,6 +153,7 @@ export default function ViewCarPage() {
                 { label: "Plate Number", value: car.plateNumber },
                 { label: "Owner Name", value: car.ownerName },
                 { label: "Owner Phone", value: car.ownerPhone },
+                { label: "Owner Email", value: car.ownerEmail },
                 {label: "Agent Name", value: car.agentName},
                 {label: "Agent Name", value: car.agentPhone},
                 { label: "Model", value: car.model },
