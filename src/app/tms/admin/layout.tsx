@@ -39,6 +39,7 @@ const roleAccessMap = {
     '/tms/admin/car-management/assign-car/view-assignment/*',
     '/tms/admin/car-management/manage-cars/view-car/*',
     '/tms/admin/car-management',
+    '/tms/admin/request-management/request-field',
     '/tms/admin/car-management/manage-cars',
     '/tms/admin/car-management/assign-car',
     '/tms/admin/car-management/service-route-assign',
