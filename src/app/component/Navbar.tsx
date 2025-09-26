@@ -104,8 +104,9 @@ export default function Navbar() {
           token: localStorage.getItem('token') || '', // Get token from localStorage
           refreshedToken: response.data.refreshedToken
         };
-
+        if(response.data.ourUser.role!="ADMIN"){
          localStorage.setItem('user', JSON.stringify(userData));
+        }
          if(response.data.ourUser.role=="ADMIN"){
             setLoginEmail(formData.email);
             setOtpModalOpen(true);

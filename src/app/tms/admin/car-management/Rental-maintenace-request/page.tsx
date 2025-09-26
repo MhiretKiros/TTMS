@@ -210,7 +210,7 @@ export default function DistributorViewRequestPage() {
      try {
       await addNotification(
         `New request has been approved }`,
-        `/tms/admin/car-management/Rent-maintenance-request/driver-request`,
+        `/tms/admin/car-management/Rental-maintenance-request/driver-request`,
         'DRIVER'
       );
     } catch (notificationError) {
@@ -256,7 +256,7 @@ export default function DistributorViewRequestPage() {
      try {
       await addNotification(
         `Return request has been accepted }`,
-        `/tms/admin/car-management/Rent-maintenance-request/driver-request`,
+        `/tms/admin/car-management/Rental-maintenance-request/driver-request`,
         'DRIVER'
       );
     } catch (notificationError) {

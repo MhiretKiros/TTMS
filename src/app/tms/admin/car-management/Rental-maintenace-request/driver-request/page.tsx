@@ -301,7 +301,7 @@ export default function DriverRequestPage() {
       try {
         await addNotification(
           `New ${formData.requestType} request is registered: ${formData.plateNumber}`,
-          `/tms/admin/car-management/Rent-maintenance-request`,
+          `/tms/admin/car-management/Rental-maintenance-request`,
           "DISTRIBUTOR"
         );
       } catch (notificationError) {

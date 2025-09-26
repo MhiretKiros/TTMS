@@ -64,6 +64,7 @@ const roleAccessMap = {
     '/tms/admin/car-management',
     '/tms/admin/car-management/vehicle-inspection/*',
     '/tms/admin/car-management/maintenance',
+    '/tms/admin/car-management/update-maintenance-record/*',
     '/tms/admin/car-management/approved-maintenance-requests',
     '/tms/admin/car-management/fuel-oil-grease-request',
     '/tms/admin/car-management/foc-form',
@@ -233,7 +234,7 @@ const allSidebarItems = [
         title: 'Fuel Requests', 
         link: '/tms/admin/request-management', 
         icon: <FiSettings />,
-        roles: ['ADMIN', 'NEZEK', 'DISTRIBUTOR']
+        roles: ['ADMIN', 'NEZEK',  'DISTRIBUTOR']
       },
       { 
         title: 'Service Requests', 
