@@ -16,7 +16,7 @@ export interface User {
   name: string;
   email: string;
   myUsername: string;
-  role: 'USER' | 'ADMIN' | 'DISTRIBUTOR' | 'HEAD_OF_DISTRIBUTOR';
+  role: 'USER' | 'ADMIN' |'UNDEFIEND' |  'DISTRIBUTOR' | 'HEAD_OF_DISTRIBUTOR';
   token?: string;
   refreshedToken?: string;
 }
@@ -39,7 +39,7 @@ export default function Navbar() {
     email: '',
     myUsername: '',
     password: '',
-    role: 'USER' as 'USER' | 'ADMIN'
+    role: 'USER' as 'USER' | 'ADMIN' | 'UNDEFINED'
   });
   const [otp, setOtp] = useState('');
   const [otpModalOpen, setOtpModalOpen] = useState(false);
@@ -104,10 +104,10 @@ export default function Navbar() {
           token: localStorage.getItem('token') || '', // Get token from localStorage
           refreshedToken: response.data.refreshedToken
         };
-        if(response.data.ourUser.role!="ADMIN"){
-         localStorage.setItem('user', JSON.stringify(userData));
-        }
-         if(response.data.ourUser.role=="ADMIN"){
+        // if(response.data.ourUser.role!="ADMIN"){
+        //  localStorage.setItem('user', JSON.stringify(userData));
+        // }
+         if(response.data.ourUser.role=="UNDEFIEND"){
             setLoginEmail(formData.email);
             setOtpModalOpen(true);
             setLoginOpen(false);
