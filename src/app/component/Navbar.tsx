@@ -16,7 +16,7 @@ export interface User {
   name: string;
   email: string;
   myUsername: string;
-  role: 'USER' | 'ADMIN' |'UNDEFIEND' |  'DISTRIBUTOR' | 'HEAD_OF_DISTRIBUTOR';
+  role: 'USER' | 'ADMIN' | 'DISTRIBUTOR' | 'HEAD_OF_DISTRIBUTOR';
   token?: string;
   refreshedToken?: string;
 }
@@ -39,17 +39,15 @@ export default function Navbar() {
     email: '',
     myUsername: '',
     password: '',
-    role: 'USER' as 'USER' | 'ADMIN' | 'UNDEFINED'
+    role: 'USER' as 'USER' | 'ADMIN'
   });
-  const [otp, setOtp] = useState('');
-  const [otpModalOpen, setOtpModalOpen] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('');
+  // Removed OTP logic
   const [error, setError] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState({
     login: false,
     register: false,
-    otp: false,
+    // Removed OTP loading
     logout: false
   });
   const router = useRouter();
@@ -90,61 +88,26 @@ export default function Navbar() {
       if (response.data.status === 200 && response.data.token) {
         // Store token immediately after successful login
         localStorage.setItem('token', response.data.token);
-        try {
-          const otpResponse = await axios.post<UserResponse>(`${API_BASE_URL}/auth/request-otp`, {
-            email: formData.email
-          });
 
         if (response.data.status === 200 && response.data.ourUser) {
-        const userData: User = {
-          name: response.data.ourUser.name,
-          email: response.data.ourUser.email,
-          myUsername: response.data.ourUser.myUsername,
-          role: response.data.ourUser.role,
-          token: localStorage.getItem('token') || '', // Get token from localStorage
-          refreshedToken: response.data.refreshedToken
-        };
-        // if(response.data.ourUser.role!="ADMIN"){
-        //  localStorage.setItem('user', JSON.stringify(userData));
-        // }
-         if(response.data.ourUser.role=="UNDEFIEND"){
-            setLoginEmail(formData.email);
-            setOtpModalOpen(true);
-            setLoginOpen(false);
-             await Swal.fire({
-              title: 'OTP Sent!',
-              text: 'Verification code has been sent to your email',
-              icon: 'success',
-              confirmButtonColor: '#3d7aed'
-            });
-         }else{
-          // if (response.data.ourUser.role=="DISTRIBUTOR" || response.data.ourUser.role=="HEAD_OF_DISTRIBUTOR" ){
-          // router.push('/tms/admin');
-
-          // }
-          // else {
-          // router.push('/tms/dashboard');
-          // }
-          router.push('/tms/admin');
-          router.refresh();
-           await Swal.fire({
-              title: 'success!',
-              text: 'You have logedin successfuly!',
-              icon: 'success',
-              confirmButtonColor: '#3d7aed'
-            });
-         }
-            
-           
-          }
-        } catch (otpErr) {
-          const otpError = otpErr as AxiosError<UserResponse>;
+          const userData: User = {
+            name: response.data.ourUser.name,
+            email: response.data.ourUser.email,
+            myUsername: response.data.ourUser.myUsername,
+            role: response.data.ourUser.role,
+            token: localStorage.getItem('token') || '', // Get token from localStorage
+            refreshedToken: response.data.refreshedToken
+          };
+          localStorage.setItem('user', JSON.stringify(userData));
+          setLoginOpen(false);
           await Swal.fire({
-            title: 'OTP Error',
-            text: otpError.response?.data?.message || 'Failed to send OTP',
-            icon: 'error',
+            title: 'success!',
+            text: 'You have logedin successfuly!',
+            icon: 'success',
             confirmButtonColor: '#3d7aed'
           });
+          router.push('/tms/admin');
+          router.refresh();
         }
       } else {
         throw new Error(response.data.message || 'Login failed');
@@ -162,61 +125,7 @@ export default function Navbar() {
     }
   };
 
-  const handleOtpVerification = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading({...loading, otp: true});
-    
-    try {
-      const response = await axios.post<UserResponse>(`${API_BASE_URL}/auth/verify-otp`, {
-        email: loginEmail,
-        otp: otp
-      });
-
-      if (response.data.status === 200 && response.data.ourUser) {
-        const userData: User = {
-          name: response.data.ourUser.name,
-          email: response.data.ourUser.email,
-          myUsername: response.data.ourUser.myUsername,
-          role: response.data.ourUser.role,
-          token: localStorage.getItem('token') || '', // Get token from localStorage
-          refreshedToken: response.data.refreshedToken
-        };
-
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        if (response.data.refreshedToken) {
-          localStorage.setItem('refreshedToken', response.data.refreshedToken);
-        }
-
-        setUser(userData);
-        setOtpModalOpen(false);
-        
-        await Swal.fire({
-          title: 'Verified!',
-          text: 'OTP verification successful',
-          icon: 'success',
-          confirmButtonColor: '#3d7aed'
-        });
-
-        // Redirect to admin dashboard
-        router.push('/tms/admin');
-        router.refresh();
-      } else {
-        throw new Error(response.data.message || 'Verification failed');
-      }
-    } catch (err) {
-      const axiosError = err as AxiosError<UserResponse>;
-      await Swal.fire({
-        title: 'Verification Failed',
-        text: axiosError.response?.data?.message || 'Invalid OTP. Please try again.',
-        icon: 'error',
-        confirmButtonColor: '#3d7aed'
-      });
-    } finally {
-      setLoading({...loading, otp: false});
-    }
-  };
+  // Removed OTP verification handler
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -738,106 +647,7 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {otpModalOpen && (
-          <motion.div 
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
-            <motion.div 
-              className="fixed inset-0 bg-black" 
-              variants={backdropVariants}
-              onClick={() => setOtpModalOpen(false)}
-            />
-            
-            <motion.div 
-              className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto overflow-hidden"
-              variants={modalVariants}
-            >
-              <div className="absolute top-4 right-4">
-                <motion.button
-                  whileHover={{ rotate: 90, scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setOtpModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-500 focus:outline-none"
-                >
-                  <FaTimes className="h-6 w-6" />
-                </motion.button>
-              </div>
-              
-              <div className="p-8">
-                <div className="text-center mb-8">
-                  <motion.h2 
-                    className="text-3xl font-bold text-gray-800"
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    OTP Verification
-                  </motion.h2>
-                  <motion.p 
-                    className="mt-2 text-gray-600 text-lg"
-                    initial={{ y: -10, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    We've sent a 6-digit code to {loginEmail}
-                  </motion.p>
-                </div>
-                
-                <form onSubmit={handleOtpVerification}>
-                  <div className="space-y-5">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                      className="relative"
-                    >
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaIdCard className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Enter 6-digit OTP"
-                        required
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        className="pl-10 w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-                        maxLength={6}
-                      />
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                    >
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        type="submit"
-                        disabled={loading.otp}
-                        className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-lg shadow-md transition duration-300 flex justify-center items-center"
-                      >
-                        {loading.otp ? (
-                          <>
-                            <FaSpinner className="animate-spin mr-2" />
-                            Verifying...
-                          </>
-                        ) : (
-                          'Verify & Continue'
-                        )}
-                      </motion.button>
-                    </motion.div>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Removed OTP modal UI */}
     </>
   );
 }
