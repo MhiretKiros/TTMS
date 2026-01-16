@@ -42,20 +42,24 @@ const AssignedCarStats = ({
   // Status filter options
   const statusStats = [
     {
-      title: 'All',
+      title: 'All Assignments',
       value: totalAssignments,
       icon: <FiActivity className="h-5 w-5" />,
       filterKey: null,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50'
+      color: 'text-[#3c8dbc]',
+      bgColor: 'bg-gradient-to-br from-blue-50 to-white',
+      borderColor: 'border-blue-100',
+      percentage: `${totalAssignments} total`
     },
     {
       title: 'Approved',
       value: approved,
       icon: <FiCheckCircle className="h-5 w-5" />,
       filterKey: 'Approved',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50'
+      color: 'text-emerald-600',
+      bgColor: 'bg-gradient-to-br from-emerald-50 to-white',
+      borderColor: 'border-emerald-100',
+      percentage: totalAssignments > 0 ? `${Math.round((approved / totalAssignments) * 100)}%` : '0%'
     },
     {
       title: 'Assigned',
@@ -63,15 +67,19 @@ const AssignedCarStats = ({
       icon: <FiClock className="h-5 w-5" />,
       filterKey: 'Assigned',
       color: 'text-purple-600',
-      bgColor: 'bg-purple-50'
+      bgColor: 'bg-gradient-to-br from-purple-50 to-white',
+      borderColor: 'border-purple-100',
+      percentage: totalAssignments > 0 ? `${Math.round((assigned / totalAssignments) * 100)}%` : '0%'
     },
     {
       title: 'Pending',
       value: pending,
       icon: <FiAlertCircle className="h-5 w-5" />,
       filterKey: 'Pending',
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50'
+      color: 'text-amber-600',
+      bgColor: 'bg-gradient-to-br from-amber-50 to-white',
+      borderColor: 'border-amber-100',
+      percentage: totalAssignments > 0 ? `${Math.round((pending / totalAssignments) * 100)}%` : '0%'
     },
   ];
 
@@ -83,7 +91,9 @@ const AssignedCarStats = ({
       icon: <FiBriefcase className="h-5 w-5" />,
       filterKey: 'level1',
       color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50'
+      bgColor: 'bg-gradient-to-br from-indigo-50 to-white',
+      borderColor: 'border-indigo-100',
+      percentage: totalAssignments > 0 ? `${Math.round((level1 / totalAssignments) * 100)}%` : '0%'
     },
     {
       title: 'Director',
@@ -91,7 +101,9 @@ const AssignedCarStats = ({
       icon: <FiUser className="h-5 w-5" />,
       filterKey: 'level2',
       color: 'text-teal-600',
-      bgColor: 'bg-teal-50'
+      bgColor: 'bg-gradient-to-br from-teal-50 to-white',
+      borderColor: 'border-teal-100',
+      percentage: totalAssignments > 0 ? `${Math.round((level2 / totalAssignments) * 100)}%` : '0%'
     },
     {
       title: 'Sub Director',
@@ -99,15 +111,19 @@ const AssignedCarStats = ({
       icon: <FiStar className="h-5 w-5" />,
       filterKey: 'level3',
       color: 'text-orange-600',
-      bgColor: 'bg-orange-50'
+      bgColor: 'bg-gradient-to-br from-orange-50 to-white',
+      borderColor: 'border-orange-100',
+      percentage: totalAssignments > 0 ? `${Math.round((level3 / totalAssignments) * 100)}%` : '0%'
     },
     {
       title: 'Division',
       value: level4,
       icon: <FiUsers className="h-5 w-5" />,
       filterKey: 'level4',
-      color: 'text-red-600',
-      bgColor: 'bg-red-50'
+      color: 'text-rose-600',
+      bgColor: 'bg-gradient-to-br from-rose-50 to-white',
+      borderColor: 'border-rose-100',
+      percentage: totalAssignments > 0 ? `${Math.round((level4 / totalAssignments) * 100)}%` : '0%'
     },
     {
       title: 'Experts',
@@ -115,7 +131,9 @@ const AssignedCarStats = ({
       icon: <FiAward className="h-5 w-5" />,
       filterKey: 'level5',
       color: 'text-amber-600',
-      bgColor: 'bg-amber-50'
+      bgColor: 'bg-gradient-to-br from-amber-50 to-white',
+      borderColor: 'border-amber-100',
+      percentage: totalAssignments > 0 ? `${Math.round((level5 / totalAssignments) * 100)}%` : '0%'
     },
   ];
 
@@ -138,49 +156,81 @@ const AssignedCarStats = ({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Status Filters */}
-      <motion.div
-        className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ staggerChildren: 0.1 }}
-      >
-        {statusStats.map((stat, index) => (
-          <motion.div
-            key={`status-${index}`}
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className={`rounded-lg p-3 sm:p-4 cursor-pointer transition-all ${
-              activeStatusFilter === stat.filterKey 
-                ? 'ring-2 ring-blue-500 bg-white shadow-md' 
-                : 'bg-white shadow-sm'
-            }`}
-            onClick={() => handleStatusFilterClick(stat.filterKey)}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-500">{stat.title}</p>
-                <p className="mt-1 text-xl sm:text-2xl font-semibold text-gray-900">
-                  {stat.value}
-                </p>
-              </div>
-              <div className={`p-1 sm:p-2 rounded-full ${stat.bgColor} ${stat.color}`}>
-                {stat.icon}
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Position Level Filters */}
-      <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-        <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-2 sm:mb-3">Filter by Position Level</h3>
+    <div className="space-y-6">
+      {/* Status Filters Section */}
+      <div>
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Assignment Status</h3>
         <motion.div
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ staggerChildren: 0.1 }}
+        >
+          {statusStats.map((stat, index) => (
+            <motion.div
+              key={`status-${index}`}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+              whileHover={{ 
+                y: -2,
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08)',
+                borderColor: stat.color.replace('text-', 'border-')
+              }}
+              className={`
+                relative rounded-xl p-5 cursor-pointer transition-all duration-300
+                border ${stat.borderColor} ${stat.bgColor}
+                ${activeStatusFilter === stat.filterKey ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
+                hover:border-opacity-50
+              `}
+              onClick={() => handleStatusFilterClick(stat.filterKey)}
+            >
+              {/* Subtle corner accent */}
+              <div className={`absolute top-0 right-0 w-12 h-12 overflow-hidden rounded-tr-xl`}>
+                <div className={`absolute top-0 right-0 w-6 h-6 ${stat.color.replace('text-', 'bg-')} opacity-10`} />
+              </div>
+              
+              <div className="flex items-start space-x-4">
+                <div className={`p-3 rounded-lg ${stat.color.replace('text-', 'bg-')} bg-opacity-10`}>
+                  <div className={stat.color}>
+                    {stat.icon}
+                  </div>
+                </div>
+                
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
+                  <div className="flex items-baseline space-x-2">
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-sm font-medium text-gray-500">{stat.percentage}</p>
+                  </div>
+                  
+                  {/* Progress indicator */}
+                  {stat.filterKey && totalAssignments > 0 && (
+                    <div className="mt-3">
+                      <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ 
+                            width: `${(Number(stat.value) / totalAssignments) * 100}%` 
+                          }}
+                          transition={{ duration: 1, delay: 0.3 }}
+                          className={`h-1.5 rounded-full ${stat.color.replace('text-', 'bg-')}`}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+
+      {/* Position Level Filters Section */}
+      <div>
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Position Levels</h3>
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ staggerChildren: 0.1 }}
@@ -190,29 +240,87 @@ const AssignedCarStats = ({
               key={`level-${index}`}
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              className={`rounded-lg p-2 sm:p-3 cursor-pointer transition-all ${
-                activeLevelFilter === stat.filterKey 
-                  ? 'ring-2 ring-blue-500 bg-white shadow-md' 
-                  : 'bg-white shadow-sm'
-              }`}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              whileHover={{ 
+                y: -2,
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08)',
+                borderColor: stat.color.replace('text-', 'border-')
+              }}
+              className={`
+                relative rounded-xl p-5 cursor-pointer transition-all duration-300
+                border ${stat.borderColor} ${stat.bgColor}
+                ${activeLevelFilter === stat.filterKey ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
+                hover:border-opacity-50
+              `}
               onClick={() => handleLevelFilterClick(stat.filterKey)}
             >
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className={`p-1 sm:p-2 rounded-full ${stat.bgColor} ${stat.color}`}>
-                  {stat.icon}
+              {/* Subtle corner accent */}
+              <div className={`absolute top-0 right-0 w-12 h-12 overflow-hidden rounded-tr-xl`}>
+                <div className={`absolute top-0 right-0 w-6 h-6 ${stat.color.replace('text-', 'bg-')} opacity-10`} />
+              </div>
+              
+              <div className="flex items-start space-x-4">
+                <div className={`p-3 rounded-lg ${stat.color.replace('text-', 'bg-')} bg-opacity-10`}>
+                  <div className={stat.color}>
+                    {stat.icon}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-900">{stat.title}</p>
-                  <p className="text-xs text-gray-500">{stat.value} assignments</p>
+                
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
+                  <div className="flex items-baseline space-x-2">
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-sm font-medium text-gray-500">{stat.percentage}</p>
+                  </div>
+                  
+                  {/* Progress indicator */}
+                  {totalAssignments > 0 && (
+                    <div className="mt-3">
+                      <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ 
+                            width: `${(Number(stat.value) / totalAssignments) * 100}%` 
+                          }}
+                          transition={{ duration: 1, delay: 0.3 }}
+                          className={`h-1.5 rounded-full ${stat.color.replace('text-', 'bg-')}`}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
           ))}
         </motion.div>
       </div>
+
+      {/* Active Filters Indicator */}
+      {(activeStatusFilter || activeLevelFilter) && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-gradient-to-r from-blue-50 to-white border border-blue-100 rounded-xl flex items-center justify-between"
+        >
+          <div className="text-sm text-gray-700">
+            <span className="font-medium">Active filter: </span>
+            <span className="font-semibold text-[#3c8dbc]">
+              {activeStatusFilter 
+                ? statusStats.find(s => s.filterKey === activeStatusFilter)?.title 
+                : levelStats.find(l => l.filterKey === activeLevelFilter)?.title}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              onStatusFilter(null);
+              onLevelFilter(null);
+            }}
+            className="text-sm text-[#3c8dbc] font-medium hover:underline px-3 py-1 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            Clear filters
+          </button>
+        </motion.div>
+      )}
     </div>
   );
 };

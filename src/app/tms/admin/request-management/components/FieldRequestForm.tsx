@@ -618,6 +618,9 @@ if(status=="APPROVED"){
   claimantName: formData.claimantName,
   teamLeaderName: formData.teamLeaderName,
   accountNumber: formData.accountNumber,
+  date: new Date().toISOString(), // Add the missing 'date' property
+  createdAt: new Date().toISOString(), // Add the missing 'createdAt' property
+  requestDate: new Date().toISOString(), // Add the missing 'requestDate' property
   status: 'PENDING' as
     | 'PENDING'
     | 'APPROVED'

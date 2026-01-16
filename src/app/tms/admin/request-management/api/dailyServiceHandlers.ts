@@ -4,6 +4,7 @@ import axios from 'axios';
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/daily-requests`;
 
 export interface DailyServiceRequest {
+  createdAt: string;
   id?: number;
   dateTime: string; // ISO format with time
   travelers: string[];

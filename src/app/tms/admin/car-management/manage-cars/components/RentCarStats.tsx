@@ -1,6 +1,6 @@
 "use client";
 import { motion } from 'framer-motion';
-import { FiActivity, FiCheckCircle, FiTool, FiBriefcase, FiClock } from 'react-icons/fi'; // Changed FiAlertTriangle to FiBriefcase for Commercial
+import { FiActivity, FiCheckCircle, FiClock, FiBriefcase } from 'react-icons/fi';
 
 interface RentCarStatsProps {
   cars: any[];
@@ -9,9 +9,8 @@ interface RentCarStatsProps {
 }
 
 const RentCarStats = ({ cars, onFilterClick, activeFilter }: RentCarStatsProps) => {
-  // Calculate statistics
   const totalCars = cars.length;
-  const approvedCarsCount = cars.filter(car => car.status === 'Approved').length; // Cars that are approved
+  const approvedCarsCount = cars.filter(car => car.status === 'Approved').length;
   const maintenanceCarsCount = cars.filter(car => car.status === 'Maintenance').length;
   const commercialCars = cars.filter(car => car.vehiclesType === 'Commercial').length;
 
@@ -19,40 +18,48 @@ const RentCarStats = ({ cars, onFilterClick, activeFilter }: RentCarStatsProps) 
     {
       title: 'Total Rented',
       value: totalCars,
-      icon: <FiActivity className="h-6 w-6" />,
+      icon: <FiActivity className="h-5 w-5" />,
       filterKey: null,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100'
+      color: 'text-[#3c8dbc]',
+      bgColor: 'bg-gradient-to-br from-blue-50 to-white',
+      borderColor: 'border-blue-100',
+      percentage: `${totalCars} vehicles`
     },
     {
-      title: 'Approved Vehicles', // Changed title
-      value: approvedCarsCount,   // Counts 'Approved' status
-      icon: <FiCheckCircle className="h-6 w-6" />,
-      filterKey: 'Approved',      // Filter key matches status
-      color: 'text-green-600',
-      bgColor: 'bg-green-100'
+      title: 'Approved',
+      value: approvedCarsCount,
+      icon: <FiCheckCircle className="h-5 w-5" />,
+      filterKey: 'Approved',
+      color: 'text-emerald-600',
+      bgColor: 'bg-gradient-to-br from-emerald-50 to-white',
+      borderColor: 'border-emerald-100',
+      percentage: totalCars > 0 ? `${Math.round((approvedCarsCount / totalCars) * 100)}% approved` : '0%'
     },
     {
-      title: 'In Maintenance',
+      title: 'Maintenance',
       value: maintenanceCarsCount,
-      icon: <FiClock className="h-6 w-6" />,
+      icon: <FiClock className="h-5 w-5" />,
       filterKey: 'Maintenance',
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-100'
+      color: 'text-blue-600',
+      bgColor: 'bg-gradient-to-br from-blue-50 to-white',
+      borderColor: 'border-blue-100',
+      percentage: totalCars > 0 ? `${Math.round((maintenanceCarsCount / totalCars) * 100)}% in maintenance` : '0%'
     },
     {
-      title: 'Commercial Vehicles',
+      title: 'Commercial',
       value: commercialCars,
-      icon: <FiBriefcase className="h-6 w-6" />, // Using FiBriefcase for commercial
+      icon: <FiBriefcase className="h-5 w-5" />,
       filterKey: 'Commercial',
       color: 'text-purple-600',
-      bgColor: 'bg-purple-100'
+      bgColor: 'bg-gradient-to-br from-purple-50 to-white',
+      borderColor: 'border-purple-100',
+      percentage: totalCars > 0 ? `${Math.round((commercialCars / totalCars) * 100)}% commercial` : '0%'
     },
   ];
 
   return (
     <motion.div
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ staggerChildren: 0.1 }}
@@ -62,23 +69,54 @@ const RentCarStats = ({ cars, onFilterClick, activeFilter }: RentCarStatsProps) 
           key={index}
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          className={`rounded-xl shadow-lg p-6 cursor-pointer transition-all ${
-            activeFilter === stat.filterKey ? 'ring-2 ring-blue-500' : ''
-          }`}
+          transition={{ duration: 0.3, delay: index * 0.1 }}
+          whileHover={{ 
+            y: -2,
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08)',
+            borderColor: stat.color.replace('text-', 'border-')
+          }}
+          className={`
+            relative rounded-xl p-5 cursor-pointer transition-all duration-300
+            border ${stat.borderColor} ${stat.bgColor}
+            ${activeFilter === stat.filterKey ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
+            hover:border-opacity-50
+          `}
           onClick={() => onFilterClick(stat.filterKey)}
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-              <p className="mt-1 text-3xl font-semibold text-gray-900">
-                {stat.value}
-              </p>
+          {/* Subtle corner accent */}
+          <div className={`absolute top-0 right-0 w-12 h-12 overflow-hidden rounded-tr-xl`}>
+            <div className={`absolute top-0 right-0 w-6 h-6 ${stat.color.replace('text-', 'bg-')} opacity-10`} />
+          </div>
+          
+          <div className="flex items-start space-x-4">
+            <div className={`p-3 rounded-lg ${stat.color.replace('text-', 'bg-')} bg-opacity-10`}>
+              <div className={stat.color}>
+                {stat.icon}
+              </div>
             </div>
-            <div className={`p-3 rounded-full ${stat.bgColor} ${stat.color}`}>
-              {stat.icon}
+            
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
+              <div className="flex items-baseline space-x-2">
+                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-sm font-medium text-gray-500">{stat.percentage}</p>
+              </div>
+              
+              {/* Progress indicator */}
+              {stat.filterKey && totalCars > 0 && (
+                <div className="mt-3">
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ 
+                        width: `${(Number(stat.value) / totalCars) * 100}%` 
+                      }}
+                      transition={{ duration: 1, delay: 0.3 }}
+                      className={`h-1.5 rounded-full ${stat.color.replace('text-', 'bg-')}`}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

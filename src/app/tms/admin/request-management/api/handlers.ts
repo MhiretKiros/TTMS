@@ -4,6 +4,9 @@ import axios from 'axios';
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/travel-requests`;
 
 export interface TravelRequest {
+  date: any;
+  requestDate: any;
+  createdAt: any;
   id?: number;
   startingPlace: string;
   destinationPlace: string;

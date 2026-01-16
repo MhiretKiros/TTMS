@@ -206,14 +206,14 @@ export default function CarInspectionPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header Section (No changes) */}
+      {/* Header Section - UPDATED title color */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
       >
-        <h1 className="text-3xl font-bold text-gradient bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
+        <h1 className="text-3xl font-bold text-gradient bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-#3c8dbc to-blue-200">
           Vehicle Inspection Dashboard
         </h1>
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -301,7 +301,7 @@ export default function CarInspectionPage() {
         )}
       </motion.div>
 
-      {/* Car List Table Section - MODIFIED onClick */}
+      {/* Car List Table Section - MODIFIED table header color */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -321,15 +321,16 @@ export default function CarInspectionPage() {
         ) : (
           <div className="overflow-auto max-h-[600px]">
             <table className="w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0 z-10">
+              {/* UPDATED: Changed table header background to #3c8dbc with white text */}
+              <thead className="sticky top-0 z-10" style={{ backgroundColor: '#3c8dbc' }}>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plate</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Plate</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Model</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     {tableHeaderLabel}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               

@@ -1,6 +1,6 @@
 'use client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiEdit, FiTrash2, FiEye } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiEye, FiUser, FiFileText, FiBriefcase, FiTruck, FiCheckCircle, FiClock, FiRefreshCw, FiArrowRight } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
 import VehicleAcceptanceForm from './VehicleAcceptanceForm';
 import CarTransferForm from './CarTransferForm';
@@ -30,7 +30,6 @@ const AssignedCarTable = ({
   onRowClick,
   refreshData
 }: AssignedCarTableProps) => {
-  const tableBodyHeight = '24rem';
   const [selectedApprovedAssignment, setSelectedApprovedAssignment] = useState<any>(null);
   const [selectedTransferAssignment, setSelectedTransferAssignment] = useState<any>(null);
   const [showAcceptanceForm, setShowAcceptanceForm] = useState(false);
@@ -40,7 +39,55 @@ const AssignedCarTable = ({
   const [availablePlates, setAvailablePlates] = useState<string[]>([]);
   const [selectedPlate, setSelectedPlate] = useState<string>('');
 
-  // Extract plate numbers from allPlateNumbers string
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
+  };
+
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active':
+      case 'Approved':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Completed':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Waiting':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'In_transfer':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Rejected':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Active':
+      case 'Approved':
+        return <FiCheckCircle className="h-4 w-4 text-green-600" />;
+      case 'Completed':
+        return <FiCheckCircle className="h-4 w-4 text-blue-600" />;
+      case 'Waiting':
+        return <FiClock className="h-4 w-4 text-yellow-600" />;
+      case 'In_transfer':
+        return <FiRefreshCw className="h-4 w-4 text-purple-600" />;
+      default:
+        return <FiClock className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
   const extractPlates = (allPlateNumbers: string) => {
     if (!allPlateNumbers) return [];
     return allPlateNumbers.split(',').map(plate => plate.trim()).filter(plate => plate);
@@ -147,7 +194,6 @@ const AssignedCarTable = ({
     
     if (selectedApprovedAssignment) {
       if (selectedApprovedAssignment.isCompletedStatus) {
-        // Handle completed status with selected plate
         getLatestVehicleAcceptanceByPlate(plate)
           .then(({ data }) => {
             setSelectedApprovedAssignment({
@@ -165,7 +211,6 @@ const AssignedCarTable = ({
             });
           });
       } else {
-        // Handle approved/waiting status with selected plate
         setSelectedApprovedAssignment({
           ...selectedApprovedAssignment,
           selectedPlate: plate
@@ -173,7 +218,6 @@ const AssignedCarTable = ({
         setShowAcceptanceForm(true);
       }
     } else if (selectedTransferAssignment) {
-      // Handle transfer with selected plate
       setSelectedTransferAssignment({
         ...selectedTransferAssignment,
         selectedPlate: plate
@@ -243,143 +287,200 @@ const AssignedCarTable = ({
     });
   };
 
-  const renderStatusBadge = (status: string) => {
-    const baseClasses = "px-2 inline-flex text-xs leading-5 font-semibold rounded-full";
-    
-    switch (status) {
-      case 'Active':
-      case 'Approved':
-        return <span className={`${baseClasses} bg-green-100 text-green-800`}>{status}</span>;
-      case 'Completed':
-        return <span className={`${baseClasses} bg-blue-100 text-blue-800`}>{status}</span>;
-      case 'Waiting':
-        return <span className={`${baseClasses} bg-yellow-100 text-blue-800`}>{status}</span>;
-      case 'In_transfer':
-        return <span className={`${baseClasses} bg-purple-100 text-purple-800`}>{status}</span>;
-      case 'Rejected':
-        return <span className={`${baseClasses} bg-red-100 text-red-800`}>{status}</span>;
-      default:
-        return <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}>{status}</span>;
-    }
-  };
-
   return (
-    <div className="overflow-x-auto">
-      <div className="relative">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+    <motion.div
+      className="rounded-xl overflow-hidden border border-gray-200 shadow-lg"
+      initial="hidden"
+      animate="show"
+      variants={containerVariants}
+    >
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-[#3c8dbc]">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-10">
-                Requester
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-10">
-                Request No
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-10">
-                Department
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-10">
-                Vehicle
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-10">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-10">
-                All Plate Numbers
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-10">
-                Actions
-              </th>
+              {['Requester', 'Request No', 'Department', 'Vehicle', 'Status', 'All Plates', 'Actions'].map((header, index) => (
+                <motion.th
+                  key={index}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider"
+                >
+                  {header}
+                </motion.th>
+              ))}
             </tr>
           </thead>
-        </table>
-        <div 
-          className="overflow-y-auto"
-          style={{ height: tableBodyHeight }}
-        >
-          <table className="w-full divide-y divide-gray-200">
-            <tbody className="bg-white divide-y divide-gray-200">
-              {assignments.map((assignment) => (
-                <motion.tr
-                  key={assignment.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className={`hover:bg-gray-50 ${
-                    (actorType === 'top-manager' || 
-                    (actorType === 'manager' && 
-                     (assignment.status === 'Approved' || 
-                      assignment.status === 'Waiting' ||
-                      assignment.status === 'Completed' ||
-                      assignment.status === 'In_transfer'))) 
-                    ? 'cursor-pointer' : ''
-                  }`}
-                  onClick={() => handleRowClick(assignment)}
-                >
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    actorType === 'manager' && 
-                    (assignment.status === 'Approved' || 
-                     assignment.status === 'Waiting' ||
-                     assignment.status === 'Completed' ||
-                     assignment.status === 'In_transfer') ? 
-                    'text-blue-600 hover:underline' : 'text-gray-900'
-                  }`}>
-                    {assignment.requesterName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {assignment.requestLetterNo}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {assignment.department}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {assignment.car?.plateNumber || assignment.rentCar?.plateNumber || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {renderStatusBadge(assignment.status)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {assignment.allPlateNumbers || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      {actorType === 'manager' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit(assignment);
-                          }}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          <FiEdit className="h-5 w-5" />
-                        </button>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(assignment.id);
-                        }}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <FiTrash2 className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onView(assignment.id);
-                        }}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <FiEye className="h-5 w-5" />
-                      </button>
+          
+          <tbody className="bg-white divide-y divide-gray-100">
+            {assignments.map((assignment) => (
+              <motion.tr 
+                key={assignment.id}
+                variants={rowVariants}
+                whileHover={{ 
+                  scale: 1.01,
+                  backgroundColor: 'rgba(60, 141, 188, 0.03)',
+                  boxShadow: '0 4px 12px rgba(60, 141, 188, 0.1)'
+                }}
+                className={`transition-all duration-200 ${
+                  (actorType === 'top-manager' || 
+                  (actorType === 'manager' && 
+                   (assignment.status === 'Approved' || 
+                    assignment.status === 'Waiting' ||
+                    assignment.status === 'Completed' ||
+                    assignment.status === 'In_transfer'))) 
+                  ? 'cursor-pointer hover:bg-blue-50' : ''
+                }`}
+                onClick={() => handleRowClick(assignment)}
+              >
+                {/* Requester */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-[#3c8dbc] to-blue-400 rounded-lg flex items-center justify-center">
+                      <FiUser className="h-6 w-6 text-white" />
                     </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <div className="ml-4">
+                      <div className={`text-sm font-bold ${
+                        actorType === 'manager' && 
+                        (assignment.status === 'Approved' || 
+                         assignment.status === 'Waiting' ||
+                         assignment.status === 'Completed' ||
+                         assignment.status === 'In_transfer') ? 
+                        'text-blue-600' : 'text-gray-900'
+                      }`}>
+                        {assignment.requesterName}
+                      </div>
+                      <div className="text-xs text-gray-500">{assignment.position}</div>
+                    </div>
+                  </div>
+                </td>
+
+                {/* Request Number */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <FiFileText className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-sm font-medium text-gray-900">
+                      {assignment.requestLetterNo}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {new Date(assignment.requestDate).toLocaleDateString('en-US', {
+                      day: '2-digit',
+                      month: 'short'
+                    })}
+                  </div>
+                </td>
+
+                {/* Department */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <FiBriefcase className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                      {assignment.department}
+                    </span>
+                  </div>
+                </td>
+
+                {/* Vehicle */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <FiTruck className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-sm text-gray-900">
+                      {assignment.car?.plateNumber || assignment.rentCar?.plateNumber || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {assignment.car?.carType || assignment.rentCar?.model || ''}
+                  </div>
+                </td>
+
+                {/* Status */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <motion.span
+                    whileHover={{ scale: 1.05 }}
+                    className={`px-3 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full border ${getStatusColor(assignment.status)}`}
+                  >
+                    {getStatusIcon(assignment.status)}
+                    <span className="ml-1.5">{assignment.status.replace(/_/g, ' ')}</span>
+                  </motion.span>
+                </td>
+
+                {/* All Plate Numbers */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="max-w-xs">
+                    <span className="text-sm text-gray-700">
+                      {assignment.allPlateNumbers || 'N/A'}
+                    </span>
+                    {assignment.allPlateNumbers && extractPlates(assignment.allPlateNumbers).length > 1 && (
+                      <div className="text-xs text-blue-600 mt-1 font-medium">
+                        {extractPlates(assignment.allPlateNumbers).length} vehicles
+                      </div>
+                    )}
+                  </div>
+                </td>
+
+                {/* Actions */}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div className="flex justify-end space-x-2">
+                    {actorType === 'manager' && (
+                      <motion.button
+                        whileHover={{ scale: 1.1, backgroundColor: 'rgba(34, 197, 94, 0.1)' }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(assignment);
+                        }}
+                        className="p-2 rounded-lg text-green-600 hover:bg-green-50 transition-colors"
+                        title="Edit"
+                      >
+                        <FiEdit className="h-5 w-5" />
+                      </motion.button>
+                    )}
+                    <motion.button
+                      whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(assignment.id);
+                      }}
+                      className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                      title="Delete"
+                    >
+                      <FiTrash2 className="h-5 w-5" />
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.1, backgroundColor: 'rgba(96, 165, 250, 0.1)' }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onView(assignment.id);
+                      }}
+                      className="p-2 rounded-lg text-[#3c8dbc] hover:bg-blue-50 transition-colors"
+                      title="View details"
+                    >
+                      <FiEye className="h-5 w-5" />
+                    </motion.button>
+                  </div>
+                </td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+      
+      {assignments.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="p-12 text-center"
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-[#3c8dbc] to-blue-400 mb-4">
+            <FiTruck className="h-10 w-10 text-white" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No assigned vehicles found</h3>
+          <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+        </motion.div>
+      )}
 
       {/* Vehicle Acceptance Form Modal */}
       <AnimatePresence>
@@ -483,121 +584,125 @@ const AssignedCarTable = ({
       </AnimatePresence>
 
       {/* Plate Selection Modal */}
-      {/* Plate Selection Modal */}
-<AnimatePresence>
-  {showPlateSelector && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-    >
-      <motion.div
-        initial={{ opacity: 0, y: -20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-        transition={{ 
-          type: "spring",
-          damping: 20,
-          stiffness: 300
-        }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-      >
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <motion.h2 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-2xl font-bold text-gray-800"
-            >
-              Select Vehicle
-            </motion.h2>
-            <button
-              onClick={handleClosePlateSelector}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
+      <AnimatePresence>
+        {showPlateSelector && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="space-y-4"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           >
-            <p className="text-gray-600 mb-4">This assignment contains multiple vehicles. Please select one:</p>
-            
-            <div className="space-y-3">
-              {availablePlates.map((plate, index) => (
-                <motion.button
-                  key={plate}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ 
-                    opacity: 1, 
-                    y: 0,
-                    transition: { delay: 0.1 + index * 0.05 }
-                  }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handlePlateSelection(plate)}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                    selectedPlate === plate 
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
-                      : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                  }`}
-                >
-                  <span className="font-medium">{plate}</span>
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className={`h-5 w-5 transition-opacity ${
-                      selectedPlate === plate ? 'opacity-100 text-blue-500' : 'opacity-0'
-                    }`} 
-                    viewBox="0 0 20 20" 
-                    fill="currentColor"
-                  >
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </motion.button>
-              ))}
-            </div>
-
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="pt-4 flex justify-end"
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              transition={{ 
+                type: "spring",
+                damping: 20,
+                stiffness: 300
+              }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
             >
-              <button
-                onClick={handleClosePlateSelector}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
-              >
-                Cancel
-              </button>
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <motion.h2 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="text-2xl font-bold text-gray-800"
+                  >
+                    Select Vehicle
+                  </motion.h2>
+                  <button
+                    onClick={handleClosePlateSelector}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-4"
+                >
+                  <p className="text-gray-600 mb-4">This assignment contains multiple vehicles. Please select one:</p>
+                  
+                  <div className="space-y-3">
+                    {availablePlates.map((plate, index) => (
+                      <motion.button
+                        key={plate}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ 
+                          opacity: 1, 
+                          y: 0,
+                          transition: { delay: 0.1 + index * 0.05 }
+                        }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handlePlateSelection(plate)}
+                        className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                          selectedPlate === plate 
+                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' 
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-[#3c8dbc] to-blue-400 rounded-lg flex items-center justify-center mr-3">
+                            <FiTruck className="h-6 w-6 text-white" />
+                          </div>
+                          <span className="font-medium">{plate}</span>
+                        </div>
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className={`h-5 w-5 transition-opacity ${
+                            selectedPlate === plate ? 'opacity-100 text-blue-500' : 'opacity-0'
+                          }`} 
+                          viewBox="0 0 20 20" 
+                          fill="currentColor"
+                        >
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="pt-4 flex justify-end"
+                  >
+                    <button
+                      onClick={handleClosePlateSelector}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </motion.div>
+                </motion.div>
+              </div>
             </motion.div>
           </motion.div>
-        </div>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
+        )}
+      </AnimatePresence>
 
       {/* Loading overlay */}
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <div className="flex items-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-4"></div>
-              <span>Loading vehicle acceptance data...</span>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3c8dbc] mr-4"></div>
+              <span className="font-medium text-gray-700">Loading vehicle acceptance data...</span>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

@@ -11,6 +11,7 @@ import TravelRequestForm from '../components/FieldRequestForm';
 import CarServiceForm from '../components/CarServiceForm';
 import CommentForm from '../components/CommentForm';
 import DailyServiceRequestForm from '../components/DailyServiceRequestForm';
+import { DailyServiceRequest } from '../api/dailyServiceHandlers';
 
 export default function ServiceRequestPage() {
   const [activeTab, setActiveTab] = useState<'field' | 'daily' | 'service' | 'comment'>('field');
@@ -78,7 +79,7 @@ export default function ServiceRequestPage() {
           <motion.h1
             initial={{ x: -50 }}
             animate={{ x: 0 }}
-            className="text-2xl sm:text-3xl font-bold text-gray-800"
+            className="text-2xl sm:text-3xl font-bold text-[#3c8dbc]"
           >
             Service Requests
           </motion.h1>
@@ -123,7 +124,9 @@ export default function ServiceRequestPage() {
               <TravelRequestForm actorType={actorType} onSuccess={handleSuccess} />
             )}
             {activeTab === 'daily' && (
-              <DailyServiceRequestForm actorType={actorType} onSuccess={handleSuccess} />
+              <DailyServiceRequestForm actorType={actorType as 'manager' | 'driver' | 'corporator'} onRowClick={function (request: DailyServiceRequest): void {
+                throw new Error('Function not implemented.');
+              } } />
             )}
             {/* {activeTab === 'service' && <CarServiceForm onSuccess={handleSuccess} />}
             {activeTab === 'comment' && <CommentForm onSuccess={handleSuccess} />} */}

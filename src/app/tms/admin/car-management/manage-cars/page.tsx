@@ -518,7 +518,7 @@ export default function ManageCars() {
         transition={{ duration: 0.5 }}
         className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
       >
-        <h1 className="text-3xl font-bold text-gradient bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
+        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#2a6a90] via-[#3c8dbc] to-[#5ba5e8]">
           Vehicle Fleet Management
         </h1>
         
@@ -584,7 +584,7 @@ export default function ManageCars() {
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
             activeTab === 'personal'
-              ? 'border-b-2 border-blue-500 text-blue-600'
+              ? 'border-b-2 border-[#3c8dbc] text-[#3c8dbc]'
               : 'text-gray-500 hover:text-gray-700'
           }`}
           onClick={() => setActiveTab('personal')}
@@ -594,7 +594,7 @@ export default function ManageCars() {
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
             activeTab === 'organization'
-              ? 'border-b-2 border-blue-500 text-blue-600'
+              ? 'border-b-2 border-[#3c8dbc] text-[#3c8dbc]'
               : 'text-gray-500 hover:text-gray-700'
           }`}
           onClick={() => setActiveTab('organization')}
@@ -604,7 +604,7 @@ export default function ManageCars() {
         <button
           className={`px-4 py-2 font-medium text-sm focus:outline-none ${
             activeTab === 'rented'
-              ? 'border-b-2 border-blue-500 text-blue-600'
+              ? 'border-b-2 border-[#3c8dbc] text-[#3c8dbc]'
               : 'text-gray-500 hover:text-gray-700'
           }`}
           onClick={() => setActiveTab('rented')}
@@ -658,7 +658,7 @@ export default function ManageCars() {
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="h-12 w-12 border-t-2 border-b-2 border-blue-500 rounded-full"
+                    className="h-12 w-12 border-t-2 border-b-2 border-[#3c8dbc] rounded-full"
                   />
                 </div>
               ) : (
@@ -730,7 +730,7 @@ export default function ManageCars() {
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="h-12 w-12 border-t-2 border-b-2 border-blue-500 rounded-full"
+                    className="h-12 w-12 border-t-2 border-b-2 border-[#3c8dbc] rounded-full"
                   />
                 </div>
               ) : (
@@ -802,7 +802,7 @@ export default function ManageCars() {
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="h-12 w-12 border-t-2 border-b-2 border-blue-500 rounded-full"
+                    className="h-12 w-12 border-t-2 border-b-2 border-[#3c8dbc] rounded-full"
                   />
                 </div>
               ) : (

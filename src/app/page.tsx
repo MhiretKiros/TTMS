@@ -1,592 +1,808 @@
 "use client";
+
 import Footer from "@/app/component/Footer";
 import Navbar from "@/app/component/Navbar";
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
-import Image from "next/image";
+import {
+  motion,
+  useScroll,
+  AnimatePresence,
+  useTransform,
+  useSpring,
+} from "framer-motion";
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
-import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import {
+  FaArrowRight,
+  FaPlay,
+  FaTruck,
+  FaBus,
+  FaMapMarkerAlt,
+  FaRoute,
+  FaEye,
+  FaCogs,
+  FaUsers,
+  FaStar,
+  FaQuoteLeft,
+  FaChartLine,
+  FaShieldAlt,
+  FaSun,
+  FaMoon,
+} from "react-icons/fa";
 
-export default function HomePage() {
+// --- Animated Car Sign Component ---
+const AnimatedCarSign = ({ isDarkMode }: { isDarkMode: boolean }) => {
   const { scrollYProgress } = useScroll();
-  const yPos = useTransform(scrollYProgress, [0, 1], [0, -200]);
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.05]);
+  const y = useTransform(scrollYProgress, [0, 1], [0, 600]); // Moves down as you scroll
+  const smoothY = useSpring(y, { stiffness: 100, damping: 20 });
+  const [isHovered, setIsHovered] = useState(false);
 
+  return (
+    <div className="fixed right-8 top-1/4 h-[60vh] w-16 hidden lg:flex flex-col items-center z-40 pointer-events-none">
+      {/* Route Line */}
+      <div className="absolute inset-y-0 w-1 bg-gradient-to-b from-transparent via-[#3c8dbc] to-transparent opacity-30"></div>
 
-  // Array of images with associated content
-const slides = [
-  {
-    image: "/images/insa1.png",
-    title: "Wellcome to INSA Transport Management System",
-    description: "Optimizing Ethiopia's logistics network with intelligent fleet solutions.",
-  },
-  {
-    image: "/images/insa10.jpeg",
-    title: "Real-Time Fleet Monitoring",
-    description: "Track every vehicle with our advanced GPS tracking and analytics platform.",
-  },
-  {
-    image: "/images/insa13.jpeg",
-    title: "Smart Route Optimization",
-    description: "AI-powered routing to reduce fuel costs and improve delivery efficiency across Ethiopia.",
-  },
-  {
-    image: "/images/insa14.png",
-    title: "Compliance & Safety",
-    description: "Ensure regulatory compliance and enhance driver safety with our monitoring systems.",
-  },
-  {
-    image: "/images/insa9.jpeg",
-    title: "Data-Driven Decisions",
-    description: "Transform raw data into actionable insights for your transport operations.",
-  },
-  {
-    image: "/images/insa17.jpeg",
-    title: "Integrated Logistics Platform",
-    description: "Seamlessly connect all aspects of your supply chain management.",
-  },
-  {
-    image: "/images/insa11.png",
-    title: "Custom Enterprise Solutions",
-    description: "Tailored TMS implementations for Ethiopia's largest fleets and logistics providers.",
-  },
-  {
-    image: "/images/insa21.png",
-    title: "24/7 Operational Support",
-    description: "Dedicated technical team ensuring your transport network runs smoothly.",
-  }
-];
+      {/* Animated Waypoints */}
+      {[0.2, 0.5, 0.8].map((pos, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-2 h-2 rounded-full bg-[#3c8dbc]"
+          style={{ top: `${pos * 100}%` }}
+          animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.8, 0.3] }}
+          transition={{ duration: 2, delay: i * 0.5, repeat: Infinity }}
+        />
+      ))}
 
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [slideDirection, setSlideDirection] = useState("right");
-  const [showSlideshow, setShowSlideshow] = useState(false); // Start with animated hero mode
+      {/* The Car */}
+      <motion.div
+        style={{ y: smoothY }}
+        className="relative pointer-events-auto cursor-pointer"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        whileHover={{ scale: 1.1 }}
+        onClick={() =>
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: "smooth",
+          })
+        }
+      >
+        {/* Tooltip */}
+        <AnimatePresence>
+          {isHovered && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: -10 }}
+              exit={{ opacity: 0, x: 20 }}
+              className={`absolute right-full top-1/2 -translate-y-1/2 mr-4 px-4 py-2 rounded-lg backdrop-blur-md border whitespace-nowrap shadow-xl ${
+                isDarkMode
+                  ? "bg-[#1a1f2e]/90 border-[#3c8dbc]/30 text-white"
+                  : "bg-white/90 border-[#3c8dbc]/30 text-slate-800"
+              }`}
+            >
+              <p className="text-xs font-bold text-[#3c8dbc]">
+                Live Fleet Tracking
+              </p>
+              <p className="text-[10px] opacity-80">Click to View Dashboard</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-  // Function to go to the next slide
-  const nextSlide = useCallback(() => {
-    setSlideDirection("right");
-    setCurrentSlideIndex((prevIndex) => (prevIndex + 1) % slides.length);
-  }, [slides.length]);
+        {/* Pulsing Halo */}
+        <motion.div
+          className="absolute inset-0 rounded-full bg-[#3c8dbc]"
+          animate={{ scale: [1, 2], opacity: [0.5, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
 
-  // Function to go to the previous slide
-  const prevSlide = useCallback(() => {
-    setSlideDirection("left");
-    setCurrentSlideIndex((prevIndex) => (prevIndex - 1 + slides.length) % slides.length);
-  }, [slides.length]);
+        {/* Car Icon Container */}
+        <div
+          className={`relative w-12 h-12 rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm border ${
+            isDarkMode
+              ? "bg-[#0a0e17]/80 border-[#3c8dbc]/50 shadow-[#3c8dbc]/20"
+              : "bg-white/80 border-[#3c8dbc]/50 shadow-[#3c8dbc]/20"
+          }`}
+        >
+          <FaTruck className="text-[#3c8dbc] text-lg transform -scale-x-100" />
+        </div>
 
-  // Toggle between slideshow and animated hero section
+        {/* Engine Idle Animation */}
+        <motion.div
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-[#3c8dbc] rounded-full blur-sm"
+          animate={{ opacity: [0.4, 0.8, 0.4], width: ["60%", "80%", "60%"] }}
+          transition={{ duration: 0.5, repeat: Infinity }}
+        />
+      </motion.div>
+    </div>
+  );
+};
+
+export default function LandingPage() {
+  const { scrollYProgress } = useScroll();
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [chartData, setChartData] = useState([40, 70, 50, 90, 65, 85, 55]);
+
+  // Parallax effects
+  const y1 = useTransform(scrollYProgress, [0, 1], [0, -100]);
+  const y2 = useTransform(scrollYProgress, [0, 1], [0, -200]);
+
+  // Loading animation
   useEffect(() => {
-    // Start with animated hero for 15 seconds, then switch to slideshow for 15 seconds
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2500);
+
+    const progressTimer = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressTimer);
+          return 100;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(progressTimer);
+    };
+  }, []);
+
+  // Real-time chart data simulation
+  useEffect(() => {
     const interval = setInterval(() => {
-      setShowSlideshow(prev => !prev);
-    }, 15000); // Switch every 15 seconds
+      setChartData(
+        (prevData) => prevData.map(() => Math.floor(Math.random() * 60) + 30) // Random values between 30 and 90
+      );
+    }, 3000); // Update every 3 seconds
 
     return () => clearInterval(interval);
   }, []);
 
-  // Automatic slideshow when in slideshow mode
-  useEffect(() => {
-    if (!showSlideshow) return;
-    
-    const interval = setInterval(() => {
-      nextSlide();
-    }, 5000); // Change slide every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [showSlideshow, nextSlide]);
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
-      <Navbar />
-      
-      {/* Hero Section - Two Modes */}
-      <section className="relative h-screen overflow-hidden">
-        {/* Slideshow Mode */}
-        <AnimatePresence>
-          {showSlideshow && (
-            <motion.div
-              key="slideshow"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-              className="absolute inset-0 h-full flex items-center"
-            >
-              {/* Background Image */}
-              <AnimatePresence mode="wait">
+    <>
+      {/* Loading Screen */}
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            className="fixed inset-0 z-50 bg-[#0a0e17] flex items-center justify-center"
+          >
+            <div className="relative">
+              <motion.div
+                className="w-32 h-32 border-4 border-transparent border-t-[#3c8dbc] border-r-cyan-400 rounded-full"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              />
+
+              <motion.div
+                className="absolute inset-4 bg-gradient-to-r from-[#3c8dbc] to-cyan-400 rounded-full opacity-20 blur-xl"
+                animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.2, 0.5, 0.2] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+
+              <div className="absolute inset-0 flex items-center justify-center">
+                <FaTruck className="w-10 h-10 text-[#3c8dbc]" />
+              </div>
+            </div>
+
+            <div className="absolute bottom-20 text-center w-full">
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-2xl font-bold text-white mb-4 tracking-wider"
+              >
+                INITIALIZING SYSTEM
+              </motion.h2>
+              <div className="w-64 h-1 bg-white/10 rounded-full overflow-hidden mx-auto">
                 <motion.div
-                  key={currentSlideIndex}
-                  initial={{ x: slideDirection === "right" ? "100%" : "-100%", opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: slideDirection === "right" ? "-100%" : "100%", opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="absolute inset-0"
-                >
-                  <Image
-                    src={slides[currentSlideIndex].image}
-                    alt="Background"
-                    layout="fill"
-                    objectFit="cover"
-                    className="opacity-100"
-                  />
-                  <div className="absolute inset-0 bg-black/30"></div>
-                </motion.div>
-              </AnimatePresence>
+                  className="h-full bg-gradient-to-r from-[#3c8dbc] to-cyan-400"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+              <p className="text-[#3c8dbc] mt-3 font-mono text-sm">
+                {Math.round(loadingProgress)}% LOADED
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              {/* Hero Content - Centered */}
-              <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentSlideIndex}
-                    initial={{ x: slideDirection === "right" ? 100 : -100, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: slideDirection === "right" ? -100 : 100, opacity: 0 }}
-                    transition={{ duration: 0.5 }}
+      <main
+        className={`min-h-screen overflow-hidden font-sans transition-colors duration-500 ${
+          isDarkMode ? "bg-[#0a0e17] text-white" : "bg-gray-50 text-slate-900"
+        }`}
+      >
+        <Navbar />
+
+        {/* Theme Toggle & Car Sign */}
+        <div className="fixed right-8 top-24 z-50 flex flex-col items-center gap-6">
+          <motion.button
+            onClick={toggleTheme}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className={`p-3 rounded-full shadow-lg backdrop-blur-md border transition-all ${
+              isDarkMode
+                ? "bg-[#1a1f2e]/80 border-white/10 text-yellow-400 hover:bg-[#1a1f2e]"
+                : "bg-white/80 border-slate-200 text-slate-700 hover:bg-white"
+            }`}
+          >
+            {isDarkMode ? (
+              <FaSun className="w-5 h-5" />
+            ) : (
+              <FaMoon className="w-5 h-5" />
+            )}
+          </motion.button>
+        </div>
+
+        <AnimatedCarSign isDarkMode={isDarkMode} />
+
+        {/* Background Elements */}
+        <div className="fixed inset-0 pointer-events-none">
+          <div
+            className={`absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] transition-colors duration-500 ${
+              isDarkMode ? "bg-[#3c8dbc]/10" : "bg-[#3c8dbc]/5"
+            }`}
+          />
+          <div
+            className={`absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] transition-colors duration-500 ${
+              isDarkMode ? "bg-purple-600/10" : "bg-purple-600/5"
+            }`}
+          />
+          <div
+            className={`absolute inset-0 bg-[url('/grid.svg')] transition-opacity duration-500 ${
+              isDarkMode ? "opacity-[0.03]" : "opacity-[0.02]"
+            }`}
+          />
+        </div>
+
+        {/* Hero Section */}
+        <section className="relative min-h-screen flex items-center justify-center px-6 pt-20">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="text-left z-10"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className={`inline-flex items-center gap-2 px-4 py-2 backdrop-blur-md rounded-full border mb-8 transition-colors duration-500 ${
+                  isDarkMode
+                    ? "bg-[#3c8dbc]/10 border-[#3c8dbc]/20"
+                    : "bg-[#3c8dbc]/5 border-[#3c8dbc]/10"
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-[#3c8dbc] animate-pulse" />
+                <span className="text-[#3c8dbc] text-sm font-semibold tracking-wide">
+                  TMS PLATFORM V2.0
+                </span>
+              </motion.div>
+
+              <motion.h1
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className={`text-5xl md:text-7xl font-bold mb-6 leading-[1.1] tracking-tight uppercase transition-colors duration-500 ${
+                  isDarkMode ? "text-white" : "text-slate-900"
+                }`}
+              >
+                SMART TRANSPORT.
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className={`text-lg mb-10 leading-relaxed max-w-xl transition-colors duration-500 ${
+                  isDarkMode ? "text-slate-400" : "text-slate-600"
+                }`}
+              >
+                Orchestrate your entire fleet with an enterprise-grade TMS.
+                AI-driven route optimization, predictive maintenance, and live
+                tracking in one futuristic dashboard.
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                className="flex flex-col sm:flex-row gap-5"
+              >
+                <Link href="/tms/admin">
+                  <motion.button
+                    whileHover={{
+                      scale: 1.02,
+                      boxShadow: "0 0 30px rgba(60, 141, 188, 0.4)",
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-8 py-4 bg-[#3c8dbc] text-white rounded-xl font-semibold text-lg shadow-lg shadow-[#3c8dbc]/20 transition-all flex items-center justify-center gap-3 group"
                   >
-                    <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight text-white drop-shadow-lg">
-                      {slides[currentSlideIndex].title}
-                    </h1>
-                    <p className="text-xl md:text-2xl max-w-3xl mx-auto mb-8 text-white drop-shadow-lg">
-                      {slides[currentSlideIndex].description}
-                    </p>
-                    <div className="flex flex-col sm:flex-row justify-center gap-4">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-bold rounded-lg shadow-lg hover:from-blue-700 hover:to-blue-900 transition-all"
-                      >
-                        Start Free Trial
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-8 py-3 bg-white/90 border-2 border-white text-blue-600 font-bold rounded-lg shadow-lg hover:bg-white transition-colors"
-                      >
-                        Watch Video
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
+                    Get Started
+                    <FaArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </motion.button>
+                </Link>
 
-              {/* Navigation Arrows */}
-              <div
-                className="absolute top-1/2 left-5 z-20 cursor-pointer transform -translate-y-1/2"
-                onClick={prevSlide}
+                <motion.button
+                  whileHover={{
+                    scale: 1.02,
+                    backgroundColor: isDarkMode
+                      ? "rgba(255, 255, 255, 0.05)"
+                      : "rgba(0, 0, 0, 0.05)",
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`px-8 py-4 backdrop-blur-md border rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-3 ${
+                    isDarkMode
+                      ? "bg-white/5 border-white/10 text-white"
+                      : "bg-black/5 border-black/10 text-slate-900"
+                  }`}
+                >
+                  <FaPlay className="w-3 h-3" />
+                  Request Demo
+                </motion.button>
+              </motion.div>
+            </motion.div>
+
+            {/* 3D Isometric Illustration Area */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, rotateX: 20, rotateY: -20 }}
+              animate={{ opacity: 1, scale: 1, rotateX: 0, rotateY: 0 }}
+              transition={{ duration: 1, delay: 0.4, type: "spring" }}
+              className="relative h-[600px] w-full perspective-1000"
+            >
+              {/* Floating Dashboard Panels */}
+              <motion.div
+                style={{ y: y1 }}
+                className={`absolute top-10 right-10 z-20 w-64 backdrop-blur-xl border rounded-2xl p-5 shadow-2xl transition-colors duration-500 ${
+                  isDarkMode
+                    ? "bg-[#1a1f2e]/90 border-[#3c8dbc]/30 shadow-black/50"
+                    : "bg-white/90 border-[#3c8dbc]/20 shadow-slate-200/50"
+                }`}
               >
-                <FaArrowLeft size={30} color="white" className="drop-shadow-lg" />
-              </div>
-              <div
-                className="absolute top-1/2 right-5 z-20 cursor-pointer transform -translate-y-1/2"
-                onClick={nextSlide}
+                <div className="flex justify-between items-center mb-4">
+                  <h3
+                    className={`text-sm font-bold transition-colors duration-500 ${
+                      isDarkMode ? "text-white" : "text-slate-900"
+                    }`}
+                  >
+                    Fleet Status
+                  </h3>
+                  <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                </div>
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#3c8dbc]/20 flex items-center justify-center">
+                        <FaTruck className="text-[#3c8dbc] text-xs" />
+                      </div>
+                      <div className="flex-1">
+                        <div
+                          className={`h-1.5 rounded-full w-full overflow-hidden ${
+                            isDarkMode ? "bg-white/10" : "bg-slate-200"
+                          }`}
+                        >
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.random() * 60 + 40}%` }}
+                            transition={{ duration: 2, delay: i * 0.2 }}
+                            className="h-full bg-[#3c8dbc]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              <motion.div
+                style={{ y: y2 }}
+                className={`absolute bottom-20 left-0 z-30 w-56 backdrop-blur-xl border rounded-2xl p-5 shadow-2xl transition-colors duration-500 ${
+                  isDarkMode
+                    ? "bg-[#1a1f2e]/90 border-purple-500/30 shadow-black/50"
+                    : "bg-white/90 border-purple-500/20 shadow-slate-200/50"
+                }`}
               >
-                <FaArrowRight size={30} color="white" className="drop-shadow-lg" />
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-purple-500/20 rounded-lg">
+                    <FaRoute className="text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Route Optimization</p>
+                    <p
+                      className={`text-lg font-bold transition-colors duration-500 ${
+                        isDarkMode ? "text-white" : "text-slate-900"
+                      }`}
+                    >
+                      +24% Efficiency
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Main 3D Map/Grid Representation */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="relative w-full h-full">
+                  {/* Isometric Grid Base */}
+                  <div className="absolute inset-x-0 bottom-0 h-[300px] bg-gradient-to-t from-[#3c8dbc]/10 to-transparent transform rotate-x-60 scale-y-50 rounded-full blur-3xl" />
+
+                  {/* Central 3D Element (Abstract City/Map) */}
+                  <motion.div
+                    animate={{ rotateY: 360 }}
+                    transition={{
+                      duration: 20,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-[#3c8dbc]/30 rounded-full border-dashed"
+                  />
+                  <motion.div
+                    animate={{ rotateY: -360 }}
+                    transition={{
+                      duration: 30,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 border border-cyan-500/20 rounded-full border-dotted"
+                  />
+
+                  {/* Floating Vehicles */}
+                  {[...Array(5)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute"
+                      initial={{ x: 0, y: 0, opacity: 0 }}
+                      animate={{
+                        x: [
+                          Math.random() * 400 - 200,
+                          Math.random() * 400 - 200,
+                        ],
+                        y: [
+                          Math.random() * 400 - 200,
+                          Math.random() * 400 - 200,
+                        ],
+                        opacity: [0, 1, 0],
+                      }}
+                      transition={{
+                        duration: 5 + Math.random() * 5,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      style={{ top: "50%", left: "50%" }}
+                    >
+                      <div className="relative">
+                        <FaMapMarkerAlt className="text-[#3c8dbc] text-2xl drop-shadow-[0_0_10px_rgba(60,141,188,0.8)]" />
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-8 h-8 bg-[#3c8dbc]/20 rounded-full blur-md transform scale-y-50" />
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        </section>
 
-        {/* Animated Hero Mode - Shown first */}
-        <AnimatePresence>
-          {!showSlideshow && (
+        {/* Features Section */}
+        <section className="py-32 px-6 relative z-10">
+          <div className="max-w-7xl mx-auto">
             <motion.div
-              key="animated-hero"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-              className="absolute inset-0 h-full flex items-center"
-              style={{ y: yPos, scale }}
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-20"
             >
-              <div className="absolute inset-0 z-0">
-                {/* <Image 
-                  src="/images/hero/road-background.jpg" 
-                  alt="Road background"
-                  layout="fill"
-                  objectFit="cover"
-                  className="opacity-30"
-                /> */}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-50"></div>
-              </div>
-              
-              {/* Animated moving cars */}
-              <motion.div 
-                className="absolute bottom-20 left-0 z-10"
-                animate={{ x: ['-100%', '120vw'] }}
-                transition={{
-                  duration: 25,
-                  repeat: Infinity,
-                  ease: "linear"
-                }}
+              <h2
+                className={`text-4xl md:text-5xl font-bold mb-6 transition-colors duration-500 ${
+                  isDarkMode ? "text-white" : "text-slate-900"
+                }`}
               >
-                <Image 
-                  src="/images/car2.jpeg" 
-                  alt="Moving car"
-                  width={200}
-                  height={100}
-                  className="filter drop-shadow-lg"
-                />
-              </motion.div>
-              
-              <motion.div 
-                className="absolute bottom-40 left-0 z-10"
-                animate={{ x: ['-150%', '110vw'] }}
-                transition={{
-                  duration: 30,
-                  repeat: Infinity,
-                  ease: "linear",
-                  delay: 2
-                }}
+                Engineered for{" "}
+                <span className="text-[#3c8dbc]">Performance</span>
+              </h2>
+              <p
+                className={`text-lg max-w-2xl mx-auto transition-colors duration-500 ${
+                  isDarkMode ? "text-slate-400" : "text-slate-600"
+                }`}
               >
-                <Image 
-                  src="/images/car1.jpeg" 
-                  alt="Moving truck"
-                  width={250}
-                  height={120}
-                  className="filter drop-shadow-lg"
-                />
-              </motion.div>
+                A complete suite of tools designed to streamline your logistics
+                operations with military-grade precision.
+              </p>
+            </motion.div>
 
-              {/* Centered Content */}
-              <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {[
+                {
+                  icon: <FaEye />,
+                  title: "Live Tracking",
+                  desc: "Real-time GPS monitoring with sub-second latency.",
+                  color: "from-[#3c8dbc] to-cyan-400",
+                },
+                {
+                  icon: <FaCogs />,
+                  title: "Fleet Management",
+                  desc: "Automated maintenance scheduling and health checks.",
+                  color: "from-purple-500 to-pink-500",
+                },
+                {
+                  icon: <FaRoute />,
+                  title: "Route Optimization",
+                  desc: "AI algorithms to reduce fuel consumption by up to 30%.",
+                  color: "from-orange-400 to-red-500",
+                },
+                {
+                  icon: <FaShieldAlt />,
+                  title: "Driver Safety",
+                  desc: "Behavior monitoring and instant incident alerts.",
+                  color: "from-green-400 to-emerald-500",
+                },
+              ].map((feature, index) => (
                 <motion.div
+                  key={index}
                   initial={{ opacity: 0, y: 50 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -10 }}
+                  className="group relative"
                 >
-                  <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-                    <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                      Next-Generation
-                    </span> Transport Management
-                  </h1>
-                  <p className="text-xl md:text-2xl max-w-3xl mx-auto mb-8 text-gray-700">
-                    Revolutionize your logistics with AI-powered optimization and real-time tracking
-                  </p>
-                  <div className="flex flex-col sm:flex-row justify-center gap-4">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-bold rounded-lg shadow-lg hover:from-blue-700 hover:to-blue-900 transition-all"
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br from-white/5 to-white/0 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
+                      isDarkMode ? "" : "hidden"
+                    }`}
+                  />
+                  <div
+                    className={`relative h-full p-8 border rounded-3xl transition-all duration-300 overflow-hidden ${
+                      isDarkMode
+                        ? "bg-[#131824] border-white/5 hover:border-[#3c8dbc]/30"
+                        : "bg-white border-slate-200 hover:border-[#3c8dbc]/30 shadow-lg hover:shadow-xl"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${feature.color} opacity-10 blur-2xl rounded-full transform translate-x-10 -translate-y-10`}
+                    />
+
+                    <div
+                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.color} flex items-center justify-center text-white text-2xl mb-6 shadow-lg`}
                     >
-                      Start Free Trial
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-8 py-3 bg-white border-2 border-blue-600 text-blue-600 font-bold rounded-lg shadow-lg hover:bg-blue-50 transition-colors"
+                      {feature.icon}
+                    </div>
+
+                    <h3
+                      className={`text-xl font-bold mb-3 transition-colors duration-500 ${
+                        isDarkMode ? "text-white" : "text-slate-900"
+                      }`}
                     >
-                      Watch Video
-                    </motion.button>
+                      {feature.title}
+                    </h3>
+                    <p
+                      className={`text-sm leading-relaxed transition-colors duration-500 ${
+                        isDarkMode ? "text-slate-400" : "text-slate-600"
+                      }`}
+                    >
+                      {feature.desc}
+                    </p>
                   </div>
                 </motion.div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
-
-      {/* Rest of the page content remains the same */}
-      {/* Asymmetric Feature Grid */}
-      <section className="relative py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"
-            >
-              Transform Your Fleet Operations
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              viewport={{ once: true }}
-              className="text-xl text-gray-600 max-w-3xl mx-auto"
-            >
-              Our platform delivers measurable results across all aspects of fleet management
-            </motion.p>
+              ))}
+            </div>
           </div>
+        </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
-            {/* Large feature card */}
+        {/* Analytics Preview Section */}
+        <section className="py-32 px-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[#3c8dbc]/5 skew-y-3 transform origin-top-left" />
+
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 items-center relative z-10">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
               viewport={{ once: true }}
-              className="lg:col-span-8 bg-gray-900 rounded-2xl overflow-hidden shadow-xl"
             >
-              <div className="relative h-64 md:h-80">
-                <Image 
-                  src="/images/car1.jpeg" 
-                  alt="Real-time tracking"
-                  layout="fill"
-                  objectFit="cover"
-                  className="opacity-70"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/70 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 p-8 text-white">
-                  <h3 className="text-2xl font-bold mb-2">Real-Time Fleet Tracking</h3>
-                  <p className="text-gray-300">Monitor every vehicle with live GPS updates and predictive analytics</p>
-                  <Link href="/tms-modules/tracking" className="mt-4 inline-flex items-center text-blue-400 hover:text-blue-300">
-                    Learn more
-                    <svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold mb-6">
+                <FaChartLine /> ANALYTICS SUITE
               </div>
-            </motion.div>
-
-            {/* Small feature card 1 */}
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              viewport={{ once: true }}
-              className="lg:col-span-4 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100"
-            >
-              <div className="p-6">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">AI Route Optimization</h3>
-                <p className="text-gray-600 mb-4">Reduce mileage by up to 20% with intelligent routing algorithms</p>
-                <Link href="/tms-modules/routing" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  Explore feature →
-                </Link>
-              </div>
-            </motion.div>
-
-            {/* Small feature card 2 */}
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              viewport={{ once: true }}
-              className="lg:col-span-4 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100"
-            >
-              <div className="p-6">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Fuel Cost Reduction</h3>
-                <p className="text-gray-600 mb-4">Save 15-30% on fuel with our efficiency monitoring</p>
-                <Link href="/tms-modules/fuel" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                  Explore feature →
-                </Link>
-              </div>
-            </motion.div>
-
-            {/* Medium feature card */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="lg:col-span-8 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100"
-            >
-              <div className="flex flex-col md:flex-row">
-                <div className="md:w-1/2 p-6">
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                    <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Driver Performance</h3>
-                  <p className="text-gray-600 mb-4">Improve safety and efficiency with driver scoring and coaching</p>
-                  <Link href="/tms-modules/drivers" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                    Explore feature →
-                  </Link>
-                </div>
-                <div className="md:w-1/2 relative">
-                  <Image 
-                    src="/images/car8.jpeg" 
-                    alt="Driver performance dashboard"
-                    layout="fill"
-                    objectFit="cover"
-                  />
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Animated Stats Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
-          >
-            {stats.map((stat, index) => (
-              <div key={index} className="p-6">
-                <motion.div
-                  initial={{ scale: 0.8 }}
-                  whileInView={{ scale: 1 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                  className="text-5xl font-bold mb-2"
-                >
-                  {stat.value}
-                </motion.div>
-                <div className="text-lg font-medium">{stat.label}</div>
-              </div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Testimonial Carousel */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-16">Trusted by Industry Leaders</h2>
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center justify-between z-10">
-              <button className="p-2 rounded-full bg-white shadow-md -ml-4 hover:bg-gray-100">
-                <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button className="p-2 rounded-full bg-white shadow-md -mr-4 hover:bg-gray-100">
-                <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="relative overflow-hidden">
-              <motion.div 
-                className="flex"
-                drag="x"
-                dragConstraints={{ right: 0, left: -1000 }}
+              <h2
+                className={`text-4xl md:text-5xl font-bold mb-6 leading-tight transition-colors duration-500 ${
+                  isDarkMode ? "text-white" : "text-slate-900"
+                }`}
               >
-                {testimonials.map((testimonial, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                    className="flex-shrink-0 w-full md:w-1/2 lg:w-1/3 px-4"
+                Data-Driven Decisions <br />
+                <span className="text-[#3c8dbc]">Made Simple.</span>
+              </h2>
+              <p
+                className={`text-lg mb-8 leading-relaxed transition-colors duration-500 ${
+                  isDarkMode ? "text-slate-400" : "text-slate-600"
+                }`}
+              >
+                Visualize your entire operation with customizable 3D dashboards.
+                Track KPIs, monitor costs, and forecast trends with our
+                proprietary AI engine.
+              </p>
+
+              <ul className="space-y-4">
+                {[
+                  "Predictive Maintenance Alerts",
+                  "Real-time Fuel Consumption Analysis",
+                  "Driver Performance Scorecards",
+                  "Automated Compliance Reporting",
+                ].map((item, i) => (
+                  <motion.li
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className={`flex items-center gap-3 transition-colors duration-500 ${
+                      isDarkMode ? "text-slate-300" : "text-slate-700"
+                    }`}
                   >
-                    <div className="bg-white p-8 rounded-xl shadow-lg h-full">
-                      <div className="flex items-center mb-6">
-                        <div className="flex-shrink-0 mr-4">
-                          <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
-                        </div>
-                        <div>
-                          <h4 className="text-lg font-semibold">{testimonial.name}</h4>
-                          <p className="text-gray-500">{testimonial.position}</p>
-                        </div>
-                      </div>
-                      <p className="text-gray-600 italic mb-6">"{testimonial.quote}"</p>
-                      <div className="flex">
-                        {[...Array(5)].map((_, i) => (
-                          <svg key={i} className={`h-5 w-5 ${i < testimonial.rating ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        ))}
-                      </div>
+                    <div className="w-6 h-6 rounded-full bg-[#3c8dbc]/20 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-[#3c8dbc]" />
                     </div>
-                  </motion.div>
+                    {item}
+                  </motion.li>
                 ))}
-              </motion.div>
+              </ul>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, rotateY: 10 }}
+              whileInView={{ opacity: 1, scale: 1, rotateY: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="relative"
+            >
+              {/* Glassmorphism Chart Card */}
+              <div
+                className={`relative backdrop-blur-xl border rounded-3xl p-8 shadow-2xl transform hover:scale-[1.02] transition-all duration-500 ${
+                  isDarkMode
+                    ? "bg-[#1a1f2e]/80 border-white/10"
+                    : "bg-white/80 border-slate-200"
+                }`}
+              >
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h3
+                      className={`text-lg font-bold transition-colors duration-500 ${
+                        isDarkMode ? "text-white" : "text-slate-900"
+                      }`}
+                    >
+                      Efficiency Metrics
+                    </h3>
+                    <p className="text-xs text-slate-400">Last 30 Days</p>
+                  </div>
+                  <div className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-lg">
+                    +12.5%
+                  </div>
+                </div>
+
+                {/* Simulated 3D Chart */}
+                <div className="flex items-end justify-between h-48 gap-4">
+                  {chartData.map((h, i) => (
+                    <div key={i} className="w-full relative group">
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: `${h}%` }}
+                        transition={{ duration: 1, ease: "easeInOut" }}
+                        className="w-full bg-gradient-to-t from-[#3c8dbc] to-cyan-400 rounded-t-lg opacity-80 group-hover:opacity-100 transition-opacity"
+                      />
+                      {/* Reflection effect */}
+                      <div className="absolute bottom-0 left-0 w-full h-full bg-gradient-to-t from-white/20 to-transparent opacity-0 group-hover:opacity-30 transition-opacity" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Floating Stats */}
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 4, repeat: Infinity }}
+                  className="absolute -top-6 -right-6 bg-[#3c8dbc] p-4 rounded-2xl shadow-lg shadow-[#3c8dbc]/30"
+                >
+                  <FaTruck className="text-white text-xl mb-1" />
+                  <p className="text-white font-bold text-lg">1,240</p>
+                  <p className="text-white/80 text-xs">Active Trips</p>
+                </motion.div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section className="py-32 px-6">
+          <div className="max-w-7xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-20"
+            >
+              <h2
+                className={`text-4xl md:text-5xl font-bold mb-6 transition-colors duration-500 ${
+                  isDarkMode ? "text-white" : "text-slate-900"
+                }`}
+              >
+                Trusted by Industry Leaders
+              </h2>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  name: "Sarah Jenkins",
+                  role: "Logistics Director",
+                  company: "Global Freight",
+                  text: "The 3D tracking interface is a game-changer. We've reduced late deliveries by 45% in just two months.",
+                },
+                {
+                  name: "David Chen",
+                  role: "Fleet Manager",
+                  company: "EcoTrans",
+                  text: "Finally, a TMS that looks and feels modern. The predictive analytics have saved us thousands in fuel costs.",
+                },
+                {
+                  name: "Elena Rodriguez",
+                  role: "COO",
+                  company: "FastTrack Inc.",
+                  text: "Implementation was seamless. The support team is incredible, and the platform uptime is flawless.",
+                },
+              ].map((testimonial, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 50 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.2 }}
+                  whileHover={{ y: -10 }}
+                  className={`border p-8 rounded-3xl relative group transition-all duration-500 ${
+                    isDarkMode
+                      ? "bg-[#131824] border-white/5 hover:border-[#3c8dbc]/30"
+                      : "bg-white border-slate-200 hover:border-[#3c8dbc]/30 shadow-lg"
+                  }`}
+                >
+                  <FaQuoteLeft className="text-[#3c8dbc]/20 text-4xl absolute top-6 right-6" />
+                  <div className="flex items-center gap-1 text-yellow-500 mb-6">
+                    {[...Array(5)].map((_, i) => (
+                      <FaStar key={i} className="text-sm" />
+                    ))}
+                  </div>
+                  <p
+                    className={`mb-8 leading-relaxed transition-colors duration-500 ${
+                      isDarkMode ? "text-slate-300" : "text-slate-600"
+                    }`}
+                  >
+                    "{testimonial.text}"
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3c8dbc] to-cyan-400 flex items-center justify-center text-white font-bold text-lg">
+                      {testimonial.name[0]}
+                    </div>
+                    <div>
+                      <h4
+                        className={`font-bold transition-colors duration-500 ${
+                          isDarkMode ? "text-white" : "text-slate-900"
+                        }`}
+                      >
+                        {testimonial.name}
+                      </h4>
+                      <p className="text-[#3c8dbc] text-sm">
+                        {testimonial.role}, {testimonial.company}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl p-12 shadow-inner"
-          >
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to Transform Your Fleet?</h2>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Join thousands of businesses optimizing their operations with our platform
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-bold rounded-lg shadow-lg hover:from-blue-700 hover:to-blue-900 transition-all"
-              >
-                Start Free Trial
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-8 py-3 bg-white border-2 border-blue-600 text-blue-600 font-bold rounded-lg shadow-lg hover:bg-blue-50 transition-colors"
-              >
-                Schedule Demo
-              </motion.button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-      <Footer />
-    </div>
+        <Footer />
+      </main>
+    </>
   );
 }
-
-const stats = [
-  { value: "500+", label: "Fleets Managed" },
-  { value: "30%", label: "Average Cost Reduction" },
-  { value: "99.8%", label: "System Uptime" },
-  { value: "24/7", label: "Customer Support" }
-];
-
-const testimonials = [
-  {
-    name: "Sarah Johnson",
-    position: "Fleet Manager, TransGlobal",
-    quote: "Reduced our operational costs by 28% in the first quarter. The analytics are incredibly insightful.",
-    rating: 5,
-    avatar: "/images/insa14.jpeg"
-  },
-  {
-    name: "Michael Chen",
-    position: "COO, QuickDeliver",
-    quote: "The driver portal has significantly improved our on-time delivery rates. Highly recommend!",
-    rating: 4,
-    avatar: "/images/insa16.jpeg"
-  },
-  {
-    name: "David Rodriguez",
-    position: "Logistics Director, MegaFreight",
-    quote: "Implementation was seamless and the support team is exceptional. Game changer for our business.",
-    rating: 5,
-    avatar: "/images/insa5.png"
-  },
-  {
-    name: "Emma Wilson",
-    position: "Operations Manager, UrbanTransit",
-    quote: "The route optimization alone paid for the system in the first three months.",
-    rating: 5,
-    avatar: "/images/insa1.png"
-  },
-  {
-    name: "James Peterson",
-    position: "CEO, GreenFleet",
-    quote: "Best decision we made for our growing logistics company. The ROI is outstanding.",
-    rating: 5,
-    avatar: "/images/insa4.png"
-  }
-];

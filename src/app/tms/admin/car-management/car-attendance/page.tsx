@@ -1,33 +1,53 @@
-'use client'
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { FiSearch, FiLoader, FiSave, FiList, FiDroplet } from 'react-icons/fi'; // Added FiDroplet
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import {
+  FiSearch,
+  FiLoader,
+  FiSave,
+  FiList,
+  FiDroplet,
+  FiCalendar,
+  FiClock,
+  FiUsers,
+  FiActivity,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiMoon,
+  FiSun,
+  FiFilter,
+  FiRefreshCw,
+} from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   fetchPlateSuggestionsAPI,
   fetchCarDetailsAPI,
-  // Import APIs for attendance and car details
   recordMorningArrivalAPI,
   findTodaysMorningArrivalRecordAPI,
   findLastEveningDepartureRecordAPI,
   recordEveningDepartureAPI,
-  // Import Helper functions
   mapCarTypeToVehicleType,
-  // Import Interfaces from the API file
   CarDetails,
   PlateSuggestion,
   FrontendAttendanceEntry,
   MorningArrivalRequest,
   EveningDepartureRequest,
-} from './components/carAttendanceApi'; // Assuming the api file is in a 'components' subfolder
+} from "./components/carAttendanceApi";
+import Swal from "sweetalert2";
+import "@sweetalert2/theme-material-ui/material-ui.css";
 
-
-// Rename FrontendAttendanceEntry to AttendanceEntry for brevity in the component
 type AttendanceEntry = FrontendAttendanceEntry;
 
-const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+// Custom primary color
+const PRIMARY_COLOR = "#3c8dbc";
+
+const debounce = <F extends (...args: any[]) => any>(
+  func: F,
+  waitFor: number
+) => {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: Parameters<F>): Promise<ReturnType<F>> =>
-    new Promise(resolve => {
+    new Promise((resolve) => {
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(() => resolve(func(...args)), waitFor);
     });
@@ -40,58 +60,92 @@ function isMorningAttendance() {
 }
 
 export default function CarAttendancePage() {
-  const [carType, setCarType] = useState<'organization' | 'personal' | ''>('');
-  const [plateNumberInput, setPlateNumberInput] = useState('');
-  const [plateSuggestions, setPlateSuggestions] = useState<PlateSuggestion[]>([]);
+  const [carType, setCarType] = useState<"organization" | "personal" | "">("");
+  const [plateNumberInput, setPlateNumberInput] = useState("");
+  const [plateSuggestions, setPlateSuggestions] = useState<PlateSuggestion[]>(
+    []
+  );
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
-
-  const [selectedCarDetails, setSelectedCarDetails] = useState<CarDetails | null>(null);
+  const [selectedCarDetails, setSelectedCarDetails] =
+    useState<CarDetails | null>(null);
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
-
-  const [morningKm, setMorningKm] = useState(''); // State for Morning Arrival KM input
-  const [nightKm, setNightKm] = useState(''); // State for Evening Departure KM input
+  const [morningKm, setMorningKm] = useState("");
+  const [nightKm, setNightKm] = useState("");
   const [kmDifference, setKmDifference] = useState<number | null>(null);
-  const [overnightKmDifference, setOvernightKmDifference] = useState<number | null>(null);
-  const [previousEveningKm, setPreviousEveningKm] = useState<number | null>(null);
-
-  const [formMessage, setFormMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [overnightKmDifference, setOvernightKmDifference] = useState<
+    number | null
+  >(null);
+  const [previousEveningKm, setPreviousEveningKm] = useState<number | null>(
+    null
+  );
+  const [formMessage, setFormMessage] = useState<{
+    type: "success" | "error" | "warning" | "info";
+    text: string;
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [isEveningDepartureMode, setIsEveningDepartureMode] = useState(false);
-  // Stores the details of the morning arrival record if found
-  const [isDayComplete, setIsDayComplete] = useState(false); // New state: true if both morning and evening KM recorded for today
-  const [morningArrivalRecordDetails, setMorningArrivalRecordDetails] = useState<AttendanceEntry | null>(null);
+  const [isDayComplete, setIsDayComplete] = useState(false);
+  const [morningArrivalRecordDetails, setMorningArrivalRecordDetails] =
+    useState<AttendanceEntry | null>(null);
+  const [currentTime, setCurrentTime] = useState<string>("");
+  const [currentDate, setCurrentDate] = useState<string>("");
 
-  const router = useRouter(); 
-  const debouncedFetchSuggestions = useCallback(debounce(fetchPlateSuggestionsAPI, 300), []);
+  const router = useRouter();
+  const debouncedFetchSuggestions = useCallback(
+    debounce(fetchPlateSuggestionsAPI, 300),
+    []
+  );
+
+  // Update current time and date
+  useEffect(() => {
+    const updateDateTime = () => {
+      const now = new Date();
+      setCurrentTime(
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
+      );
+      setCurrentDate(
+        now.toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      );
+    };
+
+    updateDateTime();
+    const interval = setInterval(updateDateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     setSelectedCarDetails(null);
     setMorningArrivalRecordDetails(null);
-    setIsDayComplete(false); // Reset day complete status
-    setIsEveningDepartureMode(false); // Reset mode
-    setMorningKm('');
-    setNightKm('');
+    setIsDayComplete(false);
+    setIsEveningDepartureMode(false);
+    setMorningKm("");
+    setNightKm("");
     setKmDifference(null);
     setOvernightKmDifference(null);
     setPreviousEveningKm(null);
     setFormMessage(null);
 
-     if (plateNumberInput.trim().length > 1) {
-     console.log('Fetching suggestions for:', plateNumberInput, 'with carType:', carType);
-       setIsFetchingSuggestions(true);
-       debouncedFetchSuggestions(plateNumberInput, carType)
-         .then(async suggestions => {
-          console.log('Suggestions received:', suggestions);
-           setPlateSuggestions(await suggestions);
-         })
-         .catch(error => {
-
+    if (plateNumberInput.trim().length > 1) {
+      setIsFetchingSuggestions(true);
+      debouncedFetchSuggestions(plateNumberInput, carType)
+        .then(async (suggestions) => {
+          setPlateSuggestions(await suggestions);
+        })
+        .catch((error) => {
           console.error("Error fetching plate suggestions:", error);
           setPlateSuggestions([]);
         })
         .finally(() => {
-            setIsFetchingSuggestions(false);
+          setIsFetchingSuggestions(false);
         });
     } else {
       setPlateSuggestions([]);
@@ -99,88 +153,108 @@ export default function CarAttendancePage() {
     }
   }, [plateNumberInput, carType, debouncedFetchSuggestions]);
 
-
-  // Function to load car details and check for existing morning arrival record
   const loadCarAndAttendanceStatus = async (plate: string) => {
     setIsFetchingDetails(true);
-    setPlateSuggestions([]); // Hide suggestions after selection
+    setPlateSuggestions([]);
+    setFormMessage(null);
 
-    // Clear form message specific to this loading action.
-    // Other states (selectedCarDetails, morningKm, etc.) are reset by the main useEffect
-    // if plateNumberInput was changed prior to calling this function (e.g., by suggestion click).
-    setFormMessage(null); 
     try {
       const details = await fetchCarDetailsAPI(plate);
       if (details) {
         setSelectedCarDetails(details);
-        // If carType wasn't set, set it now based on fetched details
-        if (carType === '' && (details.carType === 'organization' || details.carType === 'personal')) {
+        if (
+          carType === "" &&
+          (details.carType === "organization" || details.carType === "personal")
+        ) {
           setCarType(details.carType);
         }
 
-        // Now check for an existing morning arrival record for today
-        const existingMorningArrival = await findTodaysMorningArrivalRecordAPI(plate, mapCarTypeToVehicleType(details.carType), details);
+        const existingMorningArrival = await findTodaysMorningArrivalRecordAPI(
+          plate,
+          mapCarTypeToVehicleType(details.carType),
+          details
+        );
 
         if (existingMorningArrival) {
           setMorningArrivalRecordDetails(existingMorningArrival);
-          setMorningKm(existingMorningArrival.morningKm?.toString() || '');
+          setMorningKm(existingMorningArrival.morningKm?.toString() || "");
 
-          if (existingMorningArrival.nightKm !== null && typeof existingMorningArrival.nightKm !== 'undefined') {
+          if (
+            existingMorningArrival.nightKm !== null &&
+            typeof existingMorningArrival.nightKm !== "undefined"
+          ) {
             setIsDayComplete(true);
-            setIsEveningDepartureMode(true); // Keep true for UI context
+            setIsEveningDepartureMode(true);
             setNightKm(existingMorningArrival.nightKm.toString());
-            // Calculate and set daily KM difference for display, ensuring morningKm is not null
-            const dailyDiff = existingMorningArrival.nightKm - (existingMorningArrival.morningKm ?? 0);
+            const dailyDiff =
+              existingMorningArrival.nightKm -
+              (existingMorningArrival.morningKm ?? 0);
             if (!isNaN(dailyDiff) && dailyDiff >= 0) {
               setKmDifference(dailyDiff);
             } else {
               setKmDifference(null);
             }
-            setFormMessage({ type: 'success', text: `Attendance for ${plate} (${details.carType}) is complete for today. Morning: ${existingMorningArrival.morningKm} KM, Evening: ${existingMorningArrival.nightKm} KM.` });
+            setFormMessage({
+              type: "success",
+              text: `Attendance complete for today. Morning: ${existingMorningArrival.morningKm} KM, Evening: ${existingMorningArrival.nightKm} KM.`,
+            });
           } else {
-            // Only morning KM is recorded, ready for evening departure
             setIsDayComplete(false);
             setIsEveningDepartureMode(true);
-            setFormMessage({ type: 'success', text: `Car ${plate} (${details.carType}) has a Morning Arrival at ${existingMorningArrival.morningKm} KM. Ready for Evening Departure.` });
+            setFormMessage({
+              type: "info",
+              text: `Morning arrival recorded at ${existingMorningArrival.morningKm} KM. Ready for evening departure.`,
+            });
           }
         } else {
-          // No morning record found, ready to record morning arrival
           setIsDayComplete(false);
           setIsEveningDepartureMode(false);
-          // Fetch last evening KM for all car types to calculate overnight difference
-          const lastEveningRecord = await findLastEveningDepartureRecordAPI(plate, mapCarTypeToVehicleType(details.carType), details);
+          const lastEveningRecord = await findLastEveningDepartureRecordAPI(
+            plate,
+            mapCarTypeToVehicleType(details.carType),
+            details
+          );
           if (lastEveningRecord && lastEveningRecord.nightKm !== null) {
             setPreviousEveningKm(lastEveningRecord.nightKm);
-            setFormMessage({ type: 'success', text: `Car ${plate} (${details.carType}) details loaded. Ready for Morning Arrival. Previous Evening KM: ${lastEveningRecord.nightKm}.` });
+            setFormMessage({
+              type: "info",
+              text: `Ready for morning arrival. Previous evening KM: ${lastEveningRecord.nightKm}`,
+            });
           } else {
-            setFormMessage({ type: 'success', text: `Car ${plate} (${details.carType}) details loaded. Ready for Morning Arrival. No previous evening KM found.` });
+            setFormMessage({
+              type: "info",
+              text: `Ready for morning arrival. No previous evening KM found.`,
+            });
           }
         }
       } else {
-        setFormMessage({ type: 'error', text: `Car with plate ${plate} not found.` });
-        // Keep plateNumberInput as entered by user for correction
-        setSelectedCarDetails(null); // Ensure no car is selected
+        setFormMessage({
+          type: "error",
+          text: `Car with plate ${plate} not found.`,
+        });
+        setSelectedCarDetails(null);
       }
     } catch (error: any) {
       console.error("Error loading car/attendance status:", error);
-      setFormMessage({ type: 'error', text: error.message || 'Failed to load car/attendance status. Please try again.' });
-      setSelectedCarDetails(null); // Ensure no car is selected on error
+      setFormMessage({
+        type: "error",
+        text: error.message || "Failed to load car/attendance status.",
+      });
+      setSelectedCarDetails(null);
     } finally {
       setIsFetchingDetails(false);
     }
   };
 
-  // Handle click on a plate suggestion
   const handlePlateSuggestionClick = (suggestion: PlateSuggestion) => {
-    setPlateNumberInput(suggestion.plate); // Update input field with selected plate
-    loadCarAndAttendanceStatus(suggestion.plate); // Load details and status for the selected plate
+    setPlateNumberInput(suggestion.plate);
+    loadCarAndAttendanceStatus(suggestion.plate);
   };
 
-  // Effect to calculate KM difference when in Evening Departure mode and nightKm changes
   useEffect(() => {
     if (isEveningDepartureMode && morningArrivalRecordDetails) {
       const morningArrivalKmVal = morningArrivalRecordDetails.morningKm;
-      const eveningDepartureKmVal = parseFloat(nightKm); // 'nightKm' state holds evening departure KM
+      const eveningDepartureKmVal = parseFloat(nightKm);
 
       if (
         morningArrivalKmVal !== null &&
@@ -189,110 +263,147 @@ export default function CarAttendancePage() {
       ) {
         setKmDifference(eveningDepartureKmVal - morningArrivalKmVal);
       } else {
-        setKmDifference(null); // Reset difference if invalid input
+        setKmDifference(null);
       }
     } else {
-      setKmDifference(null); // Not in Evening Departure mode
+      setKmDifference(null);
     }
   }, [nightKm, isEveningDepartureMode, morningArrivalRecordDetails]);
 
-  // Effect to calculate Overnight KM difference when in Morning Arrival mode and morningKm or previousEveningKm changes
   useEffect(() => {
     if (
       !isEveningDepartureMode &&
-      selectedCarDetails && // Calculate for any selected car
+      selectedCarDetails &&
       previousEveningKm !== null &&
-      morningKm.trim() !== '') {
+      morningKm.trim() !== ""
+    ) {
       const currentMorningKmVal = parseFloat(morningKm);
-      if (!isNaN(currentMorningKmVal) && currentMorningKmVal >= previousEveningKm) {
+      if (
+        !isNaN(currentMorningKmVal) &&
+        currentMorningKmVal >= previousEveningKm
+      ) {
         setOvernightKmDifference(currentMorningKmVal - previousEveningKm);
       } else {
-        setOvernightKmDifference(null); // Reset if morning KM is less or invalid
+        setOvernightKmDifference(null);
       }
     } else {
-      // Clear if conditions are not met (e.g., no previous KM, morning KM input empty, etc.)
       setOvernightKmDifference(null);
     }
-  }, [morningKm, previousEveningKm, isEveningDepartureMode, selectedCarDetails]);
+  }, [
+    morningKm,
+    previousEveningKm,
+    isEveningDepartureMode,
+    selectedCarDetails,
+  ]);
 
-
-  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormMessage(null); // Clear previous messages
-    setIsSubmitting(true); // Start submitting state
+    setFormMessage(null);
+    setIsSubmitting(true);
 
     if (!selectedCarDetails) {
-      setFormMessage({ type: 'error', text: 'Please select a valid car first.' });
+      setFormMessage({
+        type: "error",
+        text: "Please select a valid car first.",
+      });
       setIsSubmitting(false);
       return;
     }
 
     try {
       if (isEveningDepartureMode && morningArrivalRecordDetails) {
-        // --- Handle Evening Departure KM Recording ---
         const eveningDepartureKmVal = parseFloat(nightKm);
         const morningArrivalKmVal = morningArrivalRecordDetails.morningKm;
 
         if (morningArrivalKmVal === null) {
-          setFormMessage({ type: 'error', text: 'Morning arrival KM is missing. Cannot record evening departure.' });
+          setFormMessage({
+            type: "error",
+            text: "Morning arrival KM is missing.",
+          });
           setIsSubmitting(false);
           return;
         }
 
-        if (isNaN(eveningDepartureKmVal) || eveningDepartureKmVal < morningArrivalKmVal) {
-          setFormMessage({ type: 'error', text: 'Evening Departure KM must be a valid number and greater than or equal to Morning Arrival KM.' });
+        if (
+          isNaN(eveningDepartureKmVal) ||
+          eveningDepartureKmVal < morningArrivalKmVal
+        ) {
+          setFormMessage({
+            type: "error",
+            text: "Evening KM must be greater than or equal to Morning KM.",
+          });
           setIsSubmitting(false);
           return;
         }
 
-        // Recalculate difference just before saving to be safe
         const finalKmDifference = eveningDepartureKmVal - morningArrivalKmVal;
         if (isNaN(finalKmDifference) || finalKmDifference < 0) {
-           setFormMessage({ type: 'error', text: 'KM difference calculation failed.' });
-           setIsSubmitting(false); return;
+          setFormMessage({
+            type: "error",
+            text: "KM difference calculation failed.",
+          });
+          setIsSubmitting(false);
+          return;
         }
 
         const departureRequest: EveningDepartureRequest = {
           eveningKm: eveningDepartureKmVal,
-          // Fuel fields are optional and not sent from here
         };
-        // morningArrivalRecordDetails.id is now a number
-        const recordedDeparture = await recordEveningDepartureAPI(morningArrivalRecordDetails.id, departureRequest, selectedCarDetails);
-        const displayedKmDifference = recordedDeparture.kmDifference ?? finalKmDifference;
-        setFormMessage({ type: 'success', text: `Evening Departure for ${selectedCarDetails.plateNumber} recorded. KM used today: ${displayedKmDifference} KM.` });
 
+        const recordedDeparture = await recordEveningDepartureAPI(
+          morningArrivalRecordDetails.id,
+          departureRequest,
+          selectedCarDetails
+        );
+        const displayedKmDifference =
+          recordedDeparture.kmDifference ?? finalKmDifference;
+
+        setFormMessage({
+          type: "success",
+          text: `Evening departure recorded successfully! KM used today: ${displayedKmDifference} KM.`,
+        });
+        resetFormState();
       } else {
-        // --- Handle Morning Arrival KM Recording ---
         const morningArrivalKmVal = parseFloat(morningKm);
         if (isNaN(morningArrivalKmVal) || morningArrivalKmVal < 0) {
-          setFormMessage({ type: 'error', text: 'Morning Arrival KM must be a valid positive number.' });
-          setIsSubmitting(false); return;
+          setFormMessage({
+            type: "error",
+            text: "Morning KM must be a valid positive number.",
+          });
+          setIsSubmitting(false);
+          return;
         }
-        if (selectedCarDetails.carType === 'organization' && previousEveningKm !== null && morningArrivalKmVal < previousEveningKm) {
-          setFormMessage({ type: 'error', text: 'Morning KM cannot be less than previous evening KM for organization cars.' });
-          setIsSubmitting(false); return;
+        if (
+          selectedCarDetails.carType === "organization" &&
+          previousEveningKm !== null &&
+          morningArrivalKmVal < previousEveningKm
+        ) {
+          setFormMessage({
+            type: "error",
+            text: "Morning KM cannot be less than previous evening KM for organization cars.",
+          });
+          setIsSubmitting(false);
+          return;
         }
 
         const arrivalRequest: MorningArrivalRequest = {
-            plateNumber: selectedCarDetails.plateNumber,
-            vehicleType: mapCarTypeToVehicleType(selectedCarDetails.carType),
-            morningKm: morningArrivalKmVal,
-            overnightKmDifference: overnightKmDifference, // Send the calculated overnight difference
-            // Fuel fields are optional and not sent from here
+          plateNumber: selectedCarDetails.plateNumber,
+          vehicleType: mapCarTypeToVehicleType(selectedCarDetails.carType),
+          morningKm: morningArrivalKmVal,
+          overnightKmDifference: overnightKmDifference,
         };
 
         await handleAttendanceSubmit(arrivalRequest);
+        resetFormState();
       }
-
-      // Reset form after successful submission
-      resetFormState();
-
     } catch (error: any) {
       console.error("Error submitting attendance:", error);
-      setFormMessage({ type: 'error', text: error.message || 'Failed to submit attendance. Please try again.' });
+      setFormMessage({
+        type: "error",
+        text: error.message || "Failed to submit attendance.",
+      });
     } finally {
-      setIsSubmitting(false); // End submitting state
+      setIsSubmitting(false);
     }
   };
 
@@ -303,230 +414,554 @@ export default function CarAttendancePage() {
         isMorning: isMorningAttendance(),
       };
 
-      // Show confirm dialog if not morning
       if (!payloadWithTimeCheck.isMorning) {
         const confirmed = window.confirm(
-          "Warning: You are not within the morning attendance time (7:00 - 15:00).\nDo you want to proceed with registering the attendance?"
+          "⚠️ You are not within the morning attendance time (7:00 - 15:00).\nDo you want to proceed?"
         );
         if (!confirmed) {
-          // User cancelled, do not proceed
-          setIsSubmitting(false); // Ensure submitting state is reset
+          setIsSubmitting(false);
           return;
         }
       }
 
       await recordMorningArrivalAPI(payloadWithTimeCheck, selectedCarDetails);
-      // ...success logic...
+      setFormMessage({
+        type: "success",
+        text: "Morning arrival recorded successfully!",
+      });
     } catch (err: any) {
       let errorMsg = "Failed to record attendance.";
       if (err?.response?.status === 500) {
-        errorMsg = `The car with plate number ${payload.plateNumber} is already checked for today.`;
+        errorMsg = `Car ${payload.plateNumber} is already checked for today.`;
       } else if (err?.message) {
         errorMsg = err.message;
       }
-      alert(errorMsg);
+      setFormMessage({ type: "error", text: errorMsg });
+      throw err;
     }
   };
 
-  // Function to reset all form-related states
   const resetFormState = () => {
-    setCarType(''); // Reset car type filter
-    setPlateNumberInput(''); // This will trigger the main useEffect to reset other dependent states and suggestions
-    // The main useEffect watching plateNumberInput and carType will handle resetting:
-    // - selectedCarDetails, morningArrivalRecordDetails, isEveningDepartureMode
-    // - morningKm, nightKm, kmDifference, overnightKmDifference, previousEveningKm
-    // - plateSuggestions (if plateNumberInput becomes empty)    
-    // - formMessage is reset in handleSubmit or when plateNumberInput changes
+    setCarType("");
+    setPlateNumberInput("");
   };
 
-  // Function to navigate to the all records page
   const handleShowAllRecords = () => {
-    router.push('/tms/admin/car-management/car-attendance/all-records');
+    router.push("/tms/admin/car-management/car-attendance/all-records");
   };
 
-  // Function to navigate to the fuel entry page
   const handleAddFuelEntry = () => {
-    router.push('/tms/admin/car-management/car-attendance/fuel-entry');
+    router.push("/tms/admin/car-management/car-attendance/fuel-entry");
   };
 
-  // Helper to display date, ensuring it's treated as local
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '';
-    // Assuming dateString is YYYY-MM-DD from backend
-    // Append T00:00:00 to ensure it's parsed as local midnight to avoid timezone shifts with toLocaleDateString
-    return new Date(dateString + 'T00:00:00').toLocaleDateString();
+    if (!dateString) return "";
+    return new Date(dateString + "T00:00:00").toLocaleDateString();
   };
-
-    // DEBUG: Log selectedCarDetails
-    console.log('selectedCarDetails:', selectedCarDetails);
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white shadow-xl rounded-lg">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-700">Record Car Attendance</h1>
-        <div className="flex space-x-2">
-          <button
-            onClick={handleAddFuelEntry}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 flex items-center"
-          >
-            <FiDroplet className="mr-2" /> Add Fuel
-          </button>
-          <button
-            onClick={handleShowAllRecords}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 flex items-center"
-          >
-            <FiList className="mr-2" /> All Records
-          </button>
-        </div>
-      </div>
-
-      {formMessage && (
-        <div className={`mb-4 p-3 rounded ${formMessage.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-          {formMessage.text}
-        </div>
-      )}
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="p-6 space-y-6 overflow-x-hidden bg-gray-50 min-h-screen">
+      {/* Header Section */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+      >
         <div>
-          <label htmlFor="carType" className="block text-sm font-medium text-gray-700">Car Type</label>
-          <select
-            id="carType"
-            value={carType}
-            onChange={(e) => {
-                setCarType(e.target.value as 'organization' | 'personal' | '');
-                // Reset plate input and dependent states if car type changes
-                if (plateNumberInput) setPlateNumberInput(''); // This triggers the useEffect to reset other states
-            }}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            // Disable type selection if a car is already selected, to avoid confusion
-            disabled={!!selectedCarDetails || isFetchingDetails || isFetchingSuggestions}
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#2a6a90] via-[#3c8dbc] to-[#5ba5e8]">
+            Car Attendance Management
+          </h1>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mt-2">
+            <div className="flex items-center gap-2">
+              <FiCalendar className="w-4 h-4 text-[#3c8dbc]" />
+              <span>{currentDate}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <FiClock className="w-4 h-4 text-[#3c8dbc]" />
+              <span className="font-mono">{currentTime}</span>
+            </div>
+            <div
+              className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                isMorningAttendance()
+                  ? "bg-green-50 border-green-200 text-green-600"
+                  : "bg-yellow-50 border-yellow-200 text-yellow-600"
+              }`}
+            >
+              {isMorningAttendance() ? (
+                <span className="flex items-center gap-1">
+                  <FiSun /> Morning Hours
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <FiMoon /> Evening Hours
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleAddFuelEntry}
+            className="p-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors text-[#3c8dbc]"
+            title="Add Fuel"
           >
-            <option value="">Any</option>
-            <option value="organization">Organization</option>
-            <option value="personal">Personal</option>
-          </select>
+            <FiDroplet className="w-5 h-5" />
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleShowAllRecords}
+            className="p-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors text-gray-600"
+            title="View Records"
+          >
+            <FiList className="w-5 h-5" />
+          </motion.button>
         </div>
+      </motion.div>
 
-        <div className="relative">
-          <label htmlFor="plateNumber" className="block text-sm font-medium text-gray-700">Plate Number</label>
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiSearch className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              id="plateNumber"
-              value={plateNumberInput}
-              onChange={(e) => {
-                setPlateNumberInput(e.target.value);
-                // Clearing selectedCarDetails and status is now handled in the useEffect
-              }}
-              placeholder="Enter plate number"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              disabled={isFetchingDetails || isSubmitting || isDayComplete} // Disable if day is complete
-            />
-            {isFetchingSuggestions && <FiLoader className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 animate-spin" />}
-          </div>
-          {/* Show suggestions only if input has value, not fetching, and suggestions exist */}
-          {plateNumberInput.length > 0 && !isFetchingSuggestions && plateSuggestions.length > 0 && (
-            <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-auto shadow-lg">
-              {plateSuggestions.map(suggestion => (
-                <li
-                  key={suggestion.id}
-                  onClick={() => handlePlateSuggestionClick(suggestion)}
-                  className="px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm"
+      {/* Main Content */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden"
+      >
+        <div className="p-6">
+          <AnimatePresence>
+            {formMessage && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className={`mb-6 p-4 rounded-lg border flex items-center gap-3 ${
+                  formMessage.type === "error"
+                    ? "bg-red-50 border-red-200 text-red-600"
+                    : formMessage.type === "warning"
+                    ? "bg-yellow-50 border-yellow-200 text-yellow-600"
+                    : formMessage.type === "info"
+                    ? "bg-blue-50 border-blue-200 text-blue-600"
+                    : "bg-green-50 border-green-200 text-green-600"
+                }`}
+              >
+                {formMessage.type === "error" ? (
+                  <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
+                ) : formMessage.type === "success" ? (
+                  <FiCheckCircle className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
+                )}
+                <span className="font-medium text-sm">{formMessage.text}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Filter and Search Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <FiUsers className="w-4 h-4 text-[#3c8dbc]" />
+                  Car Type Filter
+                </label>
+                <div className="flex p-1 bg-gray-100 rounded-lg border border-gray-200">
+                  {(["organization", "personal", ""] as const).map((type) => (
+                    <button
+                      key={type || "any"}
+                      type="button"
+                      onClick={() => {
+                        setCarType(type);
+                        if (plateNumberInput) setPlateNumberInput("");
+                      }}
+                      className={`flex-1 px-4 py-2 rounded-md font-medium text-sm transition-all ${
+                        carType === type
+                          ? "bg-[#3c8dbc] text-white shadow-sm"
+                          : "text-gray-500 hover:text-gray-900 hover:bg-white"
+                      }`}
+                      disabled={!!selectedCarDetails || isFetchingDetails}
+                    >
+                      {type === "organization"
+                        ? "Organization"
+                        : type === "personal"
+                        ? "Personal"
+                        : "All Types"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="plateNumber"
+                  className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"
                 >
-                  {suggestion.plate} ({suggestion.type})
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                  <FiSearch className="w-4 h-4 text-[#3c8dbc]" />
+                  Search Plate Number
+                </label>
+                <div className="relative group">
+                  <input
+                    type="text"
+                    id="plateNumber"
+                    value={plateNumberInput}
+                    onChange={(e) => setPlateNumberInput(e.target.value)}
+                    placeholder="Start typing plate number..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3c8dbc] focus:border-transparent transition-all"
+                    disabled={
+                      isFetchingDetails || isSubmitting || isDayComplete
+                    }
+                  />
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-[#3c8dbc] transition-colors" />
+                  {isFetchingSuggestions && (
+                    <FiLoader className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#3c8dbc] w-4 h-4 animate-spin" />
+                  )}
+                </div>
 
-        {isFetchingDetails && <p className="text-sm text-indigo-600 flex items-center"><FiLoader className="animate-spin mr-2" /> Loading car status...</p>}
-
-        {selectedCarDetails && (
-          <div className="p-4 border border-gray-200 rounded-md bg-gray-50 space-y-3">
-            <div className="text-center font-semibold text-indigo-700 text-lg capitalize">
-              {isDayComplete
-                ? `Attendance Complete for: ${selectedCarDetails.plateNumber}`
-                : isEveningDepartureMode
-                  ? `Record Evening Departure (approx. 5 PM) for: ${selectedCarDetails.plateNumber}`
-                  : `Record Morning Arrival for: ${selectedCarDetails.plateNumber}`}
+                <AnimatePresence>
+                  {plateNumberInput.length > 0 &&
+                    !isFetchingSuggestions &&
+                    plateSuggestions.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute z-50 mt-2 w-full max-w-md bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
+                      >
+                        <div className="p-2 bg-gray-50 border-b border-gray-200">
+                          <p className="text-xs font-bold text-[#3c8dbc] uppercase tracking-wider">
+                            Matching Vehicles ({plateSuggestions.length})
+                          </p>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                          {plateSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.id}
+                              type="button"
+                              onClick={() =>
+                                handlePlateSuggestionClick(suggestion)
+                              }
+                              className="w-full px-4 py-2.5 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-center justify-between group"
+                            >
+                              <div>
+                                <span className="font-semibold text-gray-800 group-hover:text-[#3c8dbc] transition-colors">
+                                  {suggestion.plate}
+                                </span>
+                                <span className="ml-2 text-xs text-gray-500 capitalize">
+                                  ({suggestion.type})
+                                </span>
+                              </div>
+                              <div
+                                className={`text-xs px-2 py-0.5 rounded-full capitalize font-medium ${
+                                  suggestion.type === "organization"
+                                    ? "bg-blue-100 text-blue-600 border border-blue-200"
+                                    : "bg-green-100 text-green-600 border border-green-200"
+                                }`}
+                              >
+                                {suggestion.type}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                </AnimatePresence>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 text-sm">
-                <p><span className="font-semibold">Driver:</span> {selectedCarDetails.driverName}</p>
-                <p><span className="font-semibold">KM/Liter:</span> {selectedCarDetails.kmPerLiter} km/l</p>
+
+            {/* Loading State */}
+            {isFetchingDetails && (
+              <div className="flex items-center justify-center p-12">
+                <div className="text-center">
+                  <FiLoader className="w-8 h-8 animate-spin mx-auto mb-3 text-[#3c8dbc]" />
+                  <p className="text-gray-500 font-medium animate-pulse text-sm">
+                    Retrieving vehicle data...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Selected Vehicle Details */}
+            <AnimatePresence>
+              {selectedCarDetails && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="bg-blue-50/50 rounded-xl p-6 border border-blue-100 relative overflow-hidden"
+                >
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 relative z-10">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-3">
+                        {isDayComplete ? (
+                          <>
+                            <FiCheckCircle className="text-green-500" />{" "}
+                            Attendance Complete
+                          </>
+                        ) : isEveningDepartureMode ? (
+                          <>
+                            <FiMoon className="text-yellow-500" /> Evening
+                            Departure
+                          </>
+                        ) : (
+                          <>
+                            <FiSun className="text-orange-500" /> Morning
+                            Arrival
+                          </>
+                        )}
+                        <span className="text-gray-400 font-normal">
+                          | {selectedCarDetails.plateNumber}
+                        </span>
+                      </h3>
+                      <div className="flex flex-wrap gap-3 text-sm">
+                        <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-lg border border-gray-200 shadow-sm">
+                          <FiUsers className="w-4 h-4 text-[#3c8dbc]" />
+                          <span className="font-medium text-gray-600">
+                            {selectedCarDetails.driverName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-lg border border-gray-200 shadow-sm">
+                          <FiActivity className="w-4 h-4 text-[#3c8dbc]" />
+                          <span className="font-medium text-gray-600">
+                            {selectedCarDetails.kmPerLiter} km/l
+                          </span>
+                        </div>
+                        <div
+                          className={`px-3 py-1 rounded-lg text-xs font-bold capitalize border ${
+                            selectedCarDetails.carType === "organization"
+                              ? "bg-blue-100 border-blue-200 text-blue-600"
+                              : "bg-green-100 border-green-200 text-green-600"
+                          }`}
+                        >
+                          {selectedCarDetails.carType}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Messages */}
+                  <div className="space-y-3 relative z-10">
+                    {isEveningDepartureMode && morningArrivalRecordDetails && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-3">
+                        <FiSun className="text-yellow-500 w-4 h-4" />
+                        <p className="font-medium text-yellow-800 text-sm">
+                          <span className="font-bold">Morning Record:</span>{" "}
+                          {morningArrivalRecordDetails.morningKm} KM on{" "}
+                          {formatDate(morningArrivalRecordDetails.date)}
+                        </p>
+                      </div>
+                    )}
+
+                    {!isEveningDepartureMode &&
+                      !isDayComplete &&
+                      previousEveningKm !== null && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3">
+                          <FiMoon className="text-blue-500 w-4 h-4" />
+                          <div>
+                            <p className="font-medium text-blue-800 text-sm">
+                              <span className="font-bold">
+                                Previous Evening KM:
+                              </span>{" "}
+                              {previousEveningKm}
+                            </p>
+                            {morningKm.trim() === "" && (
+                              <p className="text-xs text-blue-600/70 mt-0.5">
+                                Enter morning KM to calculate overnight usage
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {!isEveningDepartureMode &&
+                      !isDayComplete &&
+                      overnightKmDifference !== null && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-3">
+                          <FiActivity className="text-emerald-500 w-4 h-4" />
+                          <p className="font-medium text-emerald-800 text-sm">
+                            <span className="font-bold">
+                              Overnight KM Used:
+                            </span>{" "}
+                            {overnightKmDifference} KM
+                          </p>
+                        </div>
+                      )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* KM Input Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div
+                className={`p-6 rounded-xl border transition-all duration-300 ${
+                  isEveningDepartureMode
+                    ? "bg-gray-50 border-gray-200 opacity-50"
+                    : "bg-white border-blue-200 shadow-md shadow-blue-50"
+                }`}
+              >
+                <label
+                  htmlFor="morningKm"
+                  className="block text-base font-bold text-gray-700 mb-4 flex items-center gap-2"
+                >
+                  <div className="p-1.5 rounded-md bg-orange-100 border border-orange-200">
+                    <FiSun className="text-orange-500 w-4 h-4" />
+                  </div>
+                  Morning Arrival KM
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    id="morningKm"
+                    value={morningKm}
+                    onChange={(e) => setMorningKm(e.target.value)}
+                    placeholder="0.0"
+                    className="w-full px-4 py-3 text-lg bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#3c8dbc] focus:ring-1 focus:ring-[#3c8dbc] transition-all font-mono"
+                    min="0"
+                    step="0.1"
+                    required={!isDayComplete}
+                    disabled={
+                      !selectedCarDetails ||
+                      isEveningDepartureMode ||
+                      isSubmitting ||
+                      isDayComplete
+                    }
+                    readOnly={isEveningDepartureMode || isDayComplete}
+                  />
+                  <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold text-xs">
+                    KM
+                  </span>
+                </div>
+                {!isEveningDepartureMode && !isDayComplete && (
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <FiCheckCircle className="w-3 h-3" /> Enter arrival reading
+                  </p>
+                )}
+              </div>
+
+              <div
+                className={`p-6 rounded-xl border transition-all duration-300 ${
+                  !isEveningDepartureMode
+                    ? "bg-gray-50 border-gray-200 opacity-50"
+                    : "bg-white border-indigo-200 shadow-md shadow-indigo-50"
+                }`}
+              >
+                <label
+                  htmlFor="nightKm"
+                  className="block text-base font-bold text-gray-700 mb-4 flex items-center gap-2"
+                >
+                  <div className="p-1.5 rounded-md bg-indigo-100 border border-indigo-200">
+                    <FiMoon className="text-indigo-500 w-4 h-4" />
+                  </div>
+                  Evening Departure KM
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    id="nightKm"
+                    value={nightKm}
+                    onChange={(e) => setNightKm(e.target.value)}
+                    placeholder="0.0"
+                    className="w-full px-4 py-3 text-lg bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                    min={morningKm || "0"}
+                    step="0.1"
+                    required={isEveningDepartureMode && !isDayComplete}
+                    disabled={
+                      !selectedCarDetails ||
+                      !isEveningDepartureMode ||
+                      !morningArrivalRecordDetails ||
+                      isSubmitting ||
+                      isDayComplete
+                    }
+                  />
+                  <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold text-xs">
+                    KM
+                  </span>
+                </div>
+                {isEveningDepartureMode && !isDayComplete && (
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <FiCheckCircle className="w-3 h-3" /> Enter departure
+                    reading
+                  </p>
+                )}
+              </div>
             </div>
-            {isEveningDepartureMode && morningArrivalRecordDetails && (
-                 <p className="text-sm text-center bg-yellow-100 p-2 rounded-md"><span className="font-semibold">Morning Arrival was at:</span> {morningArrivalRecordDetails.morningKm} KM on {formatDate(morningArrivalRecordDetails.date)}</p>
-            )}
-            {!isEveningDepartureMode && !isDayComplete && previousEveningKm !== null && (
-              <p className="text-sm text-center bg-blue-100 p-2 rounded-md"><span className="font-semibold">Previous Evening Departure KM:</span> {previousEveningKm}</p>
-            )}
-            {/* Add a message prompting for Morning KM if previous evening KM exists but morning KM is not yet entered */}
-            {!isEveningDepartureMode && !isDayComplete && previousEveningKm !== null && morningKm.trim() === '' && (
-              <p className="text-sm text-center text-gray-600 mt-2">Enter Morning KM to see overnight difference.</p>
-            )}
-            {!isEveningDepartureMode && !isDayComplete && overnightKmDifference !== null && (
-              <p className="text-sm text-center bg-green-100 p-2 rounded-md"><span className="font-semibold">Overnight KM Used:</span> {overnightKmDifference} KM</p>
-            )}
-          </div>
-        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="morningKm" className="block text-sm font-medium text-gray-700">Morning Arrival KM</label>
-            <input
-              type="number"
-              id="morningKm"
-              value={morningKm}
-              onChange={(e) => setMorningKm(e.target.value)}
-              placeholder="KM at morning arrival"
-              className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${isEveningDepartureMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-              min="0"
-              required={!isDayComplete} // Not required if day is complete
-              disabled={!selectedCarDetails || isEveningDepartureMode || isSubmitting || isDayComplete}
-              readOnly={isEveningDepartureMode || isDayComplete}
-            />
-          </div>
-          <div>
-            <label htmlFor="nightKm" className="block text-sm font-medium text-gray-700">Evening Departure KM (approx. 5 PM)</label>
-            <input
-              type="number"
-              id="nightKm"
-              value={nightKm}
-              onChange={(e) => setNightKm(e.target.value)}
-              placeholder="KM at evening departure"
-              className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${!isEveningDepartureMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-              min={morningKm || "0"}
-              required={isEveningDepartureMode && !isDayComplete} // Required if in evening mode and not complete
-              disabled={!selectedCarDetails || !isEveningDepartureMode || !morningArrivalRecordDetails || isSubmitting || isDayComplete}
-            />
-          </div>
+            {/* Daily KM Display */}
+            <AnimatePresence>
+              {isEveningDepartureMode && kmDifference !== null && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="bg-gradient-to-r from-[#3c8dbc] to-cyan-600 rounded-xl p-6 shadow-lg relative overflow-hidden text-white"
+                >
+                  <div className="flex items-center justify-between relative z-10">
+                    <div>
+                      <p className="text-base font-bold text-white/90">
+                        Daily Distance Covered
+                      </p>
+                      <p className="text-3xl font-black text-white mt-1 font-mono tracking-tight">
+                        {kmDifference.toFixed(1)}{" "}
+                        <span className="text-lg font-sans font-bold text-white/70">
+                          KM
+                        </span>
+                      </p>
+                      <p className="text-white/60 text-xs mt-1 font-medium uppercase tracking-wider">
+                        Total usage for today
+                      </p>
+                    </div>
+                    <div className="h-12 w-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/20">
+                      <FiActivity className="text-white w-6 h-6" />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Submit Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="submit"
+              disabled={
+                !selectedCarDetails ||
+                isFetchingDetails ||
+                isSubmitting ||
+                (isEveningDepartureMode && !morningArrivalRecordDetails) ||
+                isDayComplete
+              }
+              className="w-full py-2.5 px-4 bg-[#3c8dbc] hover:bg-[#357ca5] text-white rounded-lg font-semibold text-base shadow-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <FiLoader className="w-2 h-2 animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <FiSave className="w-4 h-4" />
+                  <span>
+                    {isEveningDepartureMode
+                      ? "Record Evening Departure"
+                      : "Record Arrival"}
+                  </span>
+                </>
+              )}
+            </motion.button>
+          </form>
         </div>
+      </motion.div>
 
-        {/* Show KM difference only if calculated and in Evening Departure mode */}
-        {isEveningDepartureMode && kmDifference !== null && (
-          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-md">
-            <p className="text-sm font-semibold text-indigo-700">KM Driven for Organization Today: {kmDifference} km</p>
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={
-            !selectedCarDetails ||
-            isFetchingDetails ||
-            isSubmitting ||
-            (isEveningDepartureMode && !morningArrivalRecordDetails) ||
-            isDayComplete // Disable if the day's attendance is already complete
-          }
-          className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? <FiLoader className="animate-spin mr-2" /> : <FiSave className="mr-2" />}
-          {isEveningDepartureMode ? 'Record Evening Departure & Finalize Day' : 'Record Morning Arrival'}
-        </button>
-      </form>
+      {/* Help Text */}
+      <div className="mt-8 text-center">
+        <p className="text-sm text-gray-500 font-medium">
+          Morning attendance hours:{" "}
+          <span className="text-gray-700">7:00 AM - 3:00 PM</span> • Evening
+          departure: <span className="text-gray-700">After 5:00 PM</span>
+        </p>
+      </div>
     </div>
   );
 }
