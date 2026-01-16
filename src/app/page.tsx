@@ -10,7 +10,8 @@ import {
   useSpring,
 } from "framer-motion";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   FaArrowRight,
   FaPlay,
@@ -116,16 +117,82 @@ const AnimatedCarSign = ({ isDarkMode }: { isDarkMode: boolean }) => {
   );
 };
 
+// --- Components ---
+
+const AnimatedCounter = ({ value }: { value: string }) => {
+  // Simplified for this example, ideally use a library like 'framer-motion' useSpring for number interpolation
+  return <span>{value}</span>;
+};
+
 export default function LandingPage() {
   const { scrollYProgress } = useScroll();
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false); // Changed to false for light mode default
   const [chartData, setChartData] = useState([40, 70, 50, 90, 65, 85, 55]);
 
   // Parallax effects
   const y1 = useTransform(scrollYProgress, [0, 1], [0, -100]);
   const y2 = useTransform(scrollYProgress, [0, 1], [0, -200]);
+
+  const slides = [
+    {
+      image: "/car 0.jpg",
+      tagline: "SMART ROUTE OPTIMIZATION",
+      titleTop: "AI-POWERED",
+      titleBottom: "LOGISTICS EFFICIENCY.",
+      description:
+        "Reduce fuel costs and improve delivery efficiency across Ethiopia with our advanced AI routing engine.",
+      stats: [
+        { value: "35%", label: "Average fuel cost reduction." },
+        { value: "50%", label: "Faster route planning with AI." },
+        { value: "100%", label: "Coverage across major routes." },
+      ],
+    },
+    {
+      image: "/car 0.jpg",
+      tagline: "REAL-TIME FLEET CONTROL",
+      titleTop: "MONITOR. OPTIMIZE.",
+      titleBottom: "DOMINATE.",
+      description:
+        "Gain complete visibility over your fleet operations with real-time tracking and comprehensive analytics.",
+      stats: [
+        { value: "10K+", label: "Vehicles actively tracked" },
+        { value: "99.9%", label: "System uptime guarantee" },
+        { value: "24/7", label: "Live support & monitoring" },
+      ],
+    },
+    {
+      image: "/car 0.jpg",
+      tagline: "PREDICTIVE INTELLIGENCE",
+      titleTop: "THE FUTURE",
+      titleBottom: "DRIVES WITH INSA.",
+      description:
+        "Leverage predictive data to foresee maintenance needs and optimize fleet performance before issues arise.",
+      stats: [
+        { value: "30%", label: "Reduced operational costs" },
+        { value: "98%", label: "On-time delivery rate" },
+        { value: "1M+", label: "Kilometers optimized monthly" },
+      ],
+    },
+  ];
+
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const nextSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  }, [slides.length]);
+
+  const prevSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  }, [slides.length]);
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const interval = setInterval(nextSlide, 8000);
+    return () => clearInterval(interval);
+  }, [nextSlide]);
 
   // Loading animation
   useEffect(() => {
@@ -801,8 +868,49 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <Footer />
+        <section className="py-20 bg-slate-950">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-2xl p-12 shadow-inner border border-blue-700/30"
+            >
+              <h2 className="text-4xl font-bold text-white mb-4">
+                Ready to Transform Your Fleet?
+              </h2>
+              <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+                Join thousands of businesses optimizing their operations with
+                our platform.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <motion.button
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: "0 0 25px rgba(56, 189, 248, 0.6)",
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push("/tms/admin")}
+                  className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg shadow-lg transition-all"
+                >
+                  Start Free Trial
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push("/tms/contact")}
+                  className="px-8 py-3 bg-slate-800/50 border-2 border-slate-700 text-gray-300 font-bold rounded-lg shadow-lg hover:bg-slate-700/50 hover:border-cyan-400 transition-colors"
+                >
+                  Schedule Demo
+                </motion.button>
+              </div>
+            </motion.div>
+          </div>
+        </section>
       </main>
+
+      <Footer />
     </>
   );
 }
